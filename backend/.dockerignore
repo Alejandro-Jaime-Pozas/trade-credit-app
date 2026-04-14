@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.docker
+
+# Python
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*/*/*/__pycache__/
+*/*/*/*/__pycache__/
+*/*/*/*/*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env/
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/

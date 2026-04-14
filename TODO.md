@@ -1,0 +1,9 @@
+- add new models, replace old ones
+  - User
+	- Membership (RBA)
+	- Organization (company user belongs to)
+	- Trade_credit_application
+	- Trade_credit_account (if application approved)
+	- Document (files)
+	- Customer (company's customers)
+    - Contact (customer - person to contact)

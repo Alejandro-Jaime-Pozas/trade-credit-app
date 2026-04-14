@@ -1,0 +1,29 @@
+from typing import Iterable
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+
+class ApplicationStatus(models.TextChoices):
+    """
+    Account application status like pending, approved, rejected.
+    Items are in order of sequence.
+    """
+    PENDING_USER_DATA_UPLOAD = 'pending_user_data_upload', 'Pending User Data Upload'  # User missing required files to process internally
+    PENDING_INTERNAL_REVIEW = 'pending_internal_review', 'Pending Internal Review'  # User has uploaded all required data, running internal gpt analysis process
+    PENDING_USER_AGREEMENT = 'pending_user_agreement', 'Pending User Agreement'  # gpt analysis process approved the loan, user must sign the agreement
+    APPROVED = 'approved', 'Approved'  # User has signed the agreement
+    REJECTED = 'rejected', 'Rejected'  # gpt analysis process rejected the loan
+    USER_REJECTED = 'user_rejected', 'User Rejected'  # User rejected the loan terms
+
+
+class LoanVerdictStatus(models.TextChoices):
+    """ The loan verdict response: approved or rejected. """
+    APPROVED = 'approved', 'Approved'
+    REJECTED = 'rejected', 'Rejected'
+
+
+class CreditVerdictStatus(models.TextChoices):
+    """ Buro De Credito score: passed or failed. """
+    PASSED = 'passed', 'Passed'
+    FAILED = 'failed', 'Failed'
+    PENDING = 'pending', 'Pending'
