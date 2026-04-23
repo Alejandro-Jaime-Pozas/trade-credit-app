@@ -32,7 +32,8 @@ Postgres DB accessed via Django/Python ORM
   - role
   - customer_id
 - CreditCase
-  - status
+  - status (missing docs, pending ai verdict, pending final verdict, complete, etc)
+  - verdict (approved, rejected, pending)
   - requested_amount
   - requested_term_days
   - assigned_to FK User
@@ -42,18 +43,38 @@ Postgres DB accessed via Django/Python ORM
   - verdict_at
 - UploadDocument
   - file
+  - file_type (CSF, Acta, etc)
   - uploaded_at
   - uploaded_by FK User
-- UploadDocumentLink
-  - document_type
   - customer FK null
-  - creditcase FK null
+  - credit_case FK null
   - document FK
+- DocumentDataExtract
+  - raw_json
+  - confidence_score
+  - model_version (AI model used to extract data)
+  - created_at
+  - upload_document FK null
 - Label
+  - name (ie. sucursal)
+  - value (ie. Mty Nte)
+  - credit_case FK null
+  - customer FK null
 
 ## v2 New Models
 
 - Membership
+  - role
+  - user FK
+  - organization FK
+- CreditVerdictAI
+  - verdict (approved, rejected, pending, etc)
+  - status (pending, processed) # will include this separate to verdict since this measures completion
+  - explanation
+  - model_version (AI model ver used)
+  - created_at
+  - processed_at
+  - credit_case FK
 
 
 # ERD
