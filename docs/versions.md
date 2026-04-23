@@ -1,6 +1,29 @@
 # v1
 
-## Workflow
+## Scope
+
+- business customers only, implement personas fisicas later
+- no RBAC yet, any new user is admin by default
+- no credit evaluation analysis yet
+- user should be able to:
+  - create acct
+  - log in
+  - log out
+  - add/update/delete customer
+  - add/update/delete credit case
+  - upload files to customer or credit case
+  - view dashboard of credit cases, filter/order by status, days since creation
+
+
+## Signup Workflow
+
+- user: types email, pwd
+- backend: new user created
+- user: clicks log in, types credentials
+- backend: logs user in
+- backend: sets the organization to the user's email for now (implement later)
+
+## Credit Case Workflow
 
 - user creates customer profile
   - fields
@@ -13,6 +36,7 @@
 - backend analyzes docs, extracts data, identifies doc type, extracts relevant required data, checks if file and data requirements satisfied
 - user can change credit case/record status (missing data, pending credit review, pending authorization)
 
+
 ## Auth and Permissions
 
 - user default is admin for now, no RBAC for now (implement later)
@@ -20,6 +44,7 @@
   - plain email (implement Google auth, Microsoft auth later)
 - user logs in
 - user logs out
+
 
 ## Views
 
