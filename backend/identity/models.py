@@ -52,6 +52,9 @@ class User(AbstractUser):
 
     # keep username from AbstractUser (don’t set username = None)
     email = models.EmailField(unique=True, blank=False)
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []  # email is used as the username, so no extra required fields
@@ -95,7 +98,8 @@ class OrganizationManager(models.Manager):
 class Organization(models.Model):
     """Organization model based on user email domain."""
     name = models.CharField(max_length=100)
-    email_domain = models.CharField(max_length=255, unique=True)
+    email_domain = models.CharField(max_length=300, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     users = models.ManyToManyField(
         User,
         related_name='organizations',
