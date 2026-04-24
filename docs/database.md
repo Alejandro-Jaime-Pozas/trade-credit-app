@@ -10,11 +10,12 @@ Postgres DB accessed via Django/Python ORM
   - last_name
   - email
   - created_at
-  - organization m2m
+  - organizations m2m
 - Organization
   - name
-  - domain
+  - email_domain
   - created_at
+  - users m2m
 - Customer
   - name
   - legal_name
@@ -31,6 +32,9 @@ Postgres DB accessed via Django/Python ORM
   - phone
   - role
   - customer_id
+  - created_at
+  - updated_at
+  - created_by FK User
 - CreditCase
   - status (missing docs, pending ai verdict, pending final verdict, complete, etc)
   - verdict (approved, rejected, pending)

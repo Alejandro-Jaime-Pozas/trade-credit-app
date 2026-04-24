@@ -46,14 +46,14 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     """
-    User model that logs in with email but keeps username under the hood.
+    User model that uses email as login but keeps username under the hood.
     Includes Organization m2m.
     """
 
     # keep username from AbstractUser (don’t set username = None)
     email = models.EmailField(unique=True, blank=False)
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
+    first_name = models.CharField(max_length=50, null=True, blank=True)
+    last_name = models.CharField(max_length=50, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "email"
