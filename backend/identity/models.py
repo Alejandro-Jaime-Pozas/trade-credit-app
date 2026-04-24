@@ -47,7 +47,7 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     """
     User model that logs in with email but keeps username under the hood.
-    Includes Company m2m.
+    Includes Organization m2m.
     """
 
     # keep username from AbstractUser (don’t set username = None)
@@ -62,11 +62,11 @@ class User(AbstractUser):
         return f"<User|id={self.pk}, email={self.email}, username={self.username}>"
 
 
-class CompanyManager(models.Manager):
-    """ Manager for Company model. Pass in user email to get or create company. """
+class OrganizationManager(models.Manager):
+    """ Manager for Organization model. Pass in user email to get or create organization. """
 
     # Pass in the user obj to check email, format as domain,
-    # check if exists in companies, link to user if so, else create
+    # check if exists in organizations, link to user if so, else create
     def _get_or_create_from_user(self, user, **extra_fields):
 
         # Extract the email domain from user email
@@ -75,34 +75,34 @@ class CompanyManager(models.Manager):
         email_domain = email.split('@')[-1].strip().lower() if '@' in email else None
 
         if not email_domain:
-            raise ValueError('Valid User email is required to determine company.')
+            raise ValueError('Valid User email is required to determine organization.')
         # TODO replace this with hunter.io API functionality from integrations module...
         name = email_domain.split('.')[0].title()
 
-        # Get or create the company
-        company, created = Company.objects.get_or_create(
+        # Get or create the organization
+        organization, created = Organization.objects.get_or_create(
             email_domain=email_domain,
             name=name,
             **extra_fields,
         )
 
-        # Link company to the user
-        user.companies.add(company)
+        # Link organization to the user
+        user.organizations.add(organization)
 
-        return company, created
+        return organization, created
 
 
-class Company(models.Model):
-    """Company model based on user email domain."""
+class Organization(models.Model):
+    """Organization model based on user email domain."""
     name = models.CharField(max_length=256)
     email_domain = models.CharField(max_length=512, unique=True)
     users = models.ManyToManyField(
         User,
-        related_name='companies',
+        related_name='organizations',
         blank=True,
     )
 
-    objects = CompanyManager()
+    objects = OrganizationManager()
 
     def __str__(self):
-        return f"<Company|id={self.pk}, email_domain={self.email_domain}>"
+        return f"<Organization|id={self.pk}, email_domain={self.email_domain}>"

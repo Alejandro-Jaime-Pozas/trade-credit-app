@@ -15,12 +15,12 @@ from processing.models import LoanAgreementDocument, LoanVerdict
 
 class LoanAgreementPDFGenerator:
     """
-    Loan Agreement pdf generator class based on user/company loan data.
+    Loan Agreement pdf generator class based on user/organization loan data.
 
     This acts as the FileField obj for the LoanAgreementDocument model.
 
     The loan data is extracted from the LoanVerdict obj and
-    User or Company data.
+    User or Organization data.
     """
 
     def __init__(

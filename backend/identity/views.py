@@ -1,10 +1,10 @@
 from rest_framework.viewsets import ModelViewSet
 from .serializers import (
-    CompanySerializer,
+    OrganizationSerializer,
     UserSerializer,
 )
 from .models import (
-    Company,
+    Organization,
     User,
 )
 
@@ -16,8 +16,8 @@ class UserViewSet(ModelViewSet):
     # custom code for filtering queryset data...
 
 
-class CompanyViewSet(ModelViewSet):
-    queryset = Company.objects.all()
-    serializer_class = CompanySerializer
+class OrganizationViewSet(ModelViewSet):
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationSerializer
     # permission_classes = []
     # custom code for filtering queryset data to user...

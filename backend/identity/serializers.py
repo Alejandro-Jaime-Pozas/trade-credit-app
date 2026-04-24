@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
-    Company,
+    Organization,
     User,
 )
 
@@ -11,10 +11,10 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         write_only=True,
         style={'input_type': 'password'},
     )
-    companies = serializers.HyperlinkedRelatedField(
+    organizations = serializers.HyperlinkedRelatedField(
         many=True,
         read_only=True,
-        view_name='company-detail',
+        view_name='organization-detail',
     )
     class Meta:
         model = User
@@ -30,7 +30,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             'is_superuser',
             'is_staff',
             'is_active',
-            'companies',
+            'organizations',
         ]
         read_only_fields = [
             'is_superuser',
@@ -39,9 +39,9 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
 
     # custom code for create() or update() serializer methods
 
-class CompanySerializer(serializers.HyperlinkedModelSerializer):
+class OrganizationSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = Company
+        model = Organization
         fields = [
             'url',
             'id',

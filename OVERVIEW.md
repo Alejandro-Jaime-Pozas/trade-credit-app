@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This is a full stack web app that allows business users from a given company to manage their customers' applications for trade credit (net 30/60/90 days), as well as their ongoing trade credit accounts once a case is approved.
+This is a full stack web app that allows business users from a given organization to manage their customers' applications for trade credit (net 30/60/90 days), as well as their ongoing trade credit accounts once a case is approved.
 
 Managers can have a great overview of trade credit cases and accounts by tracking their progress and helping their team stay on track.
 

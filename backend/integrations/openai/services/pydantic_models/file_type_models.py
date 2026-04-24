@@ -104,7 +104,7 @@ class ConstanciaDeSituacionFiscalPydantic(DateBaseModel):
         min_length=12,
     )
     razon_social: str = Field(...,
-        description='Company name, known as denominacion or razon social.',
+        description='Organization name, known as denominacion or razon social.',
     )
 
 

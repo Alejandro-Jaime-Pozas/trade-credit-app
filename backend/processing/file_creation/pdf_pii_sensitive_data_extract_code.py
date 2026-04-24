@@ -53,7 +53,7 @@ ADDRESS_LINE_REGEX = re.compile(
     r"(?im)^\s*(Domicilio|Dirección)\s+(.+)$"
 )
 
-# Company name cues (persona moral)
+# Organization name cues (persona moral)
 RAZON_SOCIAL_REGEX = re.compile(r"(?im)^\s*Raz[oó]n Social\s+(.+)$")
 # Generic “Domus, S.A. de C.V.” style capture at document header lines:
 SA_DE_CV_LINE_REGEX = re.compile(r"(?im)^\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9\.\,\-\& ]+S\.A\. de C\.V\.)\s*$")
@@ -77,15 +77,15 @@ def find_pii(text: str) -> List[PiiMatch]:
         full = m.group(0)
         matches.append(PiiMatch(label="ADDRESS_LINE", value=full, span=(m.start(), m.end())))
 
-    # Company name lines in buro report
+    # Organization name lines in buro report
     for m in RAZON_SOCIAL_REGEX.finditer(text):
         full = m.group(0)
-        matches.append(PiiMatch(label="COMPANY_NAME_LINE", value=full, span=(m.start(), m.end())))
+        matches.append(PiiMatch(label="ORGANIZATION_NAME_LINE", value=full, span=(m.start(), m.end())))
 
     # “S.A. de C.V.” entity name lines (financial statements often show this)
     for m in SA_DE_CV_LINE_REGEX.finditer(text):
         full = m.group(1)
-        matches.append(PiiMatch(label="COMPANY_NAME", value=full, span=(m.start(1), m.end(1))))
+        matches.append(PiiMatch(label="ORGANIZATION_NAME", value=full, span=(m.start(1), m.end(1))))
 
     return matches
 
@@ -93,7 +93,7 @@ def find_pii(text: str) -> List[PiiMatch]:
 def redact_text(text: str, extra_replacements: Optional[Dict[str, str]] = None) -> str:
     """
     Redacts PII-like items. Also supports extra replacements for domain-specific
-    items (e.g., known company name string, lender names, etc.)
+    items (e.g., known organization name string, lender names, etc.)
     """
     pii = find_pii(text)
 
@@ -286,11 +286,11 @@ def build_gpt_safe_package(
     inc_text = extract_text_pdf(income_pdf)
     buro_text = extract_text_pdf(buro_pdf)
 
-    # Optional: add extra replacements for known strings (company names, lenders)
+    # Optional: add extra replacements for known strings (organization names, lenders)
     # In a real system you’d populate these programmatically from detected “Razón Social”, etc.
     extra = {
-        "Domus, S.A. de C.V.": "[REDACTED_COMPANY]",
-        "MANUFACTURAS DEL CENTRO, S.A. DE C.V.": "[REDACTED_COMPANY]",
+        "Domus, S.A. de C.V.": "[REDACTED_ORGANIZATION]",
+        "MANUFACTURAS DEL CENTRO, S.A. DE C.V.": "[REDACTED_ORGANIZATION]",
         # lender names are not “PII” but are often treated as sensitive in bureau contexts
         "BBVA México": "[REDACTED_LENDER]",
         "Santander": "[REDACTED_LENDER]",

@@ -1,5 +1,5 @@
 """
 Identity includes:
     User
-    Company
+    Organization
 """

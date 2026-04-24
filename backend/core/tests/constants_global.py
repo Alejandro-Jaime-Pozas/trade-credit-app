@@ -20,7 +20,7 @@ TEST_USER_DATA = {
     'email': 'def_test83725y3hhgdsy82393@example.com',
 }
 
-TEST_COMPANY_DATA = {
+TEST_ORGANIZATION_DATA = {
     'name': 'Def_example',
     'email_domain': 'def_example.com',
 }
@@ -107,7 +107,7 @@ TEST_LOAN_VERDICT_AI_DATA = {
     'payment_amount': 76_783.90,
     'term_months': 60,
     'analysis_summary': """
-        Decision rationale: The 12-month cash flow for Domus shows consistent positive net cash flow (Total inflows MXN 4,455,000 vs Total outflows MXN 3,220,000; Net cash flow MXN 1,235,000) with an ending cash balance of MXN 1,385,000, indicating ample liquidity to support modest debt service. The combination of solid liquidity, improving cash generation, and a debt service burden within existing cash flow capacity supports approval under these terms, as long as the company keeps its past track record and maintains it's cashflow position or improves it.
+        Decision rationale: The 12-month cash flow for Domus shows consistent positive net cash flow (Total inflows MXN 4,455,000 vs Total outflows MXN 3,220,000; Net cash flow MXN 1,235,000) with an ending cash balance of MXN 1,385,000, indicating ample liquidity to support modest debt service. The combination of solid liquidity, improving cash generation, and a debt service burden within existing cash flow capacity supports approval under these terms, as long as the organization keeps its past track record and maintains it's cashflow position or improves it.
     """,
 }
 

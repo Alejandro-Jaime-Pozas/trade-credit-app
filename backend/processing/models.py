@@ -41,7 +41,7 @@ class AccountApplication(models.Model):
         max_length=100,
         null=True,
         blank=True,
-        help_text='Name for the account, includes company and/or account type',
+        help_text='Name for the account, includes organization and/or account type',
     )
     type = models.CharField(
         max_length=50,
@@ -150,14 +150,14 @@ class LoanAccountApplication(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text='Trailing twelve months company revenue.',
+        help_text='Trailing twelve months organization revenue.',
     )
     annual_expenses_ttm = models.DecimalField(
         max_digits=21,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text='Trailing twelve months company expenses.',
+        help_text='Trailing twelve months organization expenses.',
     )
     account_application = models.OneToOneField(
         AccountApplication,
@@ -193,14 +193,14 @@ class LoanVerdict(models.Model):
         decimal_places=4,
         null=True,
         blank=True,
-        help_text='The annual interest rate to be paid by the user or company.',
+        help_text='The annual interest rate to be paid by the user or organization.',
     )
     payment = models.DecimalField(
         max_digits=21,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text='The monthly payment amount to be made by the user or company. ' \
+        help_text='The monthly payment amount to be made by the user or organization. ' \
                     'Includes principal + interest.',
     )
     term = models.SmallIntegerField(
@@ -318,21 +318,21 @@ class LoanVerdictAI(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text='Total loan amount to grant to the user or company.',
+        help_text='Total loan amount to grant to the user or organization.',
     )
     annual_interest_rate = models.DecimalField(
         max_digits=5,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text='The annual interest rate to be paid by the user or company.',
+        help_text='The annual interest rate to be paid by the user or organization.',
     )
     payment_amount = models.DecimalField(
         max_digits=21,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text='The monthly payment amount to be made by the user or company. ' \
+        help_text='The monthly payment amount to be made by the user or organization. ' \
                     'Includes principal + interest.',
     )
     term_months = models.SmallIntegerField(

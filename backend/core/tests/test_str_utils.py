@@ -9,16 +9,16 @@ class TestStrUtils(SimpleTestCase):
     """ Test str_utils.py file. """
 
     inputs = {
-        'company_name': 'def company',
+        'organization_name': 'def organization',
         'type_name': 'checking',
     }
 
-    # test company_name and type_name included
-    def test_company_and_type_name_success(self):
+    # test organization_name and type_name included
+    def test_organization_and_type_name_success(self):
         clean_name = clean_account_name(**self.inputs)
         self.assertEqual(
             clean_name,
-            f'''{self.inputs['company_name']} - Sol {self.inputs['type_name']}'''.title()
+            f'''{self.inputs['organization_name']} - Sol {self.inputs['type_name']}'''.title()
         )
 
     # test no type_name raises error
@@ -28,10 +28,10 @@ class TestStrUtils(SimpleTestCase):
         with self.assertRaises(ValueError):
             clean_account_name(**inputs_copy)
 
-    # test no company_name returns type_name only in str
-    def test_no_company_success(self):
+    # test no organization_name returns type_name only in str
+    def test_no_organization_success(self):
         inputs_copy = self.inputs.copy()
-        inputs_copy.pop('company_name')
+        inputs_copy.pop('organization_name')
         clean_name = clean_account_name(**inputs_copy)
         self.assertEqual(
             clean_name,

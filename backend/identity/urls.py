@@ -1,9 +1,9 @@
 from rest_framework import routers
 
-from core.constants import COMPANY_BASENAME, USER_BASENAME
+from core.constants import ORGANIZATION_BASENAME, USER_BASENAME
 
 from .views import (
-    CompanyViewSet,
+    OrganizationViewSet,
     UserViewSet,
 )
 
@@ -15,8 +15,8 @@ router.register(
     basename=USER_BASENAME,
     )
 router.register(
-    'company',
-    CompanyViewSet,
-    basename=COMPANY_BASENAME,
+    'organization',
+    OrganizationViewSet,
+    basename=ORGANIZATION_BASENAME,
     )
 urlpatterns = router.urls

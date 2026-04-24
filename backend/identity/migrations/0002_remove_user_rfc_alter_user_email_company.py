@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             field=models.EmailField(max_length=254, unique=True),
         ),
         migrations.CreateModel(
-            name='Company',
+            name='Organization',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('users', models.ManyToManyField(related_name='companies', to=settings.AUTH_USER_MODEL)),

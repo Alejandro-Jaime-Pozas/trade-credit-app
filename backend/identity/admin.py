@@ -1,11 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import User, Company
+from .models import User, Organization
 
-class CompanyAdmin(admin.ModelAdmin):
+class OrganizationAdmin(admin.ModelAdmin):
     pass
 
 # Register your models here.
 admin.site.register(User, UserAdmin)
-admin.site.register(Company, CompanyAdmin)
+admin.site.register(Organization, OrganizationAdmin)

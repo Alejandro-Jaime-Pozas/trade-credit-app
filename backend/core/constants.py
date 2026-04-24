@@ -58,7 +58,7 @@ TRANSACTION_BASENAME='transaction'
 
 ## identity
 USER_BASENAME='user'
-COMPANY_BASENAME='company'
+ORGANIZATION_BASENAME='organization'
 
 ## processing
 ACCOUNT_APPLICATION_BASENAME='accountapplication'

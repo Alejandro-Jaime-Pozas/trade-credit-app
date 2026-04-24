@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from core.tests.obj_instances_global import (
-    test_create_company_with_user_inst,
+    test_create_organization_with_user_inst,
 )
 from core.tests.constants_global import (
     TEST_USER_DATA,
@@ -17,19 +17,19 @@ class TestUserModel(TestCase):
 
     user_data = TEST_USER_DATA
 
-    # test create user, email = username, company = default company
-    # TIP: company is m2m, so relation is not enforced, no need to check for null relations
+    # test create user, email = username, organization = default organization
+    # TIP: organization is m2m, so relation is not enforced, no need to check for null relations
     def testtest_create_user_inst(self):
-        company = test_create_company_with_user_inst()
+        organization = test_create_organization_with_user_inst()
         user = User.objects.create_user(
             **self.user_data
         )
-        user.companies.add(company)
-        user_company = user.companies.get(id=company.id)
+        user.organizations.add(organization)
+        user_organization = user.organizations.get(id=organization.id)
         self.assertIsInstance(user, User)
         self.assertEqual(user.email, self.user_data['email'])
         self.assertEqual(user.email, user.username)
-        self.assertEqual(user_company, company)
+        self.assertEqual(user_organization, organization)
 
     # test user email field must be included to create user
     def test_user_email_required(self):

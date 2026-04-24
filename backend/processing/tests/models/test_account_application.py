@@ -9,7 +9,7 @@ from core.tests.constants_global import (
 )
 from core.tests.obj_instances_global import (
     test_create_UploadDocument_inst,
-    test_create_user_inst_with_company
+    test_create_user_inst_with_organization
 )
 from core.str_utils import clean_account_name
 
@@ -25,7 +25,7 @@ class TestAccountApplicationModel(TestCase):
         acct_app = AccountApplication.objects.create(
             **self.account_application_data,
         )
-        user = test_create_user_inst_with_company()
+        user = test_create_user_inst_with_organization()
         acct_app.users.add(user)
         self.assertIsInstance(acct_app, AccountApplication)
         self.assertEqual(acct_app.status, self.account_application_data['status'])

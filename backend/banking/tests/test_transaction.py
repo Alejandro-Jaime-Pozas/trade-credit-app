@@ -22,7 +22,7 @@ class TestTransactionModel(TestCase):
     #   - created_at
     #   - FK user_id
     #   - FK account_id
-    #   - FK company_id
+    #   - FK organization_id
 
     trx_data = TEST_TRANSACTION_DATA
 
@@ -32,13 +32,13 @@ class TestTransactionModel(TestCase):
     def setUpTestData(cls):
         cls.account = test_create_account_inst()
         cls.user = cls.account.users.first()
-        cls.company = cls.user.companies.first()
+        cls.organization = cls.user.organizations.first()
 
     # test create transaction
     def test_create_transaction(self):
         trx = Transaction.objects.create(
             account=self.account,
-            company=self.company,
+            organization=self.organization,
             user=self.user,
             **self.trx_data,
         )
@@ -50,13 +50,13 @@ class TestTransactionModel(TestCase):
     def test_account_required(self):
         with self.assertRaises(IntegrityError):
             Transaction.objects.create(
-                company=self.company,
+                organization=self.organization,
                 user=self.user,
                 **self.trx_data,
             )
 
-    # test FK to company optional
-    def test_company_optional(self):
+    # test FK to organization optional
+    def test_organization_optional(self):
         Transaction.objects.create(
             account=self.account,
             user=self.user,
@@ -67,7 +67,7 @@ class TestTransactionModel(TestCase):
     def test_user_required(self):
         with self.assertRaises(IntegrityError):
             Transaction.objects.create(
-                company=self.company,
+                organization=self.organization,
                 account=self.account,
                 **self.trx_data,
             )

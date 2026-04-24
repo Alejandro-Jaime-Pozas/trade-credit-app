@@ -5,7 +5,7 @@ from banking.constants import ACCOUNT_NUMBER_LENGTH
 
 
 def clean_account_name(
-    company_name: str = None,
+    organization_name: str = None,
     type_name: str = None,
 ) -> str:
     """Returns a clean name based on input values."""
@@ -13,8 +13,8 @@ def clean_account_name(
     if not type_name:
         raise ValueError('type_name is required.')
 
-    elif company_name and type_name:
-        return f'{company_name} - Sol {type_name}'.title()
+    elif organization_name and type_name:
+        return f'{organization_name} - Sol {type_name}'.title()
 
     elif type_name:
         return f'Sol {type_name}'.title()

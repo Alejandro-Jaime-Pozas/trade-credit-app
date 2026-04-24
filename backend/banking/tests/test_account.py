@@ -7,7 +7,7 @@ from banking.constants import (
 )
 from core.tests.obj_instances_global import (
     test_create_account_application_inst,
-    test_create_user_inst_with_company,
+    test_create_user_inst_with_organization,
 )
 from core.tests.constants_global import (
     TEST_ACCOUNT_DATA,
@@ -30,7 +30,7 @@ class TestAccountModel(TestCase):
             account_application=acct_app,
             **self.acct_data,
         )
-        acct.users.add(user)  # user with company. don't remove, since acct can have many users while acct_app prob just one for the application process..
+        acct.users.add(user)  # user with organization. don't remove, since acct can have many users while acct_app prob just one for the application process..
 
         self.assertIsInstance(acct, Account)
         self.assertEqual(acct.number, self.acct_data['number'])

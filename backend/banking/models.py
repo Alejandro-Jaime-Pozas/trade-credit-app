@@ -17,7 +17,7 @@ from .constants import (
     DEBIT_CARD_NUMBER_LENGTH,
 )
 from identity.models import (
-    Company,
+    Organization,
     User,
 )
 from .choices_for_models import (
@@ -57,7 +57,7 @@ class Account(models.Model):
         decimal_places=2,
         default=0.00,
     )
-    name = models.CharField(  # TODO missing name implementation, need django signals since m2m to users.companies
+    name = models.CharField(  # TODO missing name implementation, need django signals since m2m to users.organizations
         max_length=100,
         null=True,
         blank=True,  # best for analytics vs default=''
@@ -74,7 +74,7 @@ class Account(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        
+
         is_new = self.pk is None
 
         if self.type and not self.name:
@@ -208,7 +208,7 @@ class Transaction(models.Model):
         amount
         created_at
         FK account
-        FK company
+        FK organization
         FK user
     """
 
@@ -224,8 +224,8 @@ class Transaction(models.Model):
         on_delete=models.CASCADE,
         related_name='transactions',
     )
-    company = models.ForeignKey(
-        Company,
+    organization = models.ForeignKey(
+        Organization,
         on_delete=models.CASCADE,
         related_name='transactions',
         null=True,
@@ -240,4 +240,4 @@ class Transaction(models.Model):
         return \
             f'<Transaction|id={self.id}, created_at={self.created_at}, ' \
             f'amount={self.amount}, account={self.account}, ' \
-            f'company={self.company}, user={self.user}>'
+            f'organization={self.organization}, user={self.user}>'

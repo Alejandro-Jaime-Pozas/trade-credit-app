@@ -21,7 +21,7 @@ from banking.models import (
 )
 from identity.models import (
     User,
-    Company,
+    Organization,
 )
 
 
@@ -32,8 +32,8 @@ _MOD_USER_DATA = {
     'email': 'mod_test83725y3hhgdsy82393@example.com',
 }
 
-# Company
-_MOD_COMPANY_DATA = {
+# Organization
+_MOD_ORGANIZATION_DATA = {
     'name': 'Mod_example',
     'email_domain': 'mod_example.com',
 }
@@ -116,7 +116,7 @@ def test_create_user_inst(email: str = _MOD_USER_DATA['email']):
     )
     return user
 
-def test_create_user_inst_with_company(email: str = _MOD_USER_DATA['email']):
+def test_create_user_inst_with_organization(email: str = _MOD_USER_DATA['email']):
     """
     Creates a default user with these values for testing:
 
@@ -128,26 +128,26 @@ def test_create_user_inst_with_company(email: str = _MOD_USER_DATA['email']):
     user = User.objects.create_user(
         **_MOD_USER_DATA,
     )
-    company = Company.objects.create(
-        **_MOD_COMPANY_DATA,
+    organization = Organization.objects.create(
+        **_MOD_ORGANIZATION_DATA,
     )
-    user.companies.add(company)
+    user.organizations.add(organization)
     return user
 
 
-# Company
+# Organization
 
-def test_create_company_with_user_inst():
+def test_create_organization_with_user_inst():
     """
     'name': 'Mod_example',
     'email_domain': 'mod_example.com',
     """
-    company = Company.objects.create(
-        **_MOD_COMPANY_DATA,
+    organization = Organization.objects.create(
+        **_MOD_ORGANIZATION_DATA,
     )
     user = test_create_user_inst()
-    company.users.add(user)
-    return company
+    organization.users.add(user)
+    return organization
 
 
 # Account
@@ -166,7 +166,7 @@ def test_create_account_inst():
         **_MOD_ACCOUNT_DATA,
     )
     user = app_acct.users.first()
-    acct.users.add(user)  # user with company. don't remove, since acct can have many users while acct_app prob just one for the application process..
+    acct.users.add(user)  # user with organization. don't remove, since acct can have many users while acct_app prob just one for the application process..
     return acct
 
 
@@ -194,7 +194,7 @@ def test_create_account_application_inst():
     acct_app = AccountApplication.objects.create(
         **_MOD_ACCOUNT_APPLICATION_DATA,
     )
-    user = test_create_user_inst_with_company()  # user with company
+    user = test_create_user_inst_with_organization()  # user with organization
     acct_app.users.add(user)
     return acct_app
 
