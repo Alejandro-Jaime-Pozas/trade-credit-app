@@ -2,9 +2,6 @@
 
 ## Scope
 
-- business customers only, implement personas fisicas later
-- no RBAC yet, any new user is admin by default
-- no credit evaluation analysis yet
 - user should be able to:
   - create acct
   - log in
@@ -13,6 +10,13 @@
   - add/update/delete credit case
   - upload files to customer or credit case
   - view dashboard of credit cases, filter/order by status, days since creation
+
+
+## Constraints
+
+- no RBAC yet, any new user is admin by default
+- no credit evaluation analysis yet
+- business customers only, implement personas fisicas later
 
 
 ## Signup Workflow
@@ -68,3 +72,15 @@
 - credit case detail view (credit case already created)
   - user can update fields, files, requirements for completion
     - files: CSF, Acta Const, Bank Stmts, Financial Stmts, Poderes Notariados, ID oficial, comp domicilio
+
+
+User should be able to define requirements…at least in version one to speficy from given list of available requirements..
+	- Acta Constitutiva
+	- Constancia de Situacion Fiscal
+	- Poder Notarial de Apoderados
+	- ID Oficial (INE, Pasaporte, Licencia)
+	- Estado de Cuenta Bancario
+	- Balance General
+	- Estado de Flujo de Efectivo
+	- Estado de Resultados
+  - Comprobante de Domicilio
