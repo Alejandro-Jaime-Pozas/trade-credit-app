@@ -75,6 +75,8 @@
 
 
 User should be able to define requirements…at least in version one to speficy from given list of available requirements..
+
+could do this a bit manual at first, where user just selects what's strictly required vs optional..let user set their preference as a default, while also enabling them to add/remove reqs for specific customers as needed.
 	- Acta Constitutiva
 	- Constancia de Situacion Fiscal
 	- Poder Notarial de Apoderados

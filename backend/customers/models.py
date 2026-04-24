@@ -25,7 +25,7 @@ class Customer(models.Model):
     )
     rfc = models.CharField(
         max_length=RFC_PERSONA_MORAL_LENGTH,
-        validators=[MinLengthValidator(RFC_PERSONA_MORAL_LENGTH)],
+        validators=[MinLengthValidator(RFC_PERSONA_MORAL_LENGTH)],  # TODO change when persona fisica is implemented
         unique=True,
         null=True,
         blank=True,

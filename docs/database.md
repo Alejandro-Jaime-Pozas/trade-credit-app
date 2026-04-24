@@ -31,7 +31,7 @@ Postgres DB accessed via Django/Python ORM
   - email
   - phone
   - role
-  - customer_id
+  - customer FK
   - created_at
   - updated_at
   - created_by FK User
@@ -40,11 +40,12 @@ Postgres DB accessed via Django/Python ORM
   - verdict (approved, rejected, pending)
   - requested_amount
   - requested_term_days
-  - assigned_to FK User
   - created_at
   - updated_at
   - submitted_at
   - verdict_at
+  - assigned_to FK User
+  - customer FK
 - UploadDocument
   - file
   - file_type (CSF, Acta, etc)
@@ -79,6 +80,13 @@ Postgres DB accessed via Django/Python ORM
   - created_at
   - processed_at
   - credit_case FK
+- CreditAccount (Once credit case complete and approved)
+  - amount
+  - term_days
+  - assigned_to FK User
+  - created_at
+  - updated_at
+  - customer FK
 
 
 # ERD
