@@ -1,48 +1,53 @@
-# TODO fix growth trend percent since doesn't take into acct the growth % as a % of start/end cashflow...cashflow can be trending -5%
-def get_growth_trend_metrics(cashflow_series: list[float]) -> dict[str, float]:
-    """
-    Fit a straight line to monthly cash flow:
-        cashflow = intercept + slope * month_index
+rev_gen = reversed([1,2,3])
+for v in rev_gen:
+    print(v)
 
-    Returns:
-      - trend_slope: currency change per month
-      - trend_percent_per_month: slope / mean cash flow
-    """
 
-    # TODO if cashflow declining and dscr < 1 any point during the forecast loan term, reject loan
+# # TODO fix growth trend percent since doesn't take into acct the growth % as a % of start/end cashflow...cashflow can be trending -5%
+# def get_growth_trend_metrics(cashflow_series: list[float]) -> dict[str, float]:
+#     """
+#     Fit a straight line to monthly cash flow:
+#         cashflow = intercept + slope * month_index
 
-    n = len(cashflow_series)
-    if n < 3:
-        raise ValueError("At least 3 months are required to estimate a trend.")
+#     Returns:
+#       - trend_slope: currency change per month
+#       - trend_percent_per_month: slope / mean cash flow
+#     """
 
-    x_values = list(range(1, n + 1))
-    x_mean = sum(x_values) / n
-    y_mean = sum(cashflow_series) / n  # regression requires arithmetic mean
+#     # TODO if cashflow declining and dscr < 1 any point during the forecast loan term, reject loan
 
-    numerator = sum(
-        (x - x_mean) * (y - y_mean)
-        for x, y in zip(x_values, cashflow_series)
-    )
-    denominator = sum((x - x_mean) ** 2 for x in x_values)
+#     n = len(cashflow_series)
+#     if n < 3:
+#         raise ValueError("At least 3 months are required to estimate a trend.")
 
-    if denominator == 0:
-        raise ValueError("Cannot compute trend slope (denominator is zero).")
+#     x_values = list(range(1, n + 1))
+#     x_mean = sum(x_values) / n
+#     y_mean = sum(cashflow_series) / n  # regression requires arithmetic mean
 
-    slope = numerator / denominator  # currency per month ie.
+#     numerator = sum(
+#         (x - x_mean) * (y - y_mean)
+#         for x, y in zip(x_values, cashflow_series)
+#     )
+#     denominator = sum((x - x_mean) ** 2 for x in x_values)
 
-    if abs(y_mean) < 1e-9:
-        trend_percent_per_month = float("inf")
-    else:
-        trend_percent_per_month = slope / abs(y_mean)  # fraction per month ie.
+#     if denominator == 0:
+#         raise ValueError("Cannot compute trend slope (denominator is zero).")
 
-    return {
-        "trend_slope": slope,
-        "trend_percent_per_month": trend_percent_per_month,
-    }
+#     slope = numerator / denominator  # currency per month ie.
 
-c = [7000, 5000, -3000, -5000, 5000, 2000, -5000, 5000, -5000, 5000, -3000, 5000]
+#     if abs(y_mean) < 1e-9:
+#         trend_percent_per_month = float("inf")
+#     else:
+#         trend_percent_per_month = slope / abs(y_mean)  # fraction per month ie.
 
-print(get_growth_trend_metrics(c))
+#     return {
+#         "trend_slope": slope,
+#         "trend_percent_per_month": trend_percent_per_month,
+#     }
+
+# c = [7000, 5000, -3000, -5000, 5000, 2000, -5000, 5000, -5000, 5000, -3000, 5000]
+
+# print(get_growth_trend_metrics(c))
 
 
 # from core.constants import METRIC_CONFIG

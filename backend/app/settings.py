@@ -48,8 +48,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'corsheaders',
     # custom apps
     'banking',
     'core',
@@ -58,6 +56,8 @@ INSTALLED_APPS = [
     'processing',
     'storage',
     # other
+    'corsheaders',
+    'rest_framework',
     'drf_spectacular',
 ]
 
@@ -106,8 +106,8 @@ WSGI_APPLICATION = 'app.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv('POSTGRES_DB', 'sol_bank_db'),
-        "USER": os.getenv('POSTGRES_USER', 'sol_bank_user'),
+        "NAME": os.getenv('POSTGRES_DB', 'trade_credit_app_db'),
+        "USER": os.getenv('POSTGRES_USER', 'trade_credit_app_user'),
         "PASSWORD": os.getenv('POSTGRES_PASSWORD', 'changeme'),
         "HOST": os.getenv('POSTGRES_HOST', 'localhost'),  # should grab value from .env
         "PORT": os.getenv('POSTGRES_PORT', '5432'),
@@ -153,7 +153,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Media files TODO LATER change to s3 storage

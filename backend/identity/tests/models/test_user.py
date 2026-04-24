@@ -19,7 +19,7 @@ class TestUserModel(TestCase):
 
     # test create user, email = username, organization = default organization
     # TIP: organization is m2m, so relation is not enforced, no need to check for null relations
-    def testtest_create_user_inst(self):
+    def test_create_user_inst(self):
         organization = test_create_organization_with_user_inst()
         user = User.objects.create_user(
             **self.user_data

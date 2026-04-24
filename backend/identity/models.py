@@ -11,7 +11,7 @@ class UserManager(BaseUserManager):
             raise ValidationError("User must have an email address.")
 
         # Normalize (lowercase domain)
-        email = self.normalize_email(email)
+        email = self.normalize_email(email).lower()
 
         # 👇 Always set username = email by default
         username = extra_fields.pop("username", email)
@@ -94,8 +94,8 @@ class OrganizationManager(models.Manager):
 
 class Organization(models.Model):
     """Organization model based on user email domain."""
-    name = models.CharField(max_length=256)
-    email_domain = models.CharField(max_length=512, unique=True)
+    name = models.CharField(max_length=100)
+    email_domain = models.CharField(max_length=255, unique=True)
     users = models.ManyToManyField(
         User,
         related_name='organizations',
