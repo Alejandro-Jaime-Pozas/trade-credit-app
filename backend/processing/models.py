@@ -7,6 +7,7 @@ from core.constants import ALLOWED_FILE_EXTENSIONS, LOAN_FILE_TYPE_NAMES_REQUIRE
 from core.str_utils import clean_account_name
 from .choices_for_models import (
     ApplicationStatus,
+    CreditCaseStatus,
     CreditVerdictStatus,
     LoanVerdictStatus,
 )
@@ -18,6 +19,26 @@ from banking.choices_for_models import (
 )
 
 
+class CreditCase(models.Model):
+    """
+    A credit case, or solicitud de credito made by a customer seeking trade credit (net 30/60 days).
+
+    This is created after a user creates a customer, and is linked to that customer.
+
+    Files associated to credit case include financials, credit bureau files, and more moment-in-time files (CSF, Acta Constitutiva not included since they are more general to the customer and not specific to the credit case).
+    """
+
+    status = models.CharField(
+        max_length=50,
+        choices=CreditCaseStatus.choices,
+        default=CreditCaseStatus.MISSING_DOCUMENTS,
+        blank=True,
+        help_text='Credit case status like pending, approved, rejected. ' \
+                    'Items are in order of sequence.',
+    )
+
+
+### ========================================================
 class AccountApplication(models.Model):
     """
     Any application submitted to the bank by existing or
@@ -354,3 +375,4 @@ class LoanVerdictAI(models.Model):
     def __str__(self):
         return f'<LoanVerdictAI: id={self.id}, status={self.status}, ' \
                 f'loan_account_application={self.loan_account_application}>'
+### =========================================================

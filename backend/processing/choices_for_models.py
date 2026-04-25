@@ -3,6 +3,17 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+class CreditCaseStatus(models.TextChoices):
+    """
+    Credit case status like pending, approved, rejected.
+    Items are in order of sequence.
+    """
+    MISSING_DOCUMENTS = 'missing_documents', 'Missing Documents'  # Credit case created but not yet processed
+    PENDING_AI_VERDICT = 'pending_ai_verdict', 'Pending AI Verdict'  # Credit case is being processed by internal gpt analysis process
+    PENDING_FINAL_VERDICT = 'pending_final_verdict', 'Pending Final Verdict'  # gpt analysis process approved the loan, waiting for final human review
+    COMPLETE = 'complete', 'Complete'  # Credit case has been approved or rejected after human review
+
+
 class ApplicationStatus(models.TextChoices):
     """
     Account application status like pending, approved, rejected.
