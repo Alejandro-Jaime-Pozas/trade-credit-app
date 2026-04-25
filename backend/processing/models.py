@@ -2,14 +2,17 @@ from django.utils import timezone
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
+from customers.models import Customer
 from processing.services.account_application import check_aggregate_satisfied_month_intervals
 from core.constants import ALLOWED_FILE_EXTENSIONS, LOAN_FILE_TYPE_NAMES_REQUIRED
 from core.str_utils import clean_account_name
 from .choices_for_models import (
     ApplicationStatus,
+    CreditCaseFinalVerdict,
     CreditCaseStatus,
     CreditVerdictStatus,
     LoanVerdictStatus,
+    RequestedTermDays,
 )
 from identity.models import (
     User,
@@ -33,8 +36,57 @@ class CreditCase(models.Model):
         choices=CreditCaseStatus.choices,
         default=CreditCaseStatus.MISSING_DOCUMENTS,
         blank=True,
+        help_text='Credit case status like missing docs, pending ai verdict, etc. ' \
+                    'Items are in order of sequence.',
+    )
+    verdict = models.CharField(
+        max_length=50,
+        choices=CreditCaseFinalVerdict.choices,
+        default=CreditCaseFinalVerdict.PENDING,
+        blank=True,
         help_text='Credit case status like pending, approved, rejected. ' \
                     'Items are in order of sequence.',
+    )
+    requested_amount = models.DecimalField(
+        max_digits=32,
+        decimal_places=2,
+        default=0.00,
+        blank=True,
+        help_text='Requested credit line amount.',
+    )
+    requested_term_days = models.IntegerField(
+        choices=RequestedTermDays.choices,
+        null=True,
+        blank=True,
+        help_text='Requested net terms (days).',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.CharField(
+        auto_now=True,
+    )
+    submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Submitted for human approval timestamp.',
+    )
+    verdict_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Final verdict timestamp after human review.',
+    )
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_credit_cases',
+    )
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='credit_cases',
     )
 
 

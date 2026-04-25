@@ -14,6 +14,22 @@ class CreditCaseStatus(models.TextChoices):
     COMPLETE = 'complete', 'Complete'  # Credit case has been approved or rejected after human review
 
 
+class CreditCaseFinalVerdict(models.TextChoices):
+    """ Final verdict after human review: approved or rejected. """
+    PENDING = 'pending', 'Pending'
+    APPROVED = 'approved', 'Approved'
+    REJECTED = 'rejected', 'Rejected'
+
+
+class RequestedTermDays(models.IntegerChoices):
+    """Requested net terms for trade credit, in days."""
+    DAYS_15 = 15, _('15 days')
+    DAYS_30 = 30, _('30 days')
+    DAYS_45 = 45, _('45 days')
+    DAYS_60 = 60, _('60 days')
+    DAYS_90 = 90, _('90 days')
+
+
 class ApplicationStatus(models.TextChoices):
     """
     Account application status like pending, approved, rejected.
@@ -38,3 +54,4 @@ class CreditVerdictStatus(models.TextChoices):
     PASSED = 'passed', 'Passed'
     FAILED = 'failed', 'Failed'
     PENDING = 'pending', 'Pending'
+
