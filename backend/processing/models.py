@@ -63,7 +63,7 @@ class CreditCase(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
-    updated_at = models.CharField(
+    updated_at = models.DateTimeField(
         auto_now=True,
     )
     submitted_at = models.DateTimeField(

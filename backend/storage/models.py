@@ -4,11 +4,10 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
+from customers.models import Customer
+from identity.models import User
 from processing.models import (
-    AccountApplication,
-)
-from banking.models import (
-    Account,
+    CreditCase,
 )
 from core.constants import ALLOWED_FILE_EXTENSIONS
 from core.validators import validate_file_size
@@ -21,7 +20,7 @@ def document_upload_to(instance, filename):
     if not dt:
         dt = timezone.now()
         instance.uploaded_at = dt
-    return f"uploaded_documents/{dt:%Y/%m/%d}/{instance.uuid}--{filename}"
+    return f"upload_documents/{dt:%Y/%m/%d}/{instance.uuid}--{filename}"
 
 
 class UploadDocument(models.Model):
@@ -31,13 +30,13 @@ class UploadDocument(models.Model):
     A UploadDocument can belong to other models, including
     but not limited to, Account, AccountApplication.
     """
+
     uuid = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
         db_index=True,
         help_text='The uuid for this object.',
     )
-    uploaded_at = models.DateTimeField(auto_now_add=True)
     original_title = models.CharField(
         max_length=1024,
         null=True,
@@ -76,15 +75,27 @@ class UploadDocument(models.Model):
         blank=True,
         help_text='mime type of the file.',
     )
-    accounts = models.ManyToManyField(
-        Account,
-        related_name='upload_documents',
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
+        help_text='the user that uploaded the file.',
     )
-    account_applications = models.ManyToManyField(
-        AccountApplication,
-        related_name='upload_documents',
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
+        help_text='the customer the file belongs to.',
+    )
+    credit_case = models.ForeignKey(
+        CreditCase,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='the credit case the file belongs to.',
     )
 
     def save(self, *args, **kwargs):

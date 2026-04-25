@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # custom apps
     'banking',
+    'customers',
     'core',
     'identity',
     'integrations',

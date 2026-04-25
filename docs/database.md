@@ -53,7 +53,6 @@ Postgres DB accessed via Django/Python ORM
   - uploaded_by FK User
   - customer FK null
   - credit_case FK null
-  - document FK
 - DocumentDataExtract
   - raw_json
   - confidence_score
