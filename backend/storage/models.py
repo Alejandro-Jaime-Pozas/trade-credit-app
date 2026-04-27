@@ -11,7 +11,7 @@ from processing.models import (
 )
 from core.constants import ALLOWED_FILE_EXTENSIONS
 from core.validators import validate_file_size
-from .choices_for_models import FileTypeName
+from .choices_for_models import FileTypeName, ModelVersion
 
 
 def document_upload_to(instance, filename):
@@ -106,3 +106,40 @@ class UploadDocument(models.Model):
     def __str__(self):
         return f'<UploadDocument id={self.id}, name={self.file.name}, ' \
                 f'file_type_name={self.file_type_name}>'
+
+
+class DocumentDataExtract(models.Model):
+    """
+    This model stores the extracted data from a UploadDocument via
+    AI API usage.
+    """
+
+    raw_json = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='the raw json data extracted from the document using AI. Pydantic models' \
+                    ' can be used to parse this data into more structured formats if desired.',
+    )
+    confidence_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text='a confidence score between 0 and 1 indicating the AI\'s confidence' \
+                    ' in the extracted data.',
+    )
+    model_version = models.CharField(
+        choices=ModelVersion.choices,
+        null=True,
+        blank=True,
+        help_text='the version of the AI model used for extraction, if applicable.',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    upload_document = models.ForeignKey(
+        UploadDocument,
+        on_delete=models.CASCADE,
+        related_name='document_data_extracts',
+        help_text='the UploadDocument that this extracted data is associated with.',
+    )
+
+    def __str__(self):
+        return f'<DocumentDataExtract id={self.id}, ' \
+               f'upload_document_id={self.upload_document_id}>'
