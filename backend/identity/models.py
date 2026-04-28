@@ -11,10 +11,10 @@ class UserManager(BaseUserManager):
             raise ValidationError("User must have an email address.")
 
         # Normalize (lowercase domain)
-        email = self.normalize_email(email).lower()
+        email = self.normalize_email(email)
 
         # 👇 Always set username = email by default
-        username = extra_fields.pop("username", email)
+        username = email
 
         user = self.model(
             email=email,
