@@ -27,7 +27,6 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             # 'username',  # no need for now, user manager auto-sets this
             'first_name',
             'last_name',
-            'created_at',
             'is_superuser',
             'is_staff',
             'is_active',
@@ -41,7 +40,6 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             'is_active',
             'is_superuser',
             'date_joined',
-            'created_at',
         ]
 
     # custom code for create() or update() serializer methods

@@ -52,9 +52,7 @@ class User(AbstractUser):
 
     # keep username from AbstractUser (don’t set username = None)
     email = models.EmailField(unique=True, blank=False)
-    first_name = models.CharField(max_length=50, null=True, blank=True)
-    last_name = models.CharField(max_length=50, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    # first_name, last_name, date_joined, username, is_staff, is_active, is_superuser are all inherited from AbstractUser
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []  # email is used as the username, so no extra required fields
