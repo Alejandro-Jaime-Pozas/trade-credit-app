@@ -1,6 +1,15 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractUser
+from django.core.validators import URLValidator
+
+
+def validate_domain(value):
+    validator = URLValidator(schemes=['http', 'https'])
+    try:
+        validator(f"http://{value}")  # Prepend http:// to validate as a domain
+    except:
+        raise ValidationError(f"{value} is not a valid domain, enter a valid domain like 'example.com'.")
 
 
 class UserManager(BaseUserManager):
@@ -12,9 +21,8 @@ class UserManager(BaseUserManager):
 
         # Normalize (lowercase domain)
         email = self.normalize_email(email)
-
         # 👇 Always set username = email by default
-        username = email
+        username = extra_fields.pop("username", email)
 
         user = self.model(
             email=email,
@@ -23,6 +31,11 @@ class UserManager(BaseUserManager):
         )
         user.set_password(password)
         user.save(using=self._db)
+
+        # Get or create the organization based on email domain and link to user
+        # TODO later integrate with hunter.io API to get more accurate organization info based on email domain
+        Organization.objects._get_or_create_from_user(user)
+
         return user
 
     def create_user(self, email, password=None, **extra_fields):
@@ -96,7 +109,11 @@ class OrganizationManager(models.Manager):
 class Organization(models.Model):
     """Organization model based on user email domain."""
     name = models.CharField(max_length=100)
-    email_domain = models.CharField(max_length=300, unique=True)
+    email_domain = models.CharField(
+        max_length=300,
+        unique=True,
+        validators=[validate_domain],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     users = models.ManyToManyField(
         User,
@@ -105,6 +122,15 @@ class Organization(models.Model):
     )
 
     objects = OrganizationManager()
+
+    def clean(self):
+        # Ensure email_domain is in correct format (e.g., example.com)
+        if self.email_domain:
+            validate_domain(self.email_domain)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # enforces validation everywhere before saving to db
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"<Organization|id={self.pk}, email_domain={self.email_domain}>"

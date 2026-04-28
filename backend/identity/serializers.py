@@ -48,6 +48,12 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         return user
 
 class OrganizationSerializer(serializers.HyperlinkedModelSerializer):
+
+    users = serializers.HyperlinkedRelatedField(
+        many=True,
+        read_only=True,
+        view_name='user-detail',
+    )
     class Meta:
         model = Organization
         fields = [
@@ -55,6 +61,7 @@ class OrganizationSerializer(serializers.HyperlinkedModelSerializer):
             'id',
             'name',
             'email_domain',
+            'users',
         ]
 
     # custom code for create() or update() serializer methods
