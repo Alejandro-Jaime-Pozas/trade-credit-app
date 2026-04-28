@@ -62,8 +62,8 @@ Postgres DB accessed via Django/Python ORM
 - Label
   - name (ie. sucursal)
   - value (ie. Mty Nte)
-  - credit_case FK null
-  - customer FK null
+  - credit_case m2m null
+  - customer m2m null
 
 ## v2 New Models
 

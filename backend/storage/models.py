@@ -110,8 +110,8 @@ class UploadDocument(models.Model):
 
 class DocumentDataExtract(models.Model):
     """
-    This model stores the extracted data from a UploadDocument via
-    AI API usage.
+    This model stores the extracted data from a UploadDocument after
+    processing with an AI model.
     """
 
     raw_json = models.JSONField(
@@ -143,3 +143,38 @@ class DocumentDataExtract(models.Model):
     def __str__(self):
         return f'<DocumentDataExtract id={self.id}, ' \
                f'upload_document_id={self.upload_document_id}>'
+
+
+class Label(models.Model):
+    """
+    Super abstract, general purpose label that can be applied to any model instance
+    in the system, mainly for UI filtering and categorization purposes.
+
+    Example: user wants a new label named 'sucursal'. User then creates a few values for it.
+    Label is linked to appropiate model based on the endpoint/UI location. User can then
+    filter CreditCases by 'sucursal'.
+    """
+
+    name = models.CharField(
+        max_length=50,
+        help_text='The name of the label, e.g. "sucursal".',
+    )
+    value = models.CharField(
+        max_length=250,
+        help_text='The value of the label, e.g. "sucursal MTY norte".',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Can link labels to other models as well, as needed
+    credit_cases = models.ManyToManyField(
+        CreditCase,
+        related_name='labels',
+        help_text='The CreditCase that this label is associated with.',
+    )
+    customers = models.ManyToManyField(
+        Customer,
+        related_name='labels',
+        help_text='The Customer that this label is associated with.',
+    )
+
+    def __str__(self):
+        return f'<Label id={self.id}, name={self.name}, value={self.value}>'
