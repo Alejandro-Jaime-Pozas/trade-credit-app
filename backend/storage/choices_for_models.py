@@ -15,5 +15,5 @@ class ModelVersion(models.TextChoices):
      and to compare results across different versions of the model.
     """
 
-    # Use the same naming convention as the model names in the integrations.<ai_api>.constants file for the internal db value.
+    # Use the same naming convention as the model names in the integrations.<ai_api>.constants.py file for the internal db value.
     GPT_5_NANO = 'gpt-5-nano', _('GPT-5 Nano')

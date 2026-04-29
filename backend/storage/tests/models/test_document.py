@@ -8,10 +8,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from core.constants import FILE_UPLOAD_MAX_SIZE_MB
 from core.tests.constants_global import TEST_UPLOAD_DOCUMENT_DATA
-from core.tests.obj_instances_global import (
-    test_create_account_inst,
-    test_create_account_application_inst,
-)
 from storage.models import UploadDocument
 
 
@@ -44,9 +40,9 @@ class TestUploadDocumentModel(TestCase):
             'file': self.uploaded_file,
         }
 
-        # Create account, application account objs
-        self.acct = test_create_account_inst()
-        self.acct_app = self.acct.account_application
+        # # Create account, application account objs
+        # self.acct = test_create_account_inst()
+        # self.acct_app = self.acct.account_application
 
     # test create file success
     def test_create_file(self):
@@ -54,17 +50,17 @@ class TestUploadDocumentModel(TestCase):
         doc = UploadDocument.objects.create(
             **self.data,
         )
-        # Add the optional m2m relation to acct, acct app
-        doc.accounts.add(self.acct)
-        doc.account_applications.add(self.acct_app)
+        # # Add the optional m2m relation to acct, acct app
+        # doc.accounts.add(self.acct)
+        # doc.account_applications.add(self.acct_app)
 
         self.assertIsInstance(doc, UploadDocument)
         self.assertEqual(doc.original_title, self.data['original_title'])
         self.assertEqual(doc.file_type_name, self.data['file_type_name'])
         self.assertEqual(doc.mimetype, self.data['mimetype'])
         self.assertIsInstance(doc.uploaded_at, datetime.datetime)
-        self.assertTrue(doc.accounts.get(id=self.acct.id))
-        self.assertTrue(doc.account_applications.get(id=self.acct_app.id))
+        # self.assertTrue(doc.accounts.get(id=self.acct.id))
+        # self.assertTrue(doc.account_applications.get(id=self.acct_app.id))
 
         # File checks
         self.assertTrue(doc.file)  # assert file is present

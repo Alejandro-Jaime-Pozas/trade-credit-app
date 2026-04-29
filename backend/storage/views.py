@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -6,9 +5,13 @@ from rest_framework.viewsets import ModelViewSet
 from core.str_utils import pretty_print
 
 from .serializers import (
+    DocumentDataExtractSerializer,
+    LabelSerializer,
     UploadDocumentSerializer,
 )
 from .models import (
+    DocumentDataExtract,
+    Label,
     UploadDocument,
 )
 from .services.db_object_handling import handle_upload_document_created
@@ -41,3 +44,15 @@ class UploadDocumentViewSet(ModelViewSet):
         # Return list response
         out = self.get_serializer(docs, many=True)
         return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class DocumentDataExtractViewSet(ModelViewSet):
+
+    queryset = DocumentDataExtract.objects.all()
+    serializer_class = DocumentDataExtractSerializer
+
+
+class LabelViewSet(ModelViewSet):
+
+    queryset = Label.objects.all()
+    serializer_class = LabelSerializer

@@ -30,6 +30,8 @@ class RequestedTermDays(models.IntegerChoices):
     DAYS_90 = 90, _('90 days')
 
 
+
+# ======================================================================
 class ApplicationStatus(models.TextChoices):
     """
     Account application status like pending, approved, rejected.
@@ -54,4 +56,5 @@ class CreditVerdictStatus(models.TextChoices):
     PASSED = 'passed', 'Passed'
     FAILED = 'failed', 'Failed'
     PENDING = 'pending', 'Pending'
+# ======================================================================
 

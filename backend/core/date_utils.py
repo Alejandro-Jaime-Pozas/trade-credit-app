@@ -4,17 +4,11 @@ import calendar
 
 from django.utils import timezone
 
-from banking.constants import DEBIT_CARD_EXPIRATION_YEARS
-
 
 # Get the current date MOCK FOR NOW SINCE WILL TEST OUT
 def get_current_date():
     # return timezone.now().date()
     return date(2024, 1, 1)
-
-
-def get_default_debit_card_expiration_date():
-    return get_month_end_date_for_x_yrs_in_future(DEBIT_CARD_EXPIRATION_YEARS)
 
 
 # Get the last day of the month X years in the future

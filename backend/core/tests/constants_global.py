@@ -7,9 +7,6 @@ from processing.choices_for_models import (
     ApplicationStatus,
     LoanVerdictStatus,
 )
-from banking.choices_for_models import (
-    PaymentInterval,
-)
 
 
 # Constant default defintions FOR USE IN GLOBAL TESTS
@@ -40,15 +37,6 @@ TEST_CHECKING_ACCOUNT_DATA = {
 
 TEST_TRANSACTION_DATA = {
     'amount': 150.43,
-}
-
-TEST_LOAN_ACCOUNT_DATA = {
-    'remaining_balance': 175_000.00,
-    'paid_balance': 25_000.00,
-    'payment_type': 'variable',
-    'payment_amount': 5_000.00,
-    'payment_interval': PaymentInterval.WEEKLY,
-    # 'next_payment_date': None,  # auto-calculated with save() method
 }
 
 TEST_ACCOUNT_APPLICATION_DATA = {

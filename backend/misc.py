@@ -1,6 +1,7 @@
-rev_gen = reversed([1,2,3])
-for v in rev_gen:
-    print(v)
+x = [1,2,3]
+x.extend([4,5,6])
+
+print(x)
 
 
 # # TODO fix growth trend percent since doesn't take into acct the growth % as a % of start/end cashflow...cashflow can be trending -5%

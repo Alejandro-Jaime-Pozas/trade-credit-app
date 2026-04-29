@@ -7,18 +7,15 @@ from processing.services.account_application import check_aggregate_satisfied_mo
 from core.constants import ALLOWED_FILE_EXTENSIONS, LOAN_FILE_TYPE_NAMES_REQUIRED
 from core.str_utils import clean_account_name
 from .choices_for_models import (
-    ApplicationStatus,
     CreditCaseFinalVerdict,
     CreditCaseStatus,
+    RequestedTermDays,
+    ApplicationStatus,
     CreditVerdictStatus,
     LoanVerdictStatus,
-    RequestedTermDays,
 )
 from identity.models import (
     User,
-)
-from banking.choices_for_models import (
-    AccountType,
 )
 
 
@@ -118,7 +115,7 @@ class AccountApplication(models.Model):
     )
     type = models.CharField(
         max_length=50,
-        choices=AccountType.choices,
+        default='loan',
         help_text='Specify bank account type. Checking, loan, etc.',
     )
     users = models.ManyToManyField(

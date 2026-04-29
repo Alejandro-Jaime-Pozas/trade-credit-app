@@ -1,8 +1,6 @@
 import pprint
 from typing import Any
 
-from banking.constants import ACCOUNT_NUMBER_LENGTH
-
 
 def clean_account_name(
     organization_name: str = None,
@@ -18,12 +16,6 @@ def clean_account_name(
 
     elif type_name:
         return f'Sol {type_name}'.title()
-
-
-def create_account_number(pk) -> str:
-    pk_len = len(str(pk))
-    zero_prefix_len = ACCOUNT_NUMBER_LENGTH - pk_len
-    return '0'*zero_prefix_len + str(pk)
 
 
 def pretty_print(obj: Any) -> str:

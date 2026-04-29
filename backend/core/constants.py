@@ -60,7 +60,12 @@ TRANSACTION_BASENAME='transaction'
 USER_BASENAME='user'
 ORGANIZATION_BASENAME='organization'
 
+##
+CUSTOMER_BASENAME='customer'
+CUSTOMER_CONTACT_BASENAME='customercontact'
+
 ## processing
+CREDIT_CASE_BASENAME='creditcase'
 ACCOUNT_APPLICATION_BASENAME='accountapplication'
 LOAN_ACCOUNT_APPLICATION_BASENAME='loanaccountapplication'
 LOAN_VERDICT_BASENAME='loanverdict'
@@ -70,6 +75,8 @@ BURO_DE_CREDITO_REPORT_BASENAME='burodecreditoreport'
 
 ## storage
 UPLOAD_DOCUMENT_BASENAME='uploaddocument'
+DOCUMENT_DATA_EXTRACT_BASENAME='documentdataextract'
+LABEL_BASENAME='label'
 
 
 # Naming conventions for model ids

@@ -48,7 +48,7 @@ class Customer(models.Model):
         help_text='User that created this customer record.',
     )
 
-    # Address details
+    # Address details as they appear on official SAT CSF.
 
     codigo_postal = models.CharField(
         max_length=12,

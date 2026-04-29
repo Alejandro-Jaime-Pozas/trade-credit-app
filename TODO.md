@@ -1,2 +1,3 @@
 - adding/modifying serializers, views, urls to experiment with django drf UI page
-  - remove old urls from website, add new serializers, views, urls to website (CreditCase)
+  - add new serializers, views, urls to website (CreditCase)
+

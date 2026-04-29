@@ -2,13 +2,16 @@ from django.db import transaction
 from rest_framework import serializers
 
 from core.constants import (
+    CREDIT_CASE_BASENAME,
+    CUSTOMER_BASENAME,
+    UPLOAD_DOCUMENT_BASENAME,
     ACCOUNT_APPLICATION_BASENAME,
     ACCOUNT_APPLICATION_ID,
     ACCOUNT_BASENAME,
 )
 from processing.models import AccountApplication
 
-from .models import UploadDocument
+from .models import DocumentDataExtract, Label, UploadDocument
 
 
 class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
@@ -95,3 +98,45 @@ class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
             created_docs.append(doc)
 
         return created_docs
+
+
+class DocumentDataExtractSerializer(serializers.HyperlinkedModelSerializer):
+    upload_document = serializers.HyperlinkedRelatedField(
+        read_only=True,
+        view_name=f'{UPLOAD_DOCUMENT_BASENAME}-detail',
+    )
+    class Meta:
+        model = DocumentDataExtract
+        fields = [
+            'url',
+            'id',
+            'raw_json',
+            'confidence_score',
+            'model_version',
+            'created_at',
+            'upload_document',
+        ]
+
+
+class LabelSerializer(serializers.HyperlinkedModelSerializer):
+    credit_cases = serializers.HyperlinkedRelatedField(
+        many=True,
+        read_only=True,
+        view_name=f'{CREDIT_CASE_BASENAME}-detail',
+    )
+    customers = serializers.HyperlinkedRelatedField(
+        many=True,
+        read_only=True,
+        view_name=f'{CUSTOMER_BASENAME}-detail',
+    )
+    class Meta:
+        model = Label
+        fields = [
+            'url',
+            'id',
+            'name',
+            'value',
+            'created_at',
+            'credit_cases',
+            'customers',
+        ]

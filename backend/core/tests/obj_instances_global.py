@@ -15,10 +15,6 @@ from processing.models import (
     LoanVerdictAI,
 )
 from processing.choices_for_models import ApplicationStatus, LoanVerdictStatus
-from banking.models import (
-    Account,
-    CheckingAccount,
-)
 from identity.models import (
     User,
     Organization,
@@ -148,40 +144,6 @@ def test_create_organization_with_user_inst():
     user = test_create_user_inst()
     organization.users.add(user)
     return organization
-
-
-# Account
-
-def test_create_account_inst():
-    """
-    'number': '00000000002',
-    'clabe': '000000000000000002',
-    'type': 'checking',
-    'name': 'Mod_example Sol Checking',
-    'current_balance': 100,
-    """
-    app_acct = test_create_account_application_inst()
-    acct = Account.objects.create(
-        account_application=app_acct,
-        **_MOD_ACCOUNT_DATA,
-    )
-    user = app_acct.users.first()
-    acct.users.add(user)  # user with organization. don't remove, since acct can have many users while acct_app prob just one for the application process..
-    return acct
-
-
-# Checking Account
-
-def test_create_checking_account_inst():
-    """
-    'debit_card_number': '0000000000000002',
-    'debit_card_expiration_date': datetime.datetime.today(),
-    """
-    chk_acct = CheckingAccount.objects.create(
-        acct=test_create_account_inst(),
-        **_MOD_CHECKING_ACCOUNT_DATA,
-    )
-    return chk_acct
 
 
 # Account Application

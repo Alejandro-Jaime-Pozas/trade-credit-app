@@ -10,12 +10,12 @@ from .views import (
 
 router = routers.DefaultRouter()
 router.register(
-    'user',
+    'users',
     UserViewSet,
     basename=USER_BASENAME,
     )
 router.register(
-    'organization',
+    'organizations',
     OrganizationViewSet,
     basename=ORGANIZATION_BASENAME,
     )

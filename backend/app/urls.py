@@ -27,7 +27,7 @@ from drf_spectacular.views import (
 
 from core.config import API_VERSION_PREFIX as api_ver
 from identity.urls import router as identity_router
-from banking.urls import router as banking_router
+from customers.urls import router as customers_router
 from processing.urls import router as processing_router
 from storage.urls import router as storage_router
 
@@ -35,9 +35,9 @@ router = DefaultRouter()
 
 # Merge routes from all apps here
 router.registry.extend(identity_router.registry)
+router.registry.extend(customers_router.registry)
 router.registry.extend(processing_router.registry)
 router.registry.extend(storage_router.registry)
-# router.registry.extend(banking_router.registry)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

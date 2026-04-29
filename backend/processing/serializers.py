@@ -1,17 +1,15 @@
 from rest_framework import serializers
 
-from banking.serializers import AccountSerializer
 from core.constants import (
     ACCOUNT_APPLICATION_BASENAME,
     ACCOUNT_BASENAME,
     BURO_DE_CREDITO_REPORT_BASENAME,
     LOAN_ACCOUNT_APPLICATION_BASENAME,
-    LOAN_AGREEMENT_DOCUMENT_BASENAME,
     UPLOAD_DOCUMENT_BASENAME,
-    LOAN_VERDICT_AI_BASENAME,
 )
 
 from .models import (
+    CreditCase,
     AccountApplication,
     BuroDeCreditoReport,
     LoanAccountApplication,
@@ -22,6 +20,25 @@ from .models import (
 from storage.models import UploadDocument
 
 
+class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = CreditCase
+        fields = [
+            'url',
+            'id',
+            'status',
+            'verdict',
+            'requested_amount',
+            'requested_term_days',
+            'created_at',
+            'submitted_at',
+            'verdict_at',
+            'assigned_to',
+            'customer',
+        ]
+
+
+# ================================================================
 # Gemini added Simple serializers to view as nested serializers within other serializers
 class SimpleUploadDocumentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -274,3 +291,4 @@ class LoanVerdictAISerializer(serializers.HyperlinkedModelSerializer):
             'analysis_summary',
             'loan_account_application',
         ]
+# ================================================================
