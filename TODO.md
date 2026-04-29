@@ -1,9 +1,2 @@
-- add new models, replace old ones
-  - User
-	- Membership (RBA)
-	- Organization (organization user belongs to)
-	- Trade_credit_application
-	- Trade_credit_account (if application approved)
-	- Document (files)
-	- Customer (organization's customers)
-    - Contact (customer - person to contact)
+- adding/modifying serializers, views, urls to experiment with django drf UI page
+  - remove old urls from website, add new serializers, views, urls to website (CreditCase)

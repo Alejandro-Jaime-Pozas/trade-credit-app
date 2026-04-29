@@ -1,0 +1,8 @@
+- add new models, replace old ones
+  - User
+  - Organization (organization user belongs to)
+  - Trade_credit_application
+  - Trade_credit_account (if application approved)
+  - Document (files)
+  - Customer (organization's customers)
+  - Contact (customer - person to contact)

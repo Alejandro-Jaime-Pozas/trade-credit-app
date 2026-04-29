@@ -35,9 +35,9 @@ router = DefaultRouter()
 
 # Merge routes from all apps here
 router.registry.extend(identity_router.registry)
-router.registry.extend(banking_router.registry)
 router.registry.extend(processing_router.registry)
 router.registry.extend(storage_router.registry)
+# router.registry.extend(banking_router.registry)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

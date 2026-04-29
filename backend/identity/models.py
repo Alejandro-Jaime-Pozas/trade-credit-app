@@ -82,6 +82,10 @@ class OrganizationManager(models.Manager):
     # Pass in the user obj to check email, format as domain,
     # check if exists in organizations, link to user if so, else create
     def _get_or_create_from_user(self, user, **extra_fields):
+        """
+        Get or create an organization based on the user's email domain and link it to the user.
+        user must have a valid email for this to work. 
+        """
 
         # Extract the email domain from user email
         email = user.email or ''
