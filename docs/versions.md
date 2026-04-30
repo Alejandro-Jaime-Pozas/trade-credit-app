@@ -12,6 +12,18 @@
   - view dashboard of credit cases, filter/order by status, days since creation
 
 
+## db models
+
+- User
+- Organization - new name
+- Customer - new
+- CustomerContact - new
+- CreditCase - new
+- UploadDocument - modified
+- DocumentDataExtract - new
+- Label - new
+
+
 ## Constraints
 
 - no RBAC yet, any new user is admin by default

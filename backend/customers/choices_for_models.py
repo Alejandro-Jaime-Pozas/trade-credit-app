@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class CustomerPersonType(models.TextChoices):
+class CustomerPersonaLegalType(models.TextChoices):
     """
     SAT-style taxpayer category for the customer:
     fisica or moral.

@@ -47,6 +47,16 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
+    def update(self, instance, validated_data):
+        email = validated_data.get('email')
+
+        # if email is being updated, also update username to match, since we are using email as username
+        if email and email != instance.email:
+            instance.username = email
+
+        return super().update(instance, validated_data)
+
+
 class OrganizationSerializer(serializers.HyperlinkedModelSerializer):
 
     users = serializers.HyperlinkedRelatedField(

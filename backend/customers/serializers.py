@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from core.constants import CUSTOMER_CONTACT_BASENAME
+
 from .models import (
     Customer,
     CustomerContact,
@@ -11,7 +13,7 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
     customer_contacts = serializers.HyperlinkedRelatedField(
         many=True,
         read_only=True,
-        view_name='customercontact-detail',
+        view_name=f'{CUSTOMER_CONTACT_BASENAME}-detail',
     )
 
     class Meta:
@@ -23,12 +25,22 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
             'legal_name',
             'rfc',
             'type',
-            'created_at',
-            'updated_at',
-            'created_by',
             'nombre_de_vialidad',
             'codigo_postal',
+            'created_at',
+            'updated_at',
+            'organization',
+            'created_by',
             'customer_contacts',
+        ]
+        read_only_fields = [
+            'legal_name',
+            'rfc',
+            'type',
+            'nombre_de_vialidad',
+            'codigo_postal',
+            'created_at',
+            'updated_at',
         ]
 
 

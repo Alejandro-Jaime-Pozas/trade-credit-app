@@ -1,8 +1,8 @@
 from django.core.validators import MinLengthValidator
 from django.db import models
 
-from identity.models import User
-from customers.choices_for_models import CustomerPersonType
+from identity.models import Organization, User
+from customers.choices_for_models import CustomerPersonaLegalType
 from customers.constants import RFC_PERSONA_MORAL_LENGTH
 
 
@@ -13,27 +13,25 @@ class Customer(models.Model):
 
     name = models.CharField(
         max_length=100,
-        null=True,
-        blank=True,
-        help_text='Organization name.',
+        help_text='Customer name.',
     )
     legal_name = models.CharField(
         max_length=100,
         null=True,
         blank=True,
-        help_text='Organization legal name recognized by government.',
+        help_text='Customer legal name recognized by government.',
     )
     rfc = models.CharField(
         max_length=RFC_PERSONA_MORAL_LENGTH,
         validators=[MinLengthValidator(RFC_PERSONA_MORAL_LENGTH)],  # TODO change when persona fisica is implemented
-        unique=True,
         null=True,
         blank=True,
-        help_text='Registro Federal de Contribuyentes for organization.',
+        help_text='Registro Federal de Contribuyentes for customer.',
     )
     type = models.CharField(
         max_length=20,
-        choices=CustomerPersonType.choices,
+        choices=CustomerPersonaLegalType.choices,
+        default=CustomerPersonaLegalType.MORAL,
         null=True,
         blank=True,
         help_text='Persona moral o fisica.',
@@ -46,6 +44,13 @@ class Customer(models.Model):
         null=True,
         blank=True,
         help_text='User that created this customer record.',
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text='''User's Organization that created this customer record.''',
     )
 
     # Address details as they appear on official SAT CSF.
@@ -117,6 +122,17 @@ class Customer(models.Model):
         help_text='Entre calle 2.',
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'rfc'],
+                name='unique_customer_rfc_per_organization',
+            ),
+        ]
+
+    def __str__(self):
+        return f'<{self.name} ({self.rfc})>'
+
 
 class CustomerContact(models.Model):
     """
@@ -138,8 +154,6 @@ class CustomerContact(models.Model):
         help_text='Contact last name.',
     )
     email = models.EmailField(
-        null=True,
-        blank=True,
         help_text='Contact email address.',
     )
     phone_number = models.CharField(
@@ -157,9 +171,15 @@ class CustomerContact(models.Model):
     customer = models.ForeignKey(
         Customer,
         on_delete=models.CASCADE,
-        related_name='contacts',
+        related_name='customer_contacts',
         help_text='The customer this contact belongs to.',
     )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='customer_contacts',
+        help_text='''User's Organization that created this customer contact record.''',
+    )  # required to enforce uniqueness of contact email within an organization, since different orgs could have contacts with same email
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -169,3 +189,15 @@ class CustomerContact(models.Model):
         blank=True,
         help_text='User that created this customer record.',
     )
+
+    # Allow duplicate contact emails across different organizations, but not within the same organization, since different orgs could have contacts with same email.
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'email'],
+                name='unique_customer_contact_email_per_organization',
+            ),
+        ]
+
+    def __str__(self):
+        return f'<{self.first_name} {self.last_name} ({self.email})>'

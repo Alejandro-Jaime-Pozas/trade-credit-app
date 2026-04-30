@@ -6,3 +6,6 @@
   - Document (files)
   - Customer (organization's customers)
   - Contact (customer - person to contact)
+- adding/modifying serializers, views, urls to experiment with django drf UI page
+  - add new serializers, views, urls to website (CreditCase)
+  - remove old serializers, views, urls not required

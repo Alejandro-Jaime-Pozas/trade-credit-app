@@ -1,3 +1,9 @@
-- adding/modifying serializers, views, urls to experiment with django drf UI page
-  - add new serializers, views, urls to website (CreditCase)
-
+- clean up new serializers for read-only fields and prep for correct frontend usage
+  - Customer - new
+  - CustomerContact - new
+  - CreditCase - new
+  - UploadDocument - modified
+  - DocumentDataExtract - new
+  - Label - new
+- automate cursor agents creating test files for new serializers, urls, models, views
+  - can recreate all tests from scratch since many errors/old deps
