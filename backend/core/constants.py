@@ -80,7 +80,7 @@ LABEL_BASENAME='label'
 
 
 # Naming conventions for model ids
-ACCOUNT_APPLICATION_ID='account_application_id'
+CREDIT_CASE_ID='credit_case_id'
 
 
 # Mappings for file_type_names to pydantic models

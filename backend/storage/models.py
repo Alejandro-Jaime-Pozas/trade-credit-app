@@ -1,4 +1,4 @@
-import uuid
+from uuid6 import uuid7
 
 from django.core.validators import FileExtensionValidator
 from django.db import models
@@ -32,7 +32,7 @@ class UploadDocument(models.Model):
     """
 
     uuid = models.UUIDField(
-        default=uuid.uuid4,
+        default=uuid7,
         editable=False,
         db_index=True,
         help_text='The uuid for this object.',
