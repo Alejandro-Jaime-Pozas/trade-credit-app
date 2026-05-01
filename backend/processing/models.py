@@ -2,6 +2,7 @@ from django.utils import timezone
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
+from core.choices_for_models import CurrencyName
 from customers.models import Customer
 from processing.services.account_application import check_aggregate_satisfied_month_intervals
 from core.constants import ALLOWED_FILE_EXTENSIONS, LOAN_FILE_TYPE_NAMES_REQUIRED
@@ -51,10 +52,14 @@ class CreditCase(models.Model):
         blank=True,
         help_text='Requested credit line amount.',
     )
+    currency = models.CharField(
+        max_length=10,
+        choices=CurrencyName.choices,
+        default=CurrencyName.MXN,
+        help_text='Currency for the requested credit line amount.',
+    )
     requested_term_days = models.IntegerField(
         choices=RequestedTermDays.choices,
-        null=True,
-        blank=True,
         help_text='Requested net terms (days).',
     )
     created_at = models.DateTimeField(

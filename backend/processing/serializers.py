@@ -21,6 +21,11 @@ from storage.models import UploadDocument
 
 
 class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
+
+    assigned_to = serializers.HiddenField(
+        default=serializers.CurrentUserDefault()
+    )
+
     class Meta:
         model = CreditCase
         fields = [
@@ -29,12 +34,21 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'status',
             'verdict',
             'requested_amount',
+            'currency',
             'requested_term_days',
             'created_at',
             'submitted_at',
             'verdict_at',
             'assigned_to',
             'customer',
+        ]
+        read_only_fields = [
+            'status',
+            'verdict',
+            'created_at',
+            'submitted_at',
+            'verdict_at',
+            'assigned_to',
         ]
 
 

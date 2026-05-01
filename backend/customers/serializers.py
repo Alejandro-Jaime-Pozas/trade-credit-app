@@ -41,6 +41,7 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
             'codigo_postal',
             'created_at',
             'updated_at',
+            'customer_contacts',
         ]
 
 
