@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'drf_spectacular',
+    # django add ons
+    'phonenumber_field',
 ]
 
 # for swagger/drf spectacular

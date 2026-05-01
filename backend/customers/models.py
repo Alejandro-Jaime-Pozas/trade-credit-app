@@ -1,5 +1,6 @@
 from django.core.validators import MinLengthValidator
 from django.db import models
+from phonenumber_field.modelfields import PhoneNumberField
 
 from identity.models import Organization, User
 from customers.choices_for_models import CustomerPersonaLegalType
@@ -156,8 +157,8 @@ class CustomerContact(models.Model):
     email = models.EmailField(
         help_text='Contact email address.',
     )
-    phone_number = models.CharField(
-        max_length=20,
+    phone_number = PhoneNumberField(
+        region='MX',  # default phone region. 
         null=True,
         blank=True,
         help_text='Contact phone number.',

@@ -60,4 +60,9 @@ class CustomerContactSerializer(serializers.HyperlinkedModelSerializer):
             'updated_at',
             'created_by',
             'customer',
+            'organization'
+        ]
+        read_only_fields = [
+            'created_at',
+            'updated_at',
         ]
