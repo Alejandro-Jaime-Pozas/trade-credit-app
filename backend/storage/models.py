@@ -101,6 +101,9 @@ class UploadDocument(models.Model):
     def save(self, *args, **kwargs):
         if not self.original_title and self.file:
             self.original_title = self.file.name
+
+        # TODO if not customer nor credit_case, raise error, do not allow creation
+        
         super().save(*args, **kwargs)
 
     def __str__(self):

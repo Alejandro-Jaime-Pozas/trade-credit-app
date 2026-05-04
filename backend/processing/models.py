@@ -4,7 +4,7 @@ from django.db import models
 
 from core.choices_for_models import CurrencyName
 from customers.models import Customer
-from processing.services.account_application import check_aggregate_satisfied_month_intervals
+from processing.services.credit_case import check_aggregate_satisfied_month_intervals
 from core.constants import ALLOWED_FILE_EXTENSIONS, LOAN_FILE_TYPE_NAMES_REQUIRED
 from core.str_utils import clean_account_name
 from .choices_for_models import (
@@ -12,7 +12,7 @@ from .choices_for_models import (
     CreditCaseStatus,
     RequestedTermDays,
     ApplicationStatus,
-    CreditVerdictStatus,
+    BuroDeCreditoVerdictStatus,
     LoanVerdictStatus,
 )
 from identity.models import (
@@ -247,8 +247,7 @@ class LoanAccountApplication(models.Model):
 
 class LoanVerdict(models.Model):
     """
-    Decides if loan should be approved or rejected. Creates
-    the loan terms.
+    Decides if loan should be approved or rejected. Creates the loan terms.
     """
 
     status = models.CharField(
@@ -358,8 +357,8 @@ class BuroDeCreditoReport(models.Model):
     )
     status = models.CharField(
         max_length=50,
-        choices=CreditVerdictStatus.choices,
-        default=CreditVerdictStatus.PENDING,
+        choices=BuroDeCreditoVerdictStatus.choices,
+        default=BuroDeCreditoVerdictStatus.PENDING,
     )
     verdict = models.CharField(
         max_length=1024,

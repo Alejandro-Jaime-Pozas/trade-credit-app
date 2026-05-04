@@ -6,8 +6,9 @@
   - create acct
   - log in
   - log out
-  - add/update/delete customer
-  - add/update/delete credit case
+  - add/update/delete customer detail
+  - add/update/delete customer contact detail
+  - add/update/delete credit case detail
   - upload files to customer or credit case
   - view dashboard of credit cases, filter/order by status, days since creation
 

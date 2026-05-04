@@ -9,6 +9,7 @@ class CreditCaseStatus(models.TextChoices):
     """
     MISSING_DOCUMENTS = 'missing_documents', 'Missing Documents'  # Credit case created but not yet processed
     PENDING_AI_VERDICT = 'pending_ai_verdict', 'Pending AI Verdict'  # Credit case is being processed by internal gpt analysis process
+    BURO_DE_CREDITO_REJECTED = 'buro_de_credito_rejected', 'Buro De Credito Rejected'  # Credit case rejected based on buro de credito score min threshold
     PENDING_FINAL_VERDICT = 'pending_final_verdict', 'Pending Final Verdict'  # gpt analysis process approved the loan, waiting for final human review
     COMPLETE = 'complete', 'Complete'  # Credit case has been approved or rejected after human review
 
@@ -50,7 +51,7 @@ class LoanVerdictStatus(models.TextChoices):
     REJECTED = 'rejected', 'Rejected'
 
 
-class CreditVerdictStatus(models.TextChoices):
+class BuroDeCreditoVerdictStatus(models.TextChoices):
     """ Buro De Credito score: passed or failed. """
     PASSED = 'passed', 'Passed'
     FAILED = 'failed', 'Failed'

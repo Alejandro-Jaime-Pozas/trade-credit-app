@@ -1,5 +1,5 @@
+"""Run buro de credito api process, create a bdc db obj."""
 
-# Run buro de credito api process, create a bdc db obj
 import json
 from processing.loan_term_calculations.constants import (
     CREDIT_SCORE_VERDICT,
@@ -9,7 +9,7 @@ from processing.loan_term_calculations.constants import (
 )
 from integrations.buro_de_credito.json_response_sample import json_response
 from processing.choices_for_models import (
-    CreditVerdictStatus,
+    BuroDeCreditoVerdictStatus,
     LoanVerdictStatus,
 )
 from processing.loan_term_calculations.interest_rate.final_rates import get_total_interest_rate
@@ -68,7 +68,7 @@ def run_buro_de_credito_process(
 
     # If credit score response is in high risk range (or no score), return failed
     if not bdc_report_obj.score or bdc_report_obj.score < score_verdict['high_risk']:
-        bdc_report_obj.status = CreditVerdictStatus.FAILED
+        bdc_report_obj.status = BuroDeCreditoVerdictStatus.FAILED
         bdc_report_obj.verdict = f'Credit score does not pass minimum threshold.'
         bdc_report_obj.save()
         return {
@@ -78,7 +78,7 @@ def run_buro_de_credito_process(
 
     # If credit score is better than high risk threshold, return passed
     else:
-        bdc_report_obj.status = CreditVerdictStatus.PASSED
+        bdc_report_obj.status = BuroDeCreditoVerdictStatus.PASSED
         bdc_report_obj.verdict = f'Credit score does pass minimum threshold.'
         bdc_report_obj.save()
         return {
