@@ -13,11 +13,15 @@
     -   Native React State (avoid Redux unless truly needed)
     -   React Hook Form
     -   Zod
-    -   Auth & API
+    -   Auth & API:
         -   JWT (from DRF backend)
         -   Fetch via:
             -   native `fetch` OR
             -   lightweight wrapper (don't over-engineer)
+    -   Testing (if needed):
+        -   Vitest
+        -   React Testing Library
+        -   Playwright
 -   Backend:
     -   Django REST Framework
 -   Database: Postgres

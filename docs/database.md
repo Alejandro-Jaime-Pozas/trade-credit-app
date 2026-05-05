@@ -89,18 +89,3 @@ Postgres DB accessed via Django/Python ORM
 
 
 # ERD
-
-
-# Reference
-
-### Best structure for document/files relationship to other models
-class Document(models.Model):
-    file = models.FileField(...)
-
-class DocumentLink(models.Model):
-    document = models.ForeignKey(Document, on_delete=models.CASCADE)
-    credit_case = models.ForeignKey("CreditCase", null=True, blank=True, on_delete=models.CASCADE)
-    customer = models.ForeignKey("Customer", null=True, blank=True, on_delete=models.CASCADE)
-
-    document_type = models.CharField(max_length=50)  # CSF, Acta, Financials, etc.
-    uploaded_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True)
