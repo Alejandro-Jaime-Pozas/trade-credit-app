@@ -1,4 +1,7 @@
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import (
+    ModelViewSet,
+    ReadOnlyModelViewSet,
+)
 
 from .serializers import (
     CreditCaseSerializer,

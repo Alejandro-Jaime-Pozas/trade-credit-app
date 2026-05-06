@@ -34,6 +34,8 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
             'customer_contacts',
         ]
         read_only_fields = [
+            'url',
+            'id',
             'legal_name',
             'rfc',
             'type',
@@ -41,6 +43,8 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
             'codigo_postal',
             'created_at',
             'updated_at',
+            'organization',
+            'created_by',
             'customer_contacts',
         ]
 
@@ -60,9 +64,14 @@ class CustomerContactSerializer(serializers.HyperlinkedModelSerializer):
             'updated_at',
             'created_by',
             'customer',
-            'organization'
+            'organization',
         ]
         read_only_fields = [
+            'url',
+            'id',
             'created_at',
             'updated_at',
+            'created_by',
+            'customer',
+            'organization',
         ]
