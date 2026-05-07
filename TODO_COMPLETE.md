@@ -10,3 +10,7 @@
   - add new serializers, views, urls to website (CreditCase)
   - remove old serializers, views, urls not required
 - clean up new serializers for read-only fields and prep for correct frontend usage
+- create frontend .md file with instructions for cursor agent to create frontend from scratch.
+  - define the frontend stack
+  - define what finished looks like
+  - define constraints

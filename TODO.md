@@ -1,8 +1,9 @@
 # CURRENT
-- create frontend .md file with instructions for cursor agent to create frontend from scratch.
-  - define the frontend stack
-  - define what finished looks like
-  - define constraints
+- implement simple JWT to backend for user auth
+  - install
+  - settings.py config
+  - urls, views, serializers
+- fix credit_case frontend page NOT available since required token auth which did not have previously
 
 
 # LATER

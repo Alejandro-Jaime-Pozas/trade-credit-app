@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Load environment variables from .env file
 load_dotenv()
@@ -58,6 +59,7 @@ INSTALLED_APPS = [
     # other
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     # django add ons
     'phonenumber_field',
@@ -67,8 +69,7 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
-        # or JWT if you prefer
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -76,6 +77,30 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,  # !This will require frontend change in setup to retrieve all items
+}
+
+SIMPLE_JWT = {
+    # 🔐 Token lifetime
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    # 🔁 Refresh behavior
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+
+    # 🔑 Signing
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+
+    # 🧾 Auth header
+    "AUTH_HEADER_TYPES": ("Bearer",),
+
+    # 👤 User
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+
+    # Optional but useful
+    "UPDATE_LAST_LOGIN": True,
 }
 
 MIDDLEWARE = [

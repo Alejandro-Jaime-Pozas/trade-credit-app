@@ -73,7 +73,7 @@ class User(AbstractUser):
     objects = UserManager()
 
     def __str__(self):
-        return f"<User|id={self.pk}, email={self.email}, username={self.username}>"
+        return f"{self.email}"
 
 
 class OrganizationManager(models.Manager):
@@ -84,7 +84,7 @@ class OrganizationManager(models.Manager):
     def _get_or_create_from_user(self, user, **extra_fields):
         """
         Get or create an organization based on the user's email domain and link it to the user.
-        user must have a valid email for this to work. 
+        user must have a valid email for this to work.
         """
 
         # Extract the email domain from user email
