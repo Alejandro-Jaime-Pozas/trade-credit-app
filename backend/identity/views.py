@@ -15,6 +15,9 @@ class UserViewSet(ModelViewSet):
     # permission_classes = []
     # custom code for filtering queryset data...
 
+    # def get_queryset(self):
+    #     return super().get_queryset().filter(organization=self.request.organization)
+
 
 class OrganizationViewSet(ModelViewSet):
     queryset = Organization.objects.all()

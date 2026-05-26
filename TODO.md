@@ -1,7 +1,5 @@
 # CURRENT
 - implement simple JWT to backend for user auth
-  - install
-  - settings.py config
   - urls, views, serializers
 - fix credit_case frontend page NOT available since required token auth which did not have previously
 

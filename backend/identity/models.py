@@ -122,6 +122,7 @@ class Organization(models.Model):
     users = models.ManyToManyField(
         User,
         related_name='organizations',
+        through='OrganizationMembership',
         blank=True,
     )
 
@@ -138,3 +139,24 @@ class Organization(models.Model):
 
     def __str__(self):
         return f"<Organization|id={self.pk}, email_domain={self.email_domain}>"
+
+
+# TODO implement whatever is needed to get this m2m model up and running.
+class OrganizationMembership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE
+    )
+
+    role = models.CharField(
+        max_length=50,
+        choices=[
+            ("owner", "Owner"),
+            ("admin", "Admin"),
+            ("member", "Member"),
+        ]
+    )
+
+    class Meta:
+        unique_together = ("user", "organization")

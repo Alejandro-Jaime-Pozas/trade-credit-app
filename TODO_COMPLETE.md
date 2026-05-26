@@ -14,3 +14,6 @@
   - define the frontend stack
   - define what finished looks like
   - define constraints
+- implement simple JWT to backend for user auth
+  - install
+  - settings.py config
