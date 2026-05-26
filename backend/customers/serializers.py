@@ -72,6 +72,6 @@ class CustomerContactSerializer(serializers.HyperlinkedModelSerializer):
             'created_at',
             'updated_at',
             'created_by',
-            'customer',
+            # 'customer',
             'organization',
         ]

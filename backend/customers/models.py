@@ -158,7 +158,7 @@ class CustomerContact(models.Model):
         help_text='Contact email address.',
     )
     phone_number = PhoneNumberField(
-        region='MX',  # default phone region. 
+        region='MX',  # default phone region.
         null=True,
         blank=True,
         help_text='Contact phone number.',
@@ -179,6 +179,8 @@ class CustomerContact(models.Model):
         Organization,
         on_delete=models.CASCADE,
         related_name='customer_contacts',
+        null=True,
+        blank=True,
         help_text='''User's Organization that created this customer contact record.''',
     )  # required to enforce uniqueness of contact email within an organization, since different orgs could have contacts with same email
     created_at = models.DateTimeField(auto_now_add=True)
