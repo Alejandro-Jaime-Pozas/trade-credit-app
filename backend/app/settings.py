@@ -68,11 +68,11 @@ INSTALLED_APPS = [
 # DRF config
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # "rest_framework.authentication.SessionAuthentication",  # Toggle on/off to remove auth
-        # "rest_framework_simplejwt.authentication.JWTAuthentication",  # Toggle on/off to remove auth
+        "rest_framework.authentication.SessionAuthentication",  # Toggle on/off to remove auth
+        "rest_framework_simplejwt.authentication.JWTAuthentication",  # Toggle on/off to remove auth
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        # "rest_framework.permissions.IsAuthenticated",  # Toggle on/off to remove auth
+        "rest_framework.permissions.IsAuthenticated",  # Toggle on/off to remove auth
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",

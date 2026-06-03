@@ -49,8 +49,6 @@ class Customer(models.Model):
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         help_text='''User's Organization that created this customer record.''',
     )
 
@@ -132,7 +130,7 @@ class Customer(models.Model):
         ]
 
     def __str__(self):
-        return f'<{self.name} ({self.rfc})>'
+        return f'{self.name} ({self.rfc})'  # TODO maybe RFC not safe to expose
 
 
 class CustomerContact(models.Model):

@@ -5,6 +5,7 @@ from core.constants import (
     ACCOUNT_BASENAME,
     BURO_DE_CREDITO_REPORT_BASENAME,
     LOAN_ACCOUNT_APPLICATION_BASENAME,
+    ORGANIZATION_BASENAME,
     UPLOAD_DOCUMENT_BASENAME,
 )
 
@@ -22,8 +23,14 @@ from storage.models import UploadDocument
 
 class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
 
-    assigned_to = serializers.HiddenField(
-        default=serializers.CurrentUserDefault()
+    # assigned_to = serializers.HiddenField(
+    #     default=serializers.CurrentUserDefault()
+    # )  # TODO implement later
+
+    organization = serializers.HyperlinkedRelatedField(
+        read_only=True,
+        source='customer.organization',
+        view_name=f'{ORGANIZATION_BASENAME}-detail',
     )
 
     class Meta:
@@ -39,8 +46,9 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'created_at',
             'submitted_at',
             'verdict_at',
-            'assigned_to',
+            # 'assigned_to',
             'customer',
+            'organization',
         ]
         read_only_fields = [
             'status',
@@ -48,7 +56,8 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'created_at',
             'submitted_at',
             'verdict_at',
-            'assigned_to',
+            # 'assigned_to',
+            'organization',
         ]
 
 

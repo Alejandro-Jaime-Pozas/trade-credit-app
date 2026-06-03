@@ -1,4 +1,6 @@
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import AllowAny
+
 from .serializers import (
     OrganizationSerializer,
     UserSerializer,
@@ -12,7 +14,7 @@ from .models import (
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    # permission_classes = []
+    permission_classes = [AllowAny]
     # custom code for filtering queryset data...
 
     # def get_queryset(self):

@@ -1,5 +1,5 @@
 # CURRENT
-- 
+- implement only showing org's objects to its users.
 
 # LATER
 - implement simple JWT to backend for user auth

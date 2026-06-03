@@ -103,12 +103,10 @@ class UploadDocument(models.Model):
             self.original_title = self.file.name
 
         # TODO if not customer nor credit_case, raise error, do not allow creation
-        
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'<UploadDocument id={self.id}, name={self.file.name}, ' \
-                f'file_type_name={self.file_type_name}>'
+        return f'{self.file.name} ({self.file_type_name})'
 
 
 class DocumentDataExtract(models.Model):
@@ -144,8 +142,7 @@ class DocumentDataExtract(models.Model):
     )
 
     def __str__(self):
-        return f'<DocumentDataExtract id={self.id}, ' \
-               f'upload_document_id={self.upload_document_id}>'
+        return f'id={self.id}'
 
 
 class Label(models.Model):
@@ -180,4 +177,4 @@ class Label(models.Model):
     )
 
     def __str__(self):
-        return f'<Label id={self.id}, name={self.name}, value={self.value}>'
+        return f'name={self.name}, value={self.value}'

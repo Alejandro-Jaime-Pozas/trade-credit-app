@@ -138,7 +138,7 @@ class Organization(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"<Organization|id={self.pk}, email_domain={self.email_domain}>"
+        return f"{self.email_domain}"
 
 
 # TODO implement whatever is needed to get this m2m model up and running.

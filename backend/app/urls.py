@@ -48,10 +48,9 @@ router.registry.extend(storage_router.registry)
 urlpatterns = [
     path(api_ver, include(router.urls)),
     path('admin/', admin.site.urls),
-    # path(f'{api_ver}', include('rest_framework.urls')),  # Toggle on/off to remove auth
-    # path(f'{api_ver}auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # Toggle on/off to remove auth
-    # path(f'{api_ver}auth/login/', CustomTokenView.as_view(), name='token_obtain_pair'),  # TODO implement later with custom token view and serializer
-    # path(f'{api_ver}auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # Toggle on/off to remove auth
+    path(f'{api_ver}', include('rest_framework.urls')),  # Toggle on/off to remove auth
+    path(f'{api_ver}auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # Toggle on/off to remove auth
+    path(f'{api_ver}auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # Toggle on/off to remove auth
     path(f'{api_ver}schema/', SpectacularAPIView.as_view(), name='schema'),
     path(f'{api_ver}docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
