@@ -5,6 +5,7 @@ from rest_framework.viewsets import (
     ReadOnlyModelViewSet,
 )
 
+from app.mixins import OrganizationScopedMixin
 from core.str_utils import pretty_print
 
 from .serializers import (
@@ -20,10 +21,14 @@ from .models import (
 from .services.db_object_handling import handle_upload_document_created
 
 
-class UploadDocumentViewSet(ModelViewSet):
+class UploadDocumentViewSet(
+    OrganizationScopedMixin,
+    ModelViewSet,
+):
 
     queryset = UploadDocument.objects.all()
     serializer_class = UploadDocumentSerializer
+    organization_lookup = 'customer__organization'  # TODO this is missing credit_case lookups if no customer linked to doc and only credit_case...fix
 
     # This create override is required to replace single obj req/res with list of objs
     def create(self, request, *args, **kwargs):
@@ -47,13 +52,21 @@ class UploadDocumentViewSet(ModelViewSet):
         return Response(out.data, status=status.HTTP_201_CREATED)
 
 
-class DocumentDataExtractViewSet(ReadOnlyModelViewSet):
+class DocumentDataExtractViewSet(
+    OrganizationScopedMixin,
+    ReadOnlyModelViewSet,
+):
 
     queryset = DocumentDataExtract.objects.all()
     serializer_class = DocumentDataExtractSerializer
+    organization_lookup = 'upload_document__customer__organization'  # TODO this is missing credit_case lookups if no customer linked to doc and only credit_case...fix
 
 
-class LabelViewSet(ModelViewSet):
+class LabelViewSet(
+    OrganizationScopedMixin,
+    ModelViewSet,
+):
 
     queryset = Label.objects.all()
     serializer_class = LabelSerializer
+    organization_lookup = 'customers__organization'  # TODO this is missing credit_case lookups if no customer linked to doc and only credit_case...fix

@@ -1,3 +1,5 @@
+- implement only showing org's objects to its users.
+
 - add new models, replace old ones
   - User
   - Organization (organization user belongs to)

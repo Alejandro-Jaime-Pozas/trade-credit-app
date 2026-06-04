@@ -3,6 +3,8 @@ from rest_framework.viewsets import (
     ReadOnlyModelViewSet,
 )
 
+from app.mixins import OrganizationScopedMixin
+
 from .serializers import (
     CreditCaseSerializer,
     AccountApplicationSerializer,
@@ -21,10 +23,14 @@ from .models import (
 )
 
 
-class CreditCaseViewSet(ModelViewSet):
+class CreditCaseViewSet(
+    OrganizationScopedMixin,
+    ModelViewSet,
+):
 
     queryset = CreditCase.objects.all()
     serializer_class = CreditCaseSerializer
+    organization_lookup = 'customer__organization'
 
 
 # ================================================================
