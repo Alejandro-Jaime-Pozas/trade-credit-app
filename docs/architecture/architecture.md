@@ -41,6 +41,7 @@
 ### API & Documentation
 
 -   API Documentation: drf-spectacular (OpenAPI)
+-   Contract sync: `backend/schema.yaml` (exported via Spectacular) drives `frontend/src/lib/api.generated.ts` (`openapi-typescript`). Run `./scripts/sync-api-schema.sh` locally; pushes to `main` that change `backend/**` (except `schema.yaml` alone) auto-sync via GitHub Actions.
 
 ### Testing & Code Quality
 

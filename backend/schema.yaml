@@ -1,0 +1,2654 @@
+openapi: 3.0.3
+info:
+  title: ''
+  version: 0.0.0
+paths:
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/credit-cases/:
+    get:
+      operationId: credit_cases_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - credit-cases
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCreditCaseList'
+          description: ''
+    post:
+      operationId: credit_cases_create
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      tags:
+      - credit-cases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCase'
+          description: ''
+  /api/v1/credit-cases/{id}/:
+    get:
+      operationId: credit_cases_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case.
+        required: true
+      tags:
+      - credit-cases
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCase'
+          description: ''
+    put:
+      operationId: credit_cases_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case.
+        required: true
+      tags:
+      - credit-cases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCase'
+          description: ''
+    patch:
+      operationId: credit_cases_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case.
+        required: true
+      tags:
+      - credit-cases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCreditCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCreditCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCreditCase'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCase'
+          description: ''
+    delete:
+      operationId: credit_cases_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case.
+        required: true
+      tags:
+      - credit-cases
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/customer-contacts/:
+    get:
+      operationId: customer_contacts_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - customer-contacts
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerContactList'
+          description: ''
+    post:
+      operationId: customer_contacts_create
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      tags:
+      - customer-contacts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerContact'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerContact'
+          description: ''
+  /api/v1/customer-contacts/{id}/:
+    get:
+      operationId: customer_contacts_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer contact.
+        required: true
+      tags:
+      - customer-contacts
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerContact'
+          description: ''
+    put:
+      operationId: customer_contacts_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer contact.
+        required: true
+      tags:
+      - customer-contacts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerContact'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerContact'
+          description: ''
+    patch:
+      operationId: customer_contacts_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer contact.
+        required: true
+      tags:
+      - customer-contacts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerContact'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerContact'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerContact'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerContact'
+          description: ''
+    delete:
+      operationId: customer_contacts_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer contact.
+        required: true
+      tags:
+      - customer-contacts
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/customers/:
+    get:
+      operationId: customers_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - customers
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerList'
+          description: ''
+    post:
+      operationId: customers_create
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Customer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Customer'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/v1/customers/{id}/:
+    get:
+      operationId: customers_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer.
+        required: true
+      tags:
+      - customers
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    put:
+      operationId: customers_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer.
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Customer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Customer'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    patch:
+      operationId: customers_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer.
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomer'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    delete:
+      operationId: customers_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this customer.
+        required: true
+      tags:
+      - customers
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/document-data-extracts/:
+    get:
+      operationId: document_data_extracts_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - document-data-extracts
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDocumentDataExtractList'
+          description: ''
+  /api/v1/document-data-extracts/{id}/:
+    get:
+      operationId: document_data_extracts_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this document data extract.
+        required: true
+      tags:
+      - document-data-extracts
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDataExtract'
+          description: ''
+  /api/v1/labels/:
+    get:
+      operationId: labels_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - labels
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLabelList'
+          description: ''
+    post:
+      operationId: labels_create
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      tags:
+      - labels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Label'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Label'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Label'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+          description: ''
+  /api/v1/labels/{id}/:
+    get:
+      operationId: labels_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this label.
+        required: true
+      tags:
+      - labels
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+          description: ''
+    put:
+      operationId: labels_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this label.
+        required: true
+      tags:
+      - labels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Label'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Label'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Label'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+          description: ''
+    patch:
+      operationId: labels_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this label.
+        required: true
+      tags:
+      - labels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLabel'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLabel'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLabel'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+          description: ''
+    delete:
+      operationId: labels_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this label.
+        required: true
+      tags:
+      - labels
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/organizations/:
+    get:
+      operationId: organizations_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - organizations
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+    post:
+      operationId: organizations_create
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations/{id}/:
+    get:
+      operationId: organizations_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - organizations
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    put:
+      operationId: organizations_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    patch:
+      operationId: organizations_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    delete:
+      operationId: organizations_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - organizations
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/upload-documents/:
+    get:
+      operationId: upload_documents_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - upload-documents
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUploadDocumentList'
+          description: ''
+    post:
+      operationId: upload_documents_create
+      description: |-
+        Trigger gpt process if this was the last UploadDocument required
+        in account application process.
+      tags:
+      - upload-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UploadDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadDocument'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDocument'
+          description: ''
+  /api/v1/upload-documents/{id}/:
+    get:
+      operationId: upload_documents_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this upload document.
+        required: true
+      tags:
+      - upload-documents
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDocument'
+          description: ''
+    put:
+      operationId: upload_documents_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this upload document.
+        required: true
+      tags:
+      - upload-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UploadDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadDocument'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDocument'
+          description: ''
+    patch:
+      operationId: upload_documents_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this upload document.
+        required: true
+      tags:
+      - upload-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUploadDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUploadDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUploadDocument'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDocument'
+          description: ''
+    delete:
+      operationId: upload_documents_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this upload document.
+        required: true
+      tags:
+      - upload-documents
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/users/:
+    get:
+      operationId: users_list
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: users_create
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/{id}/:
+    get:
+      operationId: users_retrieve
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: users_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: users_destroy
+      description: |-
+        Template to scope other model views to the user's (active) organization.
+
+        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+components:
+  schemas:
+    CreditCase:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+          description: |-
+            Credit case status like missing docs, pending ai verdict, etc. Items are in order of sequence.
+
+            * `missing_documents` - Missing Documents
+            * `pending_ai_verdict` - Pending AI Verdict
+            * `buro_de_credito_rejected` - Buro De Credito Rejected
+            * `pending_final_verdict` - Pending Final Verdict
+            * `complete` - Complete
+        verdict:
+          allOf:
+          - $ref: '#/components/schemas/VerdictEnum'
+          readOnly: true
+          description: |-
+            Credit case status like pending, approved, rejected. Items are in order of sequence.
+
+            * `pending` - Pending
+            * `approved` - Approved
+            * `rejected` - Rejected
+        requested_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,30}(?:\.\d{0,2})?$
+          description: Requested credit line amount.
+        currency:
+          allOf:
+          - $ref: '#/components/schemas/CurrencyEnum'
+          description: |-
+            Currency for the requested credit line amount.
+
+            * `MXN` - MXN
+        requested_term_days:
+          allOf:
+          - $ref: '#/components/schemas/RequestedTermDaysEnum'
+          description: |-
+            Requested net terms (days).
+
+            * `15` - 15 days
+            * `30` - 30 days
+            * `45` - 45 days
+            * `60` - 60 days
+            * `90` - 90 days
+          minimum: -2147483648
+          maximum: 2147483647
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Submitted for human approval timestamp.
+        verdict_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Final verdict timestamp after human review.
+        customer:
+          type: string
+          format: uri
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+      required:
+      - created_at
+      - customer
+      - id
+      - organization
+      - requested_term_days
+      - status
+      - submitted_at
+      - url
+      - verdict
+      - verdict_at
+    CurrencyEnum:
+      enum:
+      - MXN
+      type: string
+      description: '* `MXN` - MXN'
+    Customer:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: Customer name.
+          maxLength: 100
+        legal_name:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Customer legal name recognized by government.
+        rfc:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Registro Federal de Contribuyentes for customer.
+        type:
+          readOnly: true
+          nullable: true
+          description: |-
+            Persona moral o fisica.
+
+            * `fisica` - Persona física
+            * `moral` - Persona moral
+          oneOf:
+          - $ref: '#/components/schemas/TypeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        nombre_de_vialidad:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Nombre de la calle, avenida, etc.
+        codigo_postal:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Zip code.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+          description: User's Organization that created this customer record.
+        created_by:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          description: User that created this customer record.
+        customer_contacts:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+      required:
+      - codigo_postal
+      - created_at
+      - created_by
+      - customer_contacts
+      - id
+      - legal_name
+      - name
+      - nombre_de_vialidad
+      - organization
+      - rfc
+      - type
+      - updated_at
+      - url
+    CustomerContact:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          nullable: true
+          description: Contact first name.
+          maxLength: 100
+        last_name:
+          type: string
+          nullable: true
+          description: Contact last name.
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          description: Contact email address.
+          maxLength: 254
+        phone_number:
+          type: string
+          nullable: true
+          description: Contact phone number.
+          maxLength: 128
+        role:
+          type: string
+          nullable: true
+          description: Contact role or position within the customer organization.
+          maxLength: 50
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          description: User that created this customer record.
+        customer:
+          type: string
+          format: uri
+          description: The customer this contact belongs to.
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          description: User's Organization that created this customer contact record.
+      required:
+      - created_at
+      - created_by
+      - customer
+      - email
+      - id
+      - organization
+      - updated_at
+      - url
+    DocumentDataExtract:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        raw_json:
+          readOnly: true
+          nullable: true
+          description: the raw json data extracted from the document using AI. Pydantic
+            models can be used to parse this data into more structured formats if
+            desired.
+        confidence_score:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+          description: a confidence score between 0 and 1 indicating the AI's confidence
+            in the extracted data.
+        model_version:
+          readOnly: true
+          nullable: true
+          description: |-
+            the version of the AI model used for extraction, if applicable.
+
+            * `gpt-5-nano` - GPT-5 Nano
+          oneOf:
+          - $ref: '#/components/schemas/ModelVersionEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        upload_document:
+          type: string
+          format: uri
+          readOnly: true
+      required:
+      - confidence_score
+      - created_at
+      - id
+      - model_version
+      - raw_json
+      - upload_document
+      - url
+    FileTypeNameEnum:
+      enum:
+      - cashflow_statement
+      - unknown
+      type: string
+      description: |-
+        * `cashflow_statement` - Cashflow Statement
+        * `unknown` - Unknown
+    Label:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: The name of the label, e.g. "sucursal".
+          maxLength: 50
+        value:
+          type: string
+          description: The value of the label, e.g. "sucursal MTY norte".
+          maxLength: 250
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        credit_cases:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: The CreditCase that this label is associated with.
+        customers:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: The Customer that this label is associated with.
+      required:
+      - created_at
+      - credit_cases
+      - customers
+      - id
+      - name
+      - url
+      - value
+    ModelVersionEnum:
+      enum:
+      - gpt-5-nano
+      type: string
+      description: '* `gpt-5-nano` - GPT-5 Nano'
+    NullEnum:
+      enum:
+      - null
+    Organization:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        email_domain:
+          type: string
+          maxLength: 300
+        users:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+      required:
+      - email_domain
+      - id
+      - name
+      - url
+      - users
+    PaginatedCreditCaseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditCase'
+    PaginatedCustomerContactList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerContact'
+    PaginatedCustomerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+    PaginatedDocumentDataExtractList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentDataExtract'
+    PaginatedLabelList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Label'
+    PaginatedOrganizationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+    PaginatedUploadDocumentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadDocument'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PatchedCreditCase:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+          description: |-
+            Credit case status like missing docs, pending ai verdict, etc. Items are in order of sequence.
+
+            * `missing_documents` - Missing Documents
+            * `pending_ai_verdict` - Pending AI Verdict
+            * `buro_de_credito_rejected` - Buro De Credito Rejected
+            * `pending_final_verdict` - Pending Final Verdict
+            * `complete` - Complete
+        verdict:
+          allOf:
+          - $ref: '#/components/schemas/VerdictEnum'
+          readOnly: true
+          description: |-
+            Credit case status like pending, approved, rejected. Items are in order of sequence.
+
+            * `pending` - Pending
+            * `approved` - Approved
+            * `rejected` - Rejected
+        requested_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,30}(?:\.\d{0,2})?$
+          description: Requested credit line amount.
+        currency:
+          allOf:
+          - $ref: '#/components/schemas/CurrencyEnum'
+          description: |-
+            Currency for the requested credit line amount.
+
+            * `MXN` - MXN
+        requested_term_days:
+          allOf:
+          - $ref: '#/components/schemas/RequestedTermDaysEnum'
+          description: |-
+            Requested net terms (days).
+
+            * `15` - 15 days
+            * `30` - 30 days
+            * `45` - 45 days
+            * `60` - 60 days
+            * `90` - 90 days
+          minimum: -2147483648
+          maximum: 2147483647
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Submitted for human approval timestamp.
+        verdict_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Final verdict timestamp after human review.
+        customer:
+          type: string
+          format: uri
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+    PatchedCustomer:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: Customer name.
+          maxLength: 100
+        legal_name:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Customer legal name recognized by government.
+        rfc:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Registro Federal de Contribuyentes for customer.
+        type:
+          readOnly: true
+          nullable: true
+          description: |-
+            Persona moral o fisica.
+
+            * `fisica` - Persona física
+            * `moral` - Persona moral
+          oneOf:
+          - $ref: '#/components/schemas/TypeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        nombre_de_vialidad:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Nombre de la calle, avenida, etc.
+        codigo_postal:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Zip code.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+          description: User's Organization that created this customer record.
+        created_by:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          description: User that created this customer record.
+        customer_contacts:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+    PatchedCustomerContact:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          nullable: true
+          description: Contact first name.
+          maxLength: 100
+        last_name:
+          type: string
+          nullable: true
+          description: Contact last name.
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          description: Contact email address.
+          maxLength: 254
+        phone_number:
+          type: string
+          nullable: true
+          description: Contact phone number.
+          maxLength: 128
+        role:
+          type: string
+          nullable: true
+          description: Contact role or position within the customer organization.
+          maxLength: 50
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          description: User that created this customer record.
+        customer:
+          type: string
+          format: uri
+          description: The customer this contact belongs to.
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+          description: User's Organization that created this customer contact record.
+    PatchedLabel:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: The name of the label, e.g. "sucursal".
+          maxLength: 50
+        value:
+          type: string
+          description: The value of the label, e.g. "sucursal MTY norte".
+          maxLength: 250
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        credit_cases:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: The CreditCase that this label is associated with.
+        customers:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: The Customer that this label is associated with.
+    PatchedOrganization:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        email_domain:
+          type: string
+          maxLength: 300
+        users:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+    PatchedUploadDocument:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        original_title:
+          type: string
+          readOnly: true
+          nullable: true
+          description: the uploaded file's unmodified original title.
+        file:
+          type: string
+          format: uri
+          description: the file object that is stored.
+          pattern: (?:pdf|jpg|jpeg|png|txt|csv|xml|json|docx|xlsx|pptx)$
+        friendly_file_name:
+          type: string
+          readOnly: true
+          nullable: true
+          description: friendly file name for readability.
+        file_type_name:
+          readOnly: true
+          nullable: true
+          description: |-
+            file type name given the choices list.
+
+            * `cashflow_statement` - Cashflow Statement
+            * `unknown` - Unknown
+          oneOf:
+          - $ref: '#/components/schemas/FileTypeNameEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        mimetype:
+          type: string
+          readOnly: true
+          nullable: true
+          description: mime type of the file.
+        extracted_data:
+          readOnly: true
+          nullable: true
+          description: Useful JSON data that gpt extracts from files.
+        credit_case:
+          type: string
+          format: uri
+          nullable: true
+          description: the credit case the file belongs to.
+        customer:
+          type: string
+          format: uri
+          nullable: true
+          description: the customer the file belongs to.
+    PatchedUser:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        organizations:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+    RequestedTermDaysEnum:
+      enum:
+      - 15
+      - 30
+      - 45
+      - 60
+      - 90
+      type: integer
+      description: |-
+        * `15` - 15 days
+        * `30` - 30 days
+        * `45` - 45 days
+        * `60` - 60 days
+        * `90` - 90 days
+    StatusEnum:
+      enum:
+      - missing_documents
+      - pending_ai_verdict
+      - buro_de_credito_rejected
+      - pending_final_verdict
+      - complete
+      type: string
+      description: |-
+        * `missing_documents` - Missing Documents
+        * `pending_ai_verdict` - Pending AI Verdict
+        * `buro_de_credito_rejected` - Buro De Credito Rejected
+        * `pending_final_verdict` - Pending Final Verdict
+        * `complete` - Complete
+    TokenObtainPair:
+      type: object
+      properties:
+        email:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - email
+      - password
+      - refresh
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TypeEnum:
+      enum:
+      - fisica
+      - moral
+      type: string
+      description: |-
+        * `fisica` - Persona física
+        * `moral` - Persona moral
+    UploadDocument:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        original_title:
+          type: string
+          readOnly: true
+          nullable: true
+          description: the uploaded file's unmodified original title.
+        file:
+          type: string
+          format: uri
+          description: the file object that is stored.
+          pattern: (?:pdf|jpg|jpeg|png|txt|csv|xml|json|docx|xlsx|pptx)$
+        friendly_file_name:
+          type: string
+          readOnly: true
+          nullable: true
+          description: friendly file name for readability.
+        file_type_name:
+          readOnly: true
+          nullable: true
+          description: |-
+            file type name given the choices list.
+
+            * `cashflow_statement` - Cashflow Statement
+            * `unknown` - Unknown
+          oneOf:
+          - $ref: '#/components/schemas/FileTypeNameEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        mimetype:
+          type: string
+          readOnly: true
+          nullable: true
+          description: mime type of the file.
+        extracted_data:
+          readOnly: true
+          nullable: true
+          description: Useful JSON data that gpt extracts from files.
+        credit_case:
+          type: string
+          format: uri
+          nullable: true
+          description: the credit case the file belongs to.
+        customer:
+          type: string
+          format: uri
+          nullable: true
+          description: the customer the file belongs to.
+      required:
+      - extracted_data
+      - file
+      - file_type_name
+      - friendly_file_name
+      - id
+      - mimetype
+      - original_title
+      - uploaded_at
+      - url
+    User:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        organizations:
+          type: array
+          items:
+            type: string
+            format: uri
+          readOnly: true
+      required:
+      - date_joined
+      - email
+      - first_name
+      - id
+      - is_active
+      - is_staff
+      - is_superuser
+      - last_name
+      - organizations
+      - password
+      - url
+    VerdictEnum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `approved` - Approved
+        * `rejected` - Rejected
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

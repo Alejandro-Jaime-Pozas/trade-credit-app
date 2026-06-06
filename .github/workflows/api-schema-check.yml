@@ -1,0 +1,70 @@
+# Fail PRs when committed schema/types are out of date with the backend.
+name: API schema check
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/src/lib/api.generated.ts"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "scripts/sync-api-schema.sh"
+      - ".github/workflows/sync-api-schema.yml"
+      - ".github/workflows/api-schema-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: trade_credit_app_db
+          POSTGRES_USER: trade_credit_app_user
+          POSTGRES_PASSWORD: changeme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trade_credit_app_user -d trade_credit_app_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Regenerate OpenAPI schema and frontend types
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: trade_credit_app_db
+          POSTGRES_USER: trade_credit_app_user
+          POSTGRES_PASSWORD: changeme
+          SECRET_KEY: schema-export-only-not-for-production
+        run: ./scripts/sync-api-schema.sh
+
+      - name: Verify schema artifacts are committed
+        run: |
+          if ! git diff --exit-code backend/schema.yaml frontend/src/lib/api.generated.ts; then
+            echo "::error::API schema is out of date. Run ./scripts/sync-api-schema.sh and commit the changes."
+            exit 1
+          fi

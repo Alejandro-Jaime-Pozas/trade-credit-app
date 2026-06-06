@@ -4,6 +4,7 @@
 UI flows, forms, tables, empty states.
 
 ## Operating Constraints
+- API types are generated from `backend/schema.yaml` into `frontend/src/lib/api.generated.ts`; import domain types from `@/lib/types`. After backend API changes, run `./scripts/sync-api-schema.sh` (or rely on the `main` branch sync workflow).
 - Use Next.js App Router and Server Components where appropriate.
 - Follow a consistent design system (Tailwind CSS + Shadcn UI).
 - Handle loading, error, and empty states using Next.js `loading.tsx` and `error.tsx` patterns.

@@ -1,0 +1,75 @@
+# Regenerate OpenAPI schema and frontend types when backend API code changes on main.
+name: Sync API schema
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+    paths-ignore:
+      - "backend/schema.yaml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: trade_credit_app_db
+          POSTGRES_USER: trade_credit_app_user
+          POSTGRES_PASSWORD: changeme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trade_credit_app_user -d trade_credit_app_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Regenerate OpenAPI schema and frontend types
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: trade_credit_app_db
+          POSTGRES_USER: trade_credit_app_user
+          POSTGRES_PASSWORD: changeme
+          SECRET_KEY: schema-export-only-not-for-production
+        run: ./scripts/sync-api-schema.sh
+
+      - name: Commit schema updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/schema.yaml frontend/src/lib/api.generated.ts
+          if git diff --staged --quiet; then
+            echo "API schema already up to date."
+            exit 0
+          fi
+          git commit -m "chore(api): sync OpenAPI schema and frontend types"
+          git push
