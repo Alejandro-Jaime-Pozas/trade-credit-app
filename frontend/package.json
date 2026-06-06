@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "api:generate": "openapi-typescript ../backend/schema.yaml -o src/lib/api.generated.ts",
-    "api:check": "openapi-typescript ../backend/schema.yaml -o src/lib/api.generated.ts --check"
+    "api:generate": "openapi-typescript /backend/schema.yaml -o src/lib/api.generated.ts",
+    "api:check": "openapi-typescript /backend/schema.yaml -o src/lib/api.generated.ts --check",
+    "sync-api": "./scripts/sync-api-schema.sh",
+    "watch-api": "watchexec --watch ../backend --exts py --ignore ../backend/schema.yaml ../scripts/sync-api-schema.sh"
   },
   "dependencies": {
     "next": "16.2.4",

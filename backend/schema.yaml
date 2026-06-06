@@ -1793,12 +1793,12 @@ components:
       - url
     FileTypeNameEnum:
       enum:
-      - cashflow_statement
       - unknown
+      - cashflow_statement
       type: string
       description: |-
-        * `cashflow_statement` - Cashflow Statement
         * `unknown` - Unknown
+        * `cashflow_statement` - Cashflow Statement
     Label:
       type: object
       properties:
@@ -2361,8 +2361,8 @@ components:
           description: |-
             file type name given the choices list.
 
-            * `cashflow_statement` - Cashflow Statement
             * `unknown` - Unknown
+            * `cashflow_statement` - Cashflow Statement
           oneOf:
           - $ref: '#/components/schemas/FileTypeNameEnum'
           - $ref: '#/components/schemas/NullEnum'
@@ -2537,8 +2537,8 @@ components:
           description: |-
             file type name given the choices list.
 
-            * `cashflow_statement` - Cashflow Statement
             * `unknown` - Unknown
+            * `cashflow_statement` - Cashflow Statement
           oneOf:
           - $ref: '#/components/schemas/FileTypeNameEnum'
           - $ref: '#/components/schemas/NullEnum'
