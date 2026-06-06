@@ -707,11 +707,11 @@ export interface components {
             readonly upload_document: string;
         };
         /**
-         * @description * `unknown` - Unknown
-         *     * `cashflow_statement` - Cashflow Statement
+         * @description * `cashflow_statement` - Cashflow Statement
+         *     * `unknown` - Unknown
          * @enum {string}
          */
-        FileTypeNameEnum: "unknown" | "cashflow_statement";
+        FileTypeNameEnum: "cashflow_statement" | "unknown";
         Label: {
             /** Format: uri */
             readonly url: string;
@@ -1037,8 +1037,8 @@ export interface components {
             /**
              * @description file type name given the choices list.
              *
-             *     * `unknown` - Unknown
              *     * `cashflow_statement` - Cashflow Statement
+             *     * `unknown` - Unknown
              */
             readonly file_type_name?: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @description mime type of the file. */
@@ -1136,8 +1136,8 @@ export interface components {
             /**
              * @description file type name given the choices list.
              *
-             *     * `unknown` - Unknown
              *     * `cashflow_statement` - Cashflow Statement
+             *     * `unknown` - Unknown
              */
             readonly file_type_name: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @description mime type of the file. */
