@@ -1,5 +1,6 @@
 # CURRENT
-- 
+- frontend: implement new changes given credit case process, customer, customer contact, check bugs:
+  - 
 
 # LATER
 - implement simple JWT to backend for user auth
