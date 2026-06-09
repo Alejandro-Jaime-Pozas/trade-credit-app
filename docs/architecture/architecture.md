@@ -59,7 +59,7 @@
 
 ### CI/CD
 
--   GitHub Actions (free tier)
+-   Future Implementation (don't implement now): GitHub Actions (free tier)
 
 ## Directory Structure
 

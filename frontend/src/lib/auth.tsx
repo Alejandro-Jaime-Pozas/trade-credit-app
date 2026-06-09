@@ -1,67 +1,103 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
-import { apiJson, drfListAll } from "./api";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
-  getLocalStorageItem,
-  removeLocalStorageItem,
-  safeJsonParse,
-  setLocalStorageItem,
-} from "./storage";
-
-const AUTH_KEY = "tca.currentUser";
-
-export type User = {
-  url: string;
-  id: number;
-  email: string;
-  date_joined: string;
-  organizations: string[];
-};
+  apiJson,
+  clearStoredTokens,
+  getStoredTokens,
+  getUserIdFromAccessToken,
+  setStoredTokens,
+} from "./api";
+import type { TokenObtainPair, User } from "./types";
 
 type AuthState = {
   user: User | null;
   loading: boolean;
-  loginByEmail: (email: string) => Promise<void>;
+  login: (args: { email: string; password: string }) => Promise<void>;
   signup: (args: { email: string; password: string }) => Promise<void>;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
+async function fetchCurrentUser(accessToken: string): Promise<User> {
+  const userId = getUserIdFromAccessToken(accessToken);
+  if (!userId) {
+    throw new Error("Invalid access token");
+  }
+  return apiJson<User>({ pathOrUrl: `/users/${userId}/` });
+}
+
+async function loginWithCredentials(args: {
+  email: string;
+  password: string;
+}): Promise<{ tokens: { access: string; refresh: string }; user: User }> {
+  const tokens = await apiJson<TokenObtainPair>({
+    pathOrUrl: "/auth/login/",
+    method: "POST",
+    body: { email: args.email, password: args.password },
+    auth: false,
+  });
+  setStoredTokens({ access: tokens.access, refresh: tokens.refresh });
+  const user = await fetchCurrentUser(tokens.access);
+  return { tokens, user };
+}
+
 export function AuthProvider(props: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() =>
-    safeJsonParse<User>(getLocalStorageItem(AUTH_KEY)),
-  );
-  const [loading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      const { access } = getStoredTokens();
+      if (!access) return;
+
+      try {
+        const currentUser = await fetchCurrentUser(access);
+        if (!cancelled) setUser(currentUser);
+      } catch {
+        clearStoredTokens();
+      }
+    }
+
+    restoreSession().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const value = useMemo<AuthState>(() => {
     return {
       user,
       loading,
-      async loginByEmail(email: string) {
-        const allUsers = await drfListAll<User>({ path: "/users/" });
-        const found =
-          allUsers.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
-          null;
-        if (!found) {
-          throw new Error("No user found with that email. Try signing up first.");
-        }
-        setUser(found);
-        setLocalStorageItem(AUTH_KEY, JSON.stringify(found));
+      async login(args) {
+        const { user: loggedInUser } = await loginWithCredentials(args);
+        setUser(loggedInUser);
       },
-      async signup(args: { email: string; password: string }) {
-        const created = await apiJson<User>({
+      async signup(args) {
+        await apiJson<User>({
           pathOrUrl: "/users/",
           method: "POST",
           body: { email: args.email, password: args.password },
+          auth: false,
         });
-        setUser(created);
-        setLocalStorageItem(AUTH_KEY, JSON.stringify(created));
+        const { user: loggedInUser } = await loginWithCredentials(args);
+        setUser(loggedInUser);
       },
       logout() {
         setUser(null);
-        removeLocalStorageItem(AUTH_KEY);
+        clearStoredTokens();
       },
     };
   }, [user, loading]);
@@ -87,4 +123,3 @@ export function useRequireAuth(): { user: User } {
   }
   return { user };
 }
-

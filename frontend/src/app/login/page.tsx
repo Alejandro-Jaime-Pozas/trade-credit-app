@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loginByEmail } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,8 +20,7 @@ export default function LoginPage() {
       <div className="mx-auto max-w-md">
         <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Dev-mode login: the backend currently has no JWT/session login endpoint, so
-          we select a user by email and store it locally.
+          Sign in with the email and password for your account.
         </p>
 
         <form
@@ -31,7 +30,7 @@ export default function LoginPage() {
             setSubmitting(true);
             setError(null);
             try {
-              await loginByEmail(email.trim());
+              await login({ email: email.trim(), password });
               router.push("/dashboard");
             } catch (err) {
               setError(err instanceof Error ? err.message : "Login failed");
@@ -58,8 +57,9 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
+              required
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-              placeholder="(not validated in dev mode)"
+              placeholder="Your password"
             />
           </label>
 

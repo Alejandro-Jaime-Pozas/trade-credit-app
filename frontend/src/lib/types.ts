@@ -12,3 +12,6 @@ export type PatchedCustomerContact =
 export type PatchedCreditCase = components["schemas"]["PatchedCreditCase"];
 export type PatchedUploadDocument =
   components["schemas"]["PatchedUploadDocument"];
+export type User = components["schemas"]["User"];
+export type TokenObtainPair = components["schemas"]["TokenObtainPair"];
+export type TokenRefresh = components["schemas"]["TokenRefresh"];
