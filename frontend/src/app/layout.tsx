@@ -1,3 +1,10 @@
+/**
+ * Root layout — wraps every page in the Next.js App Router.
+ *
+ * Runs once for the whole app: sets fonts, global CSS, and `<AuthProvider>`
+ * so login state is available everywhere. This is a Server Component (no
+ * `"use client"`); interactive auth logic lives in `lib/auth.tsx`.
+ */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";

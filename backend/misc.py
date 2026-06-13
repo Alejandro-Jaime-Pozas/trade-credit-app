@@ -457,7 +457,7 @@ print(x)
 
 # from core.str_utils import pretty_print
 # from core.constants import (
-#     LOAN_FILE_TYPE_NAMES_REQUIRED,
+#     CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
 #     LOAN_FILE_MONTHS_REQUIRED_FINANCIALS,
 #     MAX_FILE_MONTHS_BACK,
 # )
@@ -467,7 +467,7 @@ print(x)
 # # from processing.models import AccountApplication
 
 
-# file_type_names = LOAN_FILE_TYPE_NAMES_REQUIRED
+# file_type_names = CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
 # months_required = LOAN_FILE_MONTHS_REQUIRED_FINANCIALS
 # max_months_back = MAX_FILE_MONTHS_BACK
 

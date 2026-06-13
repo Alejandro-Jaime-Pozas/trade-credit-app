@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Sign-up page (`/signup`).
+ *
+ * Creates a new user via POST `/users/`, then logs in automatically so the
+ * user lands on the dashboard with a valid session.
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";

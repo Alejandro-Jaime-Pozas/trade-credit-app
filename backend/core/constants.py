@@ -1,16 +1,19 @@
 FILE_UPLOAD_MAX_SIZE_MB=20  # called on serializer's validate method, not model
 
 
-# Loan: required file type names
-LOAN_FILE_TYPE_NAMES_REQUIRED={
+# Credit Case: required file type names
+CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED={
     # # Financials
     # 'bank_statement',
     # 'balance_sheet',
     'cashflow_statement',
     # 'income_statement',
-    # # Legal
-    # 'constancia_de_situacion_fiscal',  # TODO later perhaps create this as separate set
 }
+CUSTOMER_FILE_TYPE_NAMES_REQUIRED={
+    # Legal
+    'constancia_de_situacion_fiscal',  # TODO later perhaps create this as separate set
+}
+
 # Loan: required file_type_name month requirement mappings
 LOAN_FILE_MONTHS_REQUIRED_FINANCIALS={
     'bank_statement': 12,
@@ -26,7 +29,7 @@ LOAN_FILE_MONTHS_REQUIRED_LEGAL={
 UPLOAD_DOCUMENT_FILE_TYPE_NAMES={
     'unknown',
 }
-UPLOAD_DOCUMENT_FILE_TYPE_NAMES.update(LOAN_FILE_TYPE_NAMES_REQUIRED)
+UPLOAD_DOCUMENT_FILE_TYPE_NAMES.update(CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED)
 
 # Min required months back from current date to satisfy file requirement; files before this date do not count
 MAX_FILE_MONTHS_BACK_FINANCIALS=2

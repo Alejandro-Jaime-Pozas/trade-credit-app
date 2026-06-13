@@ -1,3 +1,17 @@
+/**
+ * HTTP client for the Django REST API.
+ *
+ * All backend communication goes through this file. Pages call `apiJson`,
+ * `apiForm`, or `drfListAll` instead of raw `fetch`.
+ *
+ * Responsibilities:
+ * - Build full URLs from `NEXT_PUBLIC_API_BASE_URL` (default localhost:8000)
+ * - Attach JWT `Authorization: Bearer …` headers on authenticated requests
+ * - Refresh expired access tokens via `/auth/refresh/`
+ * - Throw `ApiError` with a readable message when the server returns 4xx/5xx
+ *
+ * Public endpoints (login, signup) pass `auth: false` so no token is sent.
+ */
 import {
   getLocalStorageItem,
   removeLocalStorageItem,

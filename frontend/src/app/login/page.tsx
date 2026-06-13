@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Login page (`/login`).
+ *
+ * Collects email + password and calls `useAuth().login()`, which exchanges
+ * credentials for JWT tokens via the backend. On success, navigates to dashboard.
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";

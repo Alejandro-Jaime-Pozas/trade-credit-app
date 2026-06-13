@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Customer list (`/customers`).
+ *
+ * Shows all customers for the logged-in user's organization with search.
+ * Links to create (`/customers/new`) and detail (`/customers/[id]`) pages.
+ */
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";

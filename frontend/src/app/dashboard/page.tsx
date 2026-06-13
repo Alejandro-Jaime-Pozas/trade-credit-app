@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Dashboard (`/dashboard`) — main landing page after login.
+ *
+ * Lists the org's credit cases in a filterable table. Fetches paginated data
+ * from `/credit-cases/` and resolves linked customer names. Protected by
+ * `RequireAuth`.
+ */
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";

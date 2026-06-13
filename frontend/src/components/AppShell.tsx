@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Shared page chrome: header nav, signed-in user info, logout, footer.
+ *
+ * Wraps most page content so every screen has consistent navigation
+ * (Dashboard, Customers) and auth actions without duplicating markup.
+ */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React from "react";

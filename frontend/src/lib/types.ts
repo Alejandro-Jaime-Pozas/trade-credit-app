@@ -1,3 +1,13 @@
+/**
+ * Friendly TypeScript names for API data shapes.
+ *
+ * Types are generated from the Django OpenAPI schema (`backend/schema.yaml` →
+ * `api.generated.ts`). Import these in pages/components instead of the huge
+ * generated file, e.g. `import type { Customer } from "@/lib/types"`.
+ *
+ * When the backend adds a new model/field, run `./scripts/sync-api-schema.sh`
+ * and add a new `export type` alias here if pages need it.
+ */
 import type { components } from "@/lib/api.generated";
 
 /** API entity types generated from backend OpenAPI (`backend/schema.yaml`). */

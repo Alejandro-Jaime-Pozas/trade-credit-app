@@ -5,7 +5,10 @@ from django.db import models
 from core.choices_for_models import CurrencyName
 from customers.models import Customer
 from processing.services.credit_case import check_aggregate_satisfied_month_intervals
-from core.constants import ALLOWED_FILE_EXTENSIONS, LOAN_FILE_TYPE_NAMES_REQUIRED
+from core.constants import (
+    ALLOWED_FILE_EXTENSIONS,
+    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+)
 from core.str_utils import clean_account_name
 from .choices_for_models import (
     CreditCaseFinalVerdict,
@@ -27,6 +30,11 @@ class CreditCase(models.Model):
     This is created after a user creates a customer, and is linked to that customer.
 
     Files associated to credit case include financials, credit bureau files, and more moment-in-time files (CSF, Acta Constitutiva not included since they are more general to the customer and not specific to the credit case).
+
+    Notes:
+        Since this model will be auto-created from Customer profile,
+        it needs to have defaults or null=True values to be able to create
+        a default CreditCase for a given Customer.
     """
 
     status = models.CharField(
@@ -48,7 +56,7 @@ class CreditCase(models.Model):
     requested_amount = models.DecimalField(
         max_digits=32,
         decimal_places=2,
-        default=0.00,
+        null=True,
         blank=True,
         help_text='Requested credit line amount.',
     )
@@ -60,6 +68,8 @@ class CreditCase(models.Model):
     )
     requested_term_days = models.IntegerField(
         choices=RequestedTermDays.choices,
+        null=True,
+        blank=True,
         help_text='Requested net terms (days).',
     )
     created_at = models.DateTimeField(
@@ -90,6 +100,78 @@ class CreditCase(models.Model):
         on_delete=models.CASCADE,
         related_name='credit_cases',
     )
+
+    @property
+    def required_file_type_names(self):
+        """
+        Get a set of all required file_type_name files
+        for this instance's credit case.
+        """
+        return CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
+
+    @property
+    def uploaded_file_type_names(self):
+        """ Get a set of all uploaded file_type_name files. """
+        # this should be in related upload_documents m2m
+        if self.upload_documents.first():
+            return {d.file_type_name for d in self.upload_documents.all()}
+        else:
+            return set()
+
+    @property
+    def missing_file_type_names(self):
+        # TODO include new date requirements to satisfy file requirements
+        """ Get a set of all missing file_type_name files. """
+        if self.required_file_type_names:
+                return \
+                    set(self.required_file_type_names) \
+                    - set(self.uploaded_file_type_names)
+
+    @property
+    def total_missing_files(self):
+        """ Get the number of missing file_type_name files. """
+        if self.missing_file_type_names:
+            return len(self.missing_file_type_names)
+        else:
+            return 0
+
+    @property
+    # TODO will need to modify this to use in credit case...
+    def all_files_required_dates_complete(self):
+        """
+        Get a dict of all file type names that have been uploaded along
+        with the months they satisfy to meet file date requirements.
+        """
+        if self.type == 'loan':
+            file_dates = check_aggregate_satisfied_month_intervals(
+                acct_app=self,
+                file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+            )
+            try:
+                data = {
+                    file_type_name: {
+                            d.isoformat(): value
+                            for d, value in months_dict.items()
+                    }
+                    for file_type_name, months_dict in file_dates.items()
+                }
+                return data
+
+            except Exception as e:
+                return {'error': str(e)}
+
+        else:
+            return {}
+
+    def save(self, *args, **kwargs):
+        if not self.name and self.type:
+            self.name = clean_account_name(type_name=self.type)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'<AccountApplication|id={self.id}, name={self.name}, ' \
+                f'account_application_type={self.type}, status={self.status}>'
 
 
 ### ========================================================
@@ -137,7 +219,7 @@ class AccountApplication(models.Model):
         for this instance's account application type.
         """
         if self.type == 'loan':
-            return LOAN_FILE_TYPE_NAMES_REQUIRED
+            return CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
         else:
             raise ValueError(
                 'Must implement code for type field other than "loan" for acct app.'
@@ -178,7 +260,7 @@ class AccountApplication(models.Model):
         if self.type == 'loan':
             file_dates = check_aggregate_satisfied_month_intervals(
                 acct_app=self,
-                file_type_names=LOAN_FILE_TYPE_NAMES_REQUIRED,
+                file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
             )
             try:
                 data = {

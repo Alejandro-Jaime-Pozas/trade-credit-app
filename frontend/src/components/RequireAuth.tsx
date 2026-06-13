@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Route guard for pages that need a logged-in user.
+ *
+ * Wrap protected page content in `<RequireAuth>…</RequireAuth>`. If there is no
+ * user (and auth is done loading), redirects to `/login`. Shows "Loading…"
+ * while `AuthProvider` restores the session from stored JWT tokens.
+ */
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { useAuth } from "@/lib/auth";

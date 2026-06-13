@@ -13,7 +13,7 @@ from processing.services.credit_case import (
     check_all_files_required_dates_complete,
 )
 from core.constants import (
-    LOAN_FILE_TYPE_NAMES_REQUIRED,
+    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
 )
 from processing.loan_term_calculations.constants import CREDIT_SCORE_VERDICT
 from core.str_utils import pretty_print
@@ -85,7 +85,7 @@ def handle_upload_document_created(doc):
     # Get the missing file type names and their missing dates (if any) to check date range completion
     credit_case_docs_are_completed = check_all_files_required_dates_complete(
         credit_case=credit_case,
-        file_type_names=LOAN_FILE_TYPE_NAMES_REQUIRED,
+        file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
     )
     print('\ncredit_case req docs are complete:', credit_case_docs_are_completed)  # TEMP
     print(credit_case.all_files_required_dates_complete)  # TEMP
@@ -155,7 +155,7 @@ def handle_upload_document_created(doc):
     # else:
     #     return check_aggregate_satisfied_month_intervals(
     #         credit_case=credit_case,
-    #         file_type_names=LOAN_FILE_TYPE_NAMES_REQUIRED,
+    #         file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
     #     )
 
 

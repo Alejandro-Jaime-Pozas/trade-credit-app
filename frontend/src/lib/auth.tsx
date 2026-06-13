@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * App-wide authentication state (React Context).
+ *
+ * Wraps the entire app in `layout.tsx` via `<AuthProvider>`. Any component can
+ * call `useAuth()` to read the current user or trigger login/signup/logout.
+ *
+ * Flow:
+ * - Login/signup → POST to backend → store JWT tokens → load user profile
+ * - Page refresh → read tokens from localStorage → restore session
+ * - Logout → clear tokens and user state
+ *
+ * Pair with `RequireAuth` (route guard) and `api.ts` (sends tokens on requests).
+ */
 import React, {
   createContext,
   useContext,

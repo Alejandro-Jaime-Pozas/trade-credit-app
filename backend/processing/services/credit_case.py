@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from core.str_utils import pretty_print
 from core.constants import (
     LOAN_FILE_MONTHS_REQUIRED_LEGAL,
-    LOAN_FILE_TYPE_NAMES_REQUIRED,
+    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
     LOAN_FILE_MONTHS_REQUIRED_FINANCIALS,
     MAX_FILE_MONTHS_BACK_FINANCIALS,
     MAX_FILE_MONTHS_BACK_LEGAL,
@@ -23,7 +23,7 @@ from core.date_utils import (
 # from processing.models import AccountApplication
 
 
-file_type_names = LOAN_FILE_TYPE_NAMES_REQUIRED
+file_type_names = CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
 months_required_financials = LOAN_FILE_MONTHS_REQUIRED_FINANCIALS
 months_required_legal = LOAN_FILE_MONTHS_REQUIRED_LEGAL
 all_months_required = months_required_financials | months_required_legal

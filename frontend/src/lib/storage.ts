@@ -1,3 +1,11 @@
+/**
+ * Browser localStorage helpers.
+ *
+ * Wraps `window.localStorage` so other modules can persist data (e.g. JWT tokens)
+ * without crashing during Next.js server rendering, where `window` does not exist.
+ *
+ * Used by: `api.ts` (token storage). You rarely need to edit this file.
+ */
 export function safeJsonParse<T>(value: string | null): T | null {
   if (!value) return null;
   try {

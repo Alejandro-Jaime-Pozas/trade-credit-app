@@ -1,3 +1,6 @@
+- implement simple JWT to backend for user auth
+  - urls, views, serializers
+
 - implement only showing org's objects to its users.
 
 - add new models, replace old ones

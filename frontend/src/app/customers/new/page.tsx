@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Create customer (`/customers/new`).
+ *
+ * Form to add a new customer profile and optional primary contact, then POST
+ * to the API. Uses the current user's first organization for scoping.
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";

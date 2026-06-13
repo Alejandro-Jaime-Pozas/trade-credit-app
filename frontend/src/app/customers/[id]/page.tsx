@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Customer detail (`/customers/[id]`).
+ *
+ * View/edit one customer, manage contacts, and upload documents. The `[id]`
+ * folder name is Next.js dynamic routing — `useParams()` reads the id from the URL.
+ */
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";

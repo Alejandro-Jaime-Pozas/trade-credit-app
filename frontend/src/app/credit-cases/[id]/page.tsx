@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Credit case detail (`/credit-cases/[id]`).
+ *
+ * View/edit a single trade credit case: status, amounts, linked customer,
+ * and uploaded requirement documents.
+ */
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
