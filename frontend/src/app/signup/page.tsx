@@ -4,7 +4,7 @@
  * Sign-up page (`/signup`).
  *
  * Creates a new user via POST `/users/`, then logs in automatically so the
- * user lands on the dashboard with a valid session.
+ * user lands on credit cases with a valid session.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,7 +38,7 @@ export default function SignupPage() {
             setError(null);
             try {
               await signup({ email: email.trim(), password });
-              router.push("/dashboard");
+              router.push("/credit-cases");
             } catch (err) {
               setError(err instanceof Error ? err.message : "Signup failed");
             } finally {

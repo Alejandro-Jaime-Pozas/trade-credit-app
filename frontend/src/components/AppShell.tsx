@@ -4,7 +4,7 @@
  * Shared page chrome: header nav, signed-in user info, logout, footer.
  *
  * Wraps most page content so every screen has consistent navigation
- * (Dashboard, Customers) and auth actions without duplicating markup.
+ * (Credit Cases, Customers) and auth actions without duplicating markup.
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -36,11 +36,12 @@ export function AppShell(props: { children: React.ReactNode }) {
       <header className="border-b bg-white">
         <div className="mx-auto w-full max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="font-semibold tracking-tight">
+            <Link href="/credit-cases" className="font-semibold tracking-tight">
               Trade Credit App
             </Link>
             <nav className="hidden sm:flex items-center gap-4">
-              <NavLink href="/dashboard" label="Dashboard" />
+              <NavLink href="/credit-cases" label="Credit Cases" />
+              {/* <NavLink href="/credit-cases/new" label="New case" /> */}
               <NavLink href="/customers" label="Customers" />
             </nav>
           </div>

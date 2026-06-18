@@ -4,7 +4,7 @@
  * Login page (`/login`).
  *
  * Collects email + password and calls `useAuth().login()`, which exchanges
- * credentials for JWT tokens via the backend. On success, navigates to dashboard.
+ * credentials for JWT tokens via the backend. On success, navigates to credit cases.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +37,7 @@ export default function LoginPage() {
             setError(null);
             try {
               await login({ email: email.trim(), password });
-              router.push("/dashboard");
+              router.push("/credit-cases");
             } catch (err) {
               setError(err instanceof Error ? err.message : "Login failed");
             } finally {

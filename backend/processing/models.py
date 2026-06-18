@@ -163,15 +163,8 @@ class CreditCase(models.Model):
         else:
             return {}
 
-    def save(self, *args, **kwargs):
-        if not self.name and self.type:
-            self.name = clean_account_name(type_name=self.type)
-
-        super().save(*args, **kwargs)
-
     def __str__(self):
-        return f'<AccountApplication|id={self.id}, name={self.name}, ' \
-                f'account_application_type={self.type}, status={self.status}>'
+        return f'Credit Case for {self.customer.name}'
 
 
 ### ========================================================

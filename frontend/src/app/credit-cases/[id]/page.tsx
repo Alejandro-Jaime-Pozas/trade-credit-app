@@ -4,14 +4,20 @@
  * Credit case detail (`/credit-cases/[id]`).
  *
  * View/edit a single trade credit case: status, amounts, linked customer,
- * and uploaded requirement documents.
+ * required documents checklist, and file uploads (single or bulk).
  */
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiForm, apiJson, ApiError, drfListAll } from "@/lib/api";
+import {
+  CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+  CREDIT_CASE_STATUS_LABELS,
+  FILE_TYPE_NAME_LABELS,
+  REQUESTED_TERM_DAYS_OPTIONS,
+} from "@/lib/constants";
 import type { CreditCase, Customer, UploadDocument } from "@/lib/types";
 
 function formatDate(iso: string | null | undefined): string {
@@ -19,6 +25,11 @@ function formatDate(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
   return d.toLocaleString();
+}
+
+function fileTypeLabel(fileTypeName: string | null | undefined): string {
+  if (!fileTypeName) return "Pending classification";
+  return FILE_TYPE_NAME_LABELS[fileTypeName] ?? fileTypeName;
 }
 
 export default function CreditCaseDetailPage() {
@@ -30,13 +41,21 @@ export default function CreditCaseDetailPage() {
   const [uploads, setUploads] = useState<UploadDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [requestedAmount, setRequestedAmount] = useState("0.00");
+  const [requestedAmount, setRequestedAmount] = useState("");
   const [requestedTermDays, setRequestedTermDays] = useState("30");
   const [currency, setCurrency] = useState("MXN");
 
   const [saving, setSaving] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [refreshingUploads, setRefreshingUploads] = useState(false);
+
+  const loadUploads = useCallback(async (creditCaseUrl: string) => {
+    const allUploads = await drfListAll<UploadDocument>({
+      path: "/upload-documents/",
+    });
+    return allUploads.filter((u) => u.credit_case === creditCaseUrl);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +65,7 @@ export default function CreditCaseDetailPage() {
         const cc = await apiJson<CreditCase>({ pathOrUrl: `/credit-cases/${id}/` });
         if (cancelled) return;
         setCreditCase(cc);
-        setRequestedAmount(cc.requested_amount ?? "0.00");
+        setRequestedAmount(cc.requested_amount ?? "");
         setRequestedTermDays(String(cc.requested_term_days ?? 30));
         setCurrency(cc.currency ?? "MXN");
 
@@ -54,11 +73,9 @@ export default function CreditCaseDetailPage() {
         if (cancelled) return;
         setCustomer(cust);
 
-        const allUploads = await drfListAll<UploadDocument>({
-          path: "/upload-documents/",
-        });
+        const caseUploads = await loadUploads(cc.url);
         if (cancelled) return;
-        setUploads(allUploads.filter((u) => u.credit_case === cc.url));
+        setUploads(caseUploads);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof ApiError ? err.message : "Failed to load credit case");
@@ -68,7 +85,37 @@ export default function CreditCaseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, loadUploads]);
+
+  const uploadedTypeNames = useMemo(() => {
+    if (!uploads) return new Set<string>();
+    const names = uploads
+      .map((u) => u.file_type_name)
+      .filter((name) => Boolean(name) && name !== "unknown");
+    return new Set(names as string[]);
+  }, [uploads]);
+
+  const requiredFileStatuses = useMemo(() => {
+    return CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED.map((fileType) => ({
+      fileType,
+      label: FILE_TYPE_NAME_LABELS[fileType] ?? fileType,
+      satisfied: uploadedTypeNames.has(fileType),
+    }));
+  }, [uploadedTypeNames]);
+
+  async function refreshUploads() {
+    if (!creditCase) return;
+    setRefreshingUploads(true);
+    setError(null);
+    try {
+      const caseUploads = await loadUploads(creditCase.url);
+      setUploads(caseUploads);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to refresh uploads");
+    } finally {
+      setRefreshingUploads(false);
+    }
+  }
 
   return (
     <AppShell>
@@ -79,11 +126,11 @@ export default function CreditCaseDetailPage() {
               Credit case {creditCase ? `#${creditCase.id}` : ""}
             </h1>
             <p className="mt-2 text-sm text-zinc-600">
-              View and update basic request fields, and upload files.
+              Update request fields, track required documents, and upload files.
             </p>
           </div>
           <Link
-            href="/dashboard"
+            href="/credit-cases"
             className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
           >
             Back
@@ -124,7 +171,9 @@ export default function CreditCaseDetailPage() {
                   Status / Verdict
                 </div>
                 <div className="mt-1 font-medium">
-                  {creditCase ? `${creditCase.status} / ${creditCase.verdict}` : "—"}
+                  {creditCase
+                    ? `${CREDIT_CASE_STATUS_LABELS[creditCase.status] ?? creditCase.status} / ${creditCase.verdict}`
+                    : "—"}
                 </div>
               </div>
             </div>
@@ -136,6 +185,8 @@ export default function CreditCaseDetailPage() {
                   value={requestedAmount}
                   onChange={(e) => setRequestedAmount(e.target.value)}
                   className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="0.00"
+                  inputMode="decimal"
                 />
               </label>
               <label className="block">
@@ -146,16 +197,21 @@ export default function CreditCaseDetailPage() {
                   className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
                 >
                   <option value="MXN">MXN</option>
-                  <option value="USD">USD</option>
                 </select>
               </label>
               <label className="block">
                 <div className="text-sm font-medium">Requested term (days)</div>
-                <input
+                <select
                   value={requestedTermDays}
                   onChange={(e) => setRequestedTermDays(e.target.value)}
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                />
+                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                >
+                  {REQUESTED_TERM_DAYS_OPTIONS.map((days) => (
+                    <option key={days} value={String(days)}>
+                      Net {days}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
 
@@ -172,7 +228,7 @@ export default function CreditCaseDetailPage() {
                       pathOrUrl: creditCase.url,
                       method: "PATCH",
                       body: {
-                        requested_amount: requestedAmount,
+                        requested_amount: requestedAmount.trim() || null,
                         currency,
                         requested_term_days: Number(requestedTermDays),
                         customer: creditCase.customer,
@@ -197,35 +253,88 @@ export default function CreditCaseDetailPage() {
           </section>
 
           <section className="rounded-lg border bg-white p-6">
-            <h2 className="text-base font-semibold">Upload files</h2>
+            <h2 className="text-base font-semibold">Required documents</h2>
             <p className="mt-2 text-sm text-zinc-600">
-              Upload a file and link it to this credit case.
+              Default requirements for this credit case. Upload files below; the
+              backend classifies each file after upload.
             </p>
+
+            <ul className="mt-4 space-y-2">
+              {requiredFileStatuses.map((req) => (
+                <li
+                  key={req.fileType}
+                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                >
+                  <span>{req.label}</span>
+                  <span
+                    className={
+                      req.satisfied
+                        ? "text-xs font-medium text-green-700"
+                        : "text-xs font-medium text-amber-700"
+                    }
+                  >
+                    {req.satisfied ? "Uploaded" : "Missing"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="lg:col-span-3 rounded-lg border bg-white p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold">Upload files</h2>
+                <p className="mt-2 text-sm text-zinc-600">
+                  Upload one or more files linked to this credit case and customer.
+                  File type is detected automatically after upload.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={!creditCase || refreshingUploads}
+                onClick={refreshUploads}
+                className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+              >
+                {refreshingUploads ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
 
             <div className="mt-4 space-y-3">
               <input
                 type="file"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                multiple
+                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
                 className="block w-full text-sm"
               />
+              {files.length > 0 ? (
+                <div className="text-xs text-zinc-500">
+                  {files.length} file{files.length === 1 ? "" : "s"} selected
+                </div>
+              ) : null}
               <button
                 type="button"
-                disabled={!creditCase || !file || uploading}
+                disabled={!creditCase || !customer || files.length === 0 || uploading}
                 onClick={async () => {
-                  if (!creditCase || !file) return;
+                  if (!creditCase || !customer || files.length === 0) return;
                   setUploading(true);
                   setError(null);
                   try {
-                    const fd = new FormData();
-                    fd.append("file", file);
-                    fd.append("credit_case", creditCase.url);
-                    const created = await apiForm<UploadDocument[]>({
-                      pathOrUrl: "/upload-documents/",
-                      method: "POST",
-                      form: fd,
-                    });
+                    const createdBatches = await Promise.all(
+                      files.map(async (file) => {
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        fd.append("credit_case", creditCase.url);
+                        fd.append("customer", customer.url);
+                        return apiForm<UploadDocument[]>({
+                          pathOrUrl: "/upload-documents/",
+                          method: "POST",
+                          form: fd,
+                        });
+                      }),
+                    );
+                    const created = createdBatches.flat();
                     setUploads([...(uploads ?? []), ...created]);
-                    setFile(null);
+                    setFiles([]);
                   } catch (err) {
                     setError(err instanceof ApiError ? err.message : "Upload failed");
                   } finally {
@@ -246,7 +355,12 @@ export default function CreditCaseDetailPage() {
               ) : (
                 uploads.map((u) => (
                   <div key={u.url} className="rounded-md border p-3 text-sm">
-                    <div className="font-medium">{u.original_title}</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="font-medium">{u.original_title}</div>
+                      <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
+                        {fileTypeLabel(u.file_type_name)}
+                      </span>
+                    </div>
                     <div className="mt-1 text-xs text-zinc-500">
                       {u.mimetype} · {formatDate(u.uploaded_at)}
                     </div>
@@ -268,4 +382,3 @@ export default function CreditCaseDetailPage() {
     </AppShell>
   );
 }
-

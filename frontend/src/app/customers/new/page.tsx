@@ -212,9 +212,11 @@ export default function NewCustomerPage() {
         </form>
 
         <div className="mt-6 rounded-md border bg-white p-4 text-sm text-zinc-600">
-          Note: backend credit-case auto-creation isn’t wired yet, and creating credit
-          cases via API likely requires authentication (`assigned_to` uses
-          `CurrentUserDefault()`).
+          To start a trade credit solicitud for this customer, use{" "}
+          <Link href="/credit-cases/new" className="font-medium text-zinc-900 underline">
+            New credit case
+          </Link>
+          .
         </div>
       </RequireAuth>
     </AppShell>

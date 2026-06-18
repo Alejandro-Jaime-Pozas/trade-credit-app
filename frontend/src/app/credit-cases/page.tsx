@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Dashboard (`/dashboard`) — main landing page after login.
+ * Credit Cases list (`/credit-cases`) — main landing page after login.
  *
  * Lists the org's credit cases in a filterable table. Fetches paginated data
  * from `/credit-cases/` and resolves linked customer names. Protected by
@@ -21,7 +21,7 @@ function formatDate(iso: string | null | undefined): string {
   return d.toLocaleString();
 }
 
-export default function DashboardPage() {
+export default function CreditCasesPage() {
   const [cases, setCases] = useState<CreditCase[] | null>(null);
   const [customersByUrl, setCustomersByUrl] = useState<Record<string, Customer>>(
     {},
@@ -91,13 +91,19 @@ export default function DashboardPage() {
       <RequireAuth>
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Credit Cases</h1>
             <p className="mt-2 text-sm text-zinc-600">
               Credit cases for your org (dev-mode: no server-side filtering yet).
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/credit-cases/new"
+              className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              New credit case
+            </Link>
             <label className="text-sm text-zinc-600">Status</label>
             <select
               value={statusFilter}
@@ -187,4 +193,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
