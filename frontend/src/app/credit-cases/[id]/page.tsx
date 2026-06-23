@@ -7,7 +7,7 @@
  * required documents checklist, and file uploads (single or bulk).
  */
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -18,7 +18,7 @@ import {
   FILE_TYPE_NAME_LABELS,
   REQUESTED_TERM_DAYS_OPTIONS,
 } from "@/lib/constants";
-import type { CreditCase, Customer, UploadDocument } from "@/lib/types";
+import type { CreditCase, Customer, UploadDocument, User } from "@/lib/types";
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -35,6 +35,7 @@ function fileTypeLabel(fileTypeName: string | null | undefined): string {
 export default function CreditCaseDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const router = useRouter();
 
   const [creditCase, setCreditCase] = useState<CreditCase | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -44,8 +45,12 @@ export default function CreditCaseDetailPage() {
   const [requestedAmount, setRequestedAmount] = useState("");
   const [requestedTermDays, setRequestedTermDays] = useState("30");
   const [currency, setCurrency] = useState("MXN");
+  const [status, setStatus] = useState("missing_documents");
+  const [assignedTo, setAssignedTo] = useState<string>("");
+  const [users, setUsers] = useState<User[] | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [refreshingUploads, setRefreshingUploads] = useState(false);
@@ -62,12 +67,18 @@ export default function CreditCaseDetailPage() {
     async function load() {
       setError(null);
       try {
-        const cc = await apiJson<CreditCase>({ pathOrUrl: `/credit-cases/${id}/` });
+        const [cc, allUsers] = await Promise.all([
+          apiJson<CreditCase>({ pathOrUrl: `/credit-cases/${id}/` }),
+          drfListAll<User>({ path: "/users/" }),
+        ]);
         if (cancelled) return;
         setCreditCase(cc);
         setRequestedAmount(cc.requested_amount ?? "");
         setRequestedTermDays(String(cc.requested_term_days ?? 30));
         setCurrency(cc.currency ?? "MXN");
+        setStatus(cc.status ?? "missing_documents");
+        setAssignedTo(cc.assigned_to ?? "");
+        setUsers(allUsers);
 
         const cust = await apiJson<Customer>({ pathOrUrl: cc.customer });
         if (cancelled) return;
@@ -129,12 +140,36 @@ export default function CreditCaseDetailPage() {
               Update request fields, track required documents, and upload files.
             </p>
           </div>
-          <Link
-            href="/credit-cases"
-            className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
-          >
-            Back
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/credit-cases"
+              className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            >
+              Back
+            </Link>
+            <button
+              type="button"
+              disabled={!creditCase || deleting}
+              onClick={async () => {
+                if (!creditCase) return;
+                setDeleting(true);
+                setError(null);
+                try {
+                  await apiJson<void>({
+                    pathOrUrl: creditCase.url,
+                    method: "DELETE",
+                  });
+                  router.push("/credit-cases");
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : "Delete failed");
+                  setDeleting(false);
+                }
+              }}
+              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -168,17 +203,51 @@ export default function CreditCaseDetailPage() {
 
               <div className="rounded-md border bg-zinc-50 p-3 text-sm">
                 <div className="text-xs uppercase tracking-wide text-zinc-600">
-                  Status / Verdict
+                  Verdict
                 </div>
-                <div className="mt-1 font-medium">
-                  {creditCase
-                    ? `${CREDIT_CASE_STATUS_LABELS[creditCase.status] ?? creditCase.status} / ${creditCase.verdict}`
-                    : "—"}
+                <div className="mt-1 font-medium capitalize">
+                  {creditCase?.verdict ?? "—"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="block">
+                <div className="text-sm font-medium">Status</div>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  disabled={!creditCase}
+                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  {Object.entries(CREDIT_CASE_STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <div className="text-sm font-medium">Assigned to</div>
+                <select
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                  disabled={!creditCase}
+                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  <option value="">Unassigned</option>
+                  {(users ?? []).map((u) => (
+                    <option key={u.url} value={u.url}>
+                      {u.first_name && u.last_name
+                        ? `${u.first_name} ${u.last_name}`
+                        : u.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <label className="block">
                 <div className="text-sm font-medium">Requested amount</div>
                 <input
@@ -232,9 +301,13 @@ export default function CreditCaseDetailPage() {
                         currency,
                         requested_term_days: Number(requestedTermDays),
                         customer: creditCase.customer,
+                        status,
+                        assigned_to: assignedTo || null,
                       },
                     });
                     setCreditCase(updated);
+                    setStatus(updated.status ?? "missing_documents");
+                    setAssignedTo(updated.assigned_to ?? "");
                   } catch (err) {
                     setError(err instanceof ApiError ? err.message : "Save failed");
                   } finally {

@@ -1494,6 +1494,9 @@ paths:
           description: No response body
 components:
   schemas:
+    BlankEnum:
+      enum:
+      - ''
     CreditCase:
       type: object
       properties:
@@ -1505,9 +1508,6 @@ components:
           type: integer
           readOnly: true
         status:
-          allOf:
-          - $ref: '#/components/schemas/StatusEnum'
-          readOnly: true
           description: |-
             Credit case status like missing docs, pending ai verdict, etc. Items are in order of sequence.
 
@@ -1516,6 +1516,9 @@ components:
             * `buro_de_credito_rejected` - Buro De Credito Rejected
             * `pending_final_verdict` - Pending Final Verdict
             * `complete` - Complete
+          oneOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         verdict:
           allOf:
           - $ref: '#/components/schemas/VerdictEnum'
@@ -1530,6 +1533,7 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,30}(?:\.\d{0,2})?$
+          nullable: true
           description: Requested credit line amount.
         currency:
           allOf:
@@ -1539,8 +1543,7 @@ components:
 
             * `MXN` - MXN
         requested_term_days:
-          allOf:
-          - $ref: '#/components/schemas/RequestedTermDaysEnum'
+          nullable: true
           description: |-
             Requested net terms (days).
 
@@ -1551,7 +1554,14 @@ components:
             * `90` - 90 days
           minimum: -2147483648
           maximum: 2147483647
+          oneOf:
+          - $ref: '#/components/schemas/RequestedTermDaysEnum'
+          - $ref: '#/components/schemas/NullEnum'
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
@@ -1567,6 +1577,10 @@ components:
           readOnly: true
           nullable: true
           description: Final verdict timestamp after human review.
+        assigned_to:
+          type: string
+          format: uri
+          nullable: true
         customer:
           type: string
           format: uri
@@ -1579,9 +1593,8 @@ components:
       - customer
       - id
       - organization
-      - requested_term_days
-      - status
       - submitted_at
+      - updated_at
       - url
       - verdict
       - verdict_at
@@ -1606,16 +1619,16 @@ components:
           maxLength: 100
         legal_name:
           type: string
-          readOnly: true
           nullable: true
           description: Customer legal name recognized by government.
+          maxLength: 100
         rfc:
           type: string
-          readOnly: true
           nullable: true
           description: Registro Federal de Contribuyentes for customer.
+          maxLength: 12
+          minLength: 12
         type:
-          readOnly: true
           nullable: true
           description: |-
             Persona moral o fisica.
@@ -1624,17 +1637,18 @@ components:
             * `moral` - Persona moral
           oneOf:
           - $ref: '#/components/schemas/TypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         nombre_de_vialidad:
           type: string
-          readOnly: true
           nullable: true
           description: Nombre de la calle, avenida, etc.
+          maxLength: 100
         codigo_postal:
           type: string
-          readOnly: true
           nullable: true
           description: Zip code.
+          maxLength: 12
         created_at:
           type: string
           format: date-time
@@ -1661,17 +1675,12 @@ components:
             format: uri
           readOnly: true
       required:
-      - codigo_postal
       - created_at
       - created_by
       - customer_contacts
       - id
-      - legal_name
       - name
-      - nombre_de_vialidad
       - organization
-      - rfc
-      - type
       - updated_at
       - url
     CustomerContact:
@@ -1793,12 +1802,12 @@ components:
       - url
     FileTypeNameEnum:
       enum:
-      - cashflow_statement
       - unknown
+      - cashflow_statement
       type: string
       description: |-
-        * `cashflow_statement` - Cashflow Statement
         * `unknown` - Unknown
+        * `cashflow_statement` - Cashflow Statement
     Label:
       type: object
       properties:
@@ -2072,9 +2081,6 @@ components:
           type: integer
           readOnly: true
         status:
-          allOf:
-          - $ref: '#/components/schemas/StatusEnum'
-          readOnly: true
           description: |-
             Credit case status like missing docs, pending ai verdict, etc. Items are in order of sequence.
 
@@ -2083,6 +2089,9 @@ components:
             * `buro_de_credito_rejected` - Buro De Credito Rejected
             * `pending_final_verdict` - Pending Final Verdict
             * `complete` - Complete
+          oneOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         verdict:
           allOf:
           - $ref: '#/components/schemas/VerdictEnum'
@@ -2097,6 +2106,7 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,30}(?:\.\d{0,2})?$
+          nullable: true
           description: Requested credit line amount.
         currency:
           allOf:
@@ -2106,8 +2116,7 @@ components:
 
             * `MXN` - MXN
         requested_term_days:
-          allOf:
-          - $ref: '#/components/schemas/RequestedTermDaysEnum'
+          nullable: true
           description: |-
             Requested net terms (days).
 
@@ -2118,7 +2127,14 @@ components:
             * `90` - 90 days
           minimum: -2147483648
           maximum: 2147483647
+          oneOf:
+          - $ref: '#/components/schemas/RequestedTermDaysEnum'
+          - $ref: '#/components/schemas/NullEnum'
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
@@ -2134,6 +2150,10 @@ components:
           readOnly: true
           nullable: true
           description: Final verdict timestamp after human review.
+        assigned_to:
+          type: string
+          format: uri
+          nullable: true
         customer:
           type: string
           format: uri
@@ -2157,16 +2177,16 @@ components:
           maxLength: 100
         legal_name:
           type: string
-          readOnly: true
           nullable: true
           description: Customer legal name recognized by government.
+          maxLength: 100
         rfc:
           type: string
-          readOnly: true
           nullable: true
           description: Registro Federal de Contribuyentes for customer.
+          maxLength: 12
+          minLength: 12
         type:
-          readOnly: true
           nullable: true
           description: |-
             Persona moral o fisica.
@@ -2175,17 +2195,18 @@ components:
             * `moral` - Persona moral
           oneOf:
           - $ref: '#/components/schemas/TypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         nombre_de_vialidad:
           type: string
-          readOnly: true
           nullable: true
           description: Nombre de la calle, avenida, etc.
+          maxLength: 100
         codigo_postal:
           type: string
-          readOnly: true
           nullable: true
           description: Zip code.
+          maxLength: 12
         created_at:
           type: string
           format: date-time
@@ -2361,8 +2382,8 @@ components:
           description: |-
             file type name given the choices list.
 
-            * `cashflow_statement` - Cashflow Statement
             * `unknown` - Unknown
+            * `cashflow_statement` - Cashflow Statement
           oneOf:
           - $ref: '#/components/schemas/FileTypeNameEnum'
           - $ref: '#/components/schemas/NullEnum'
@@ -2537,8 +2558,8 @@ components:
           description: |-
             file type name given the choices list.
 
-            * `cashflow_statement` - Cashflow Statement
             * `unknown` - Unknown
+            * `cashflow_statement` - Cashflow Statement
           oneOf:
           - $ref: '#/components/schemas/FileTypeNameEnum'
           - $ref: '#/components/schemas/NullEnum'

@@ -8,7 +8,7 @@
  * `RequireAuth`.
  */
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiJson, ApiError, drfListAll } from "@/lib/api";
@@ -36,7 +36,12 @@ export default function CreditCasesPage() {
       try {
         const allCases = await drfListAll<CreditCase>({ path: "/credit-cases/" });
         if (cancelled) return;
-        setCases(allCases);
+        const sorted = [...allCases].sort(
+          (a, b) =>
+            new Date(b.updated_at ?? b.created_at ?? 0).getTime() -
+            new Date(a.updated_at ?? a.created_at ?? 0).getTime(),
+        );
+        setCases(sorted);
 
         const uniqueCustomerUrls = Array.from(
           new Set(allCases.map((c) => c.customer).filter(Boolean)),

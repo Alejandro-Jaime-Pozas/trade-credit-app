@@ -19,6 +19,7 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Customer
         fields = [
+            # TODO later include more address fields
             'url',
             'id',
             'name',
@@ -36,11 +37,6 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
         read_only_fields = [
             'url',
             'id',
-            'legal_name',
-            'rfc',
-            'type',
-            'nombre_de_vialidad',
-            'codigo_postal',
             'created_at',
             'updated_at',
             'organization',

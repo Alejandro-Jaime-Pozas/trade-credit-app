@@ -34,6 +34,49 @@ export class ApiError extends Error {
   }
 }
 
+// Human-readable labels for API field names shown in validation errors.
+const FIELD_LABELS: Record<string, string> = {
+  rfc: "RFC",
+  non_field_errors: "",
+};
+
+function toFieldLabel(field: string): string {
+  return (
+    FIELD_LABELS[field] ??
+    field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
+/**
+ * Converts a DRF error response body into a single readable string.
+ *
+ * Handles:
+ *   {"detail": "..."}                          → the detail string
+ *   {"field": ["error1", "error2"]}            → "Field: error1, error2"
+ *   {"non_field_errors": ["error"]}            → "error"
+ *   mixed combinations                         → joined with " · "
+ */
+export function formatDrfError(body: ApiErrorBody, fallback = "Request failed"): string {
+  if (typeof body === "string" && body.trim()) return body.trim();
+  if (!body || typeof body !== "object") return fallback;
+
+  const obj = body as Record<string, unknown>;
+
+  if ("detail" in obj) return String(obj.detail ?? fallback);
+
+  const parts: string[] = [];
+  for (const [field, value] of Object.entries(obj)) {
+    const msgs = Array.isArray(value)
+      ? value.map(String).filter(Boolean).join(", ")
+      : String(value);
+    if (!msgs) continue;
+    const label = toFieldLabel(field);
+    parts.push(label ? `${label}: ${msgs}` : msgs);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : fallback;
+}
+
 const ACCESS_TOKEN_KEY = "tca.accessToken";
 const REFRESH_TOKEN_KEY = "tca.refreshToken";
 
@@ -236,10 +279,7 @@ export async function apiJson<T>(args: {
 
   if (!res.ok) {
     const body = await readBodySafe(res);
-    const msg =
-      typeof body === "object" && body && "detail" in body
-        ? String((body as { detail?: unknown }).detail ?? "Request failed")
-        : `Request failed (${res.status})`;
+    const msg = formatDrfError(body, `Request failed (${res.status})`);
     throw new ApiError({ status: res.status, body, message: msg });
   }
 
@@ -260,10 +300,7 @@ export async function apiForm<T>(args: {
 
   if (!res.ok) {
     const body = await readBodySafe(res);
-    const msg =
-      typeof body === "object" && body && "detail" in body
-        ? String((body as { detail?: unknown }).detail ?? "Request failed")
-        : `Request failed (${res.status})`;
+    const msg = formatDrfError(body, `Request failed (${res.status})`);
     throw new ApiError({ status: res.status, body, message: msg });
   }
 

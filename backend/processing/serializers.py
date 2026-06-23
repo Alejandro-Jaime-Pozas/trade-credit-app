@@ -44,19 +44,19 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'currency',
             'requested_term_days',
             'created_at',
+            'updated_at',
             'submitted_at',
             'verdict_at',
-            # 'assigned_to',
+            'assigned_to',
             'customer',
             'organization',
         ]
         read_only_fields = [
-            'status',
             'verdict',
             'created_at',
+            'updated_at',
             'submitted_at',
             'verdict_at',
-            # 'assigned_to',
             'organization',
         ]
 
