@@ -134,7 +134,7 @@ export default function CreditCaseDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Credit case {creditCase ? `#${creditCase.id}` : ""}
+              {customer ? `${customer.name} ${creditCase?.id}` : creditCase ? `Credit case #${creditCase.id}` : ""}
             </h1>
             <p className="mt-2 text-sm text-zinc-600">
               Update request fields, track required documents, and upload files.
