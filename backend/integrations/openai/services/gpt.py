@@ -27,7 +27,7 @@ from integrations.openai.prompts.create_loan import (
     ANALYZE_APPROVE_AND_CREATE_LOAN,
 )
 from processing.models import (
-    AccountApplication,
+    CreditCase,
     LoanVerdictAI,
 )
 from .pydantic_models.file_type_models import (
@@ -49,10 +49,10 @@ class GPTService:
     """
 
     # Conncect to OpenAI API via api key
-    def __init__(self, account_application='a'):
+    def __init__(self, credit_case='a'):
         # TODO later create global openai client, since more efficient
         self.client = OpenAI()  # defaults to system env var OPENAI_API_KEY's value
-        self.account_application = account_application
+        self.credit_case = credit_case
 
     # Upload a specific file to openai api
     def upload_file(self, file_path: str):
@@ -225,17 +225,17 @@ class GPTService:
             4. Validates the json response based on pydantic json schema
             5. Updates the validated data into existing UploadDocument db object
             6. Deletes uploaded files to prevent storage buildup limits
-         """
+        """
 
         # Upload the new doc to gpt files endpoint for analysis
         uploaded_file = self.upload_file(doc.file.path)
-        # print('uploaded_file:', uploaded_file)
+        print('uploaded_file:', uploaded_file)
 
         # Request file_type_name creation for doc
         res = self.get_gpt_file_type_name(uploaded_file)
         file_type_name_dict = self.json_to_dict(res)
         file_type_name = file_type_name_dict.get('file_type_name')
-        # print('file_type_name:', file_type_name)
+        print('file_type_name:', file_type_name)
 
         if not file_type_name:
             raise KeyError(f'Response should include file_type_name key, but it\'s not present: {res}')
@@ -243,16 +243,16 @@ class GPTService:
         # Request extracted_data for doc
         res = self.get_gpt_file_data(uploaded_file, file_type_name)
         extracted_data_dict = self.json_to_dict(res)
-        # print('extracted_data_dict:', extracted_data_dict)
+        print('extracted_data_dict:', extracted_data_dict)
 
         # Update the doc's fields with new gpt created fields
         doc.file_type_name = file_type_name
         doc.extracted_data = extracted_data_dict
         doc.save()
-        # print('doc.file.name:', doc.file.name)
-        # print('doc.file_type_name:', doc.file_type_name)
-        # print('doc.extracted_data:', doc.extracted_data)
-        # print('missing docs for acct_app:', doc.account_applications.first().missing_file_type_names)
+        print('doc.file.name:', doc.file.name)
+        print('doc.file_type_name:', doc.file_type_name)
+        print('doc.extracted_data:', doc.extracted_data)
+        print('missing docs for credit_case:', doc.credit_case.missing_file_type_names)
 
         # Delete gpt uploaded files for proper clean up
         # For some reason, there's a server error that happens often...
@@ -319,8 +319,8 @@ class GPTService:
          """
 
         # Get the file paths
-        acct_app = self.account_application
-        docs = acct_app.upload_documents.all()  # TODO later only want to fetch relevant files to get loan verdict, use filter..
+        credit_case = self.credit_case
+        docs = credit_case.upload_documents.all()  # TODO later only want to fetch relevant files to get loan verdict, use filter..
         file_paths = [d.file.path for d in docs]
 
         # Upload the file to openai api
@@ -329,7 +329,7 @@ class GPTService:
         # print('Success!! uploaded files to gpt api:', uploaded_files)
 
         # Get all json data required for loan verdict (buro de credito data)
-        bdc_reports = acct_app.buro_de_credito_reports.all()
+        bdc_reports = credit_case.buro_de_credito_reports.all()
         json_objects = [json.dumps(r.json_response) for r in bdc_reports]
 
         # Request the gpt loan verdict
@@ -354,11 +354,11 @@ class GPTService:
 
         # Create dict from pydantic model for serializer input
         payload = loan_details.model_dump()
-        loan_acct_app_obj = self.account_application.loan_account_application
+        loan_credit_case_obj = self.credit_case.loan_credit_case
 
         # Insert the validated data into new LoanVerdictAI db object
         loan_verdict_obj = LoanVerdictAI.objects.create(
-            loan_account_application=loan_acct_app_obj,
+            loan_credit_case=loan_credit_case_obj,
             **payload,  # supposedly already validated by pydantic model
         )
 

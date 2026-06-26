@@ -15,7 +15,7 @@ export const FILE_TYPE_NAME_LABELS: Record<string, string> = {
   bank_statement: "Bank statement",
   balance_sheet: "Balance sheet",
   income_statement: "Income statement",
-  constancia_de_situacion_fiscal: "Constancia de situación fiscal (CSF)",
+  constancia_de_situacion_fiscal: "Constancia de situación fiscal",
   unknown: "Unknown",
 };
 

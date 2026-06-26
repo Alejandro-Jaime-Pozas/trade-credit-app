@@ -40,12 +40,11 @@ class UploadDocumentViewSet(
         serializer.is_valid(raise_exception=True)
         docs = serializer.save()  # list[UploadDocument]
 
-        # # Run your side effects TODO later fix handling for new models, this is just temp for now
-        # for doc in docs:
-        #     # # Run gpt analysis of loan acct app if all required docs uploaded
-        #     # # If approved, create a loan agmt doc for user to sign
-        #     # result = handle_upload_document_created(doc)  # TEMP TODO later fix handling for new models
-        #     # pretty_print(result)  # TEMP, this wont work for atomic txs
+        # Run your side effects TODO later fix handling for new models, this is just temp for now
+        for doc in docs:
+            # Run gpt analysis of credit case if all required docs uploaded
+            result = handle_upload_document_created(doc)  # TEMP TODO later fix handling for new models
+            pretty_print(result)  # TEMP, this wont work for atomic txs
 
         # Return list response
         out = self.get_serializer(docs, many=True)

@@ -88,6 +88,7 @@ class UploadDocument(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name='upload_documents',
         help_text='the customer the file belongs to.',
     )
     credit_case = models.ForeignKey(
@@ -95,6 +96,7 @@ class UploadDocument(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name='upload_documents',
         help_text='the credit case the file belongs to.',
     )
 

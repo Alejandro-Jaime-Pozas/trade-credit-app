@@ -3,16 +3,16 @@ FILE_UPLOAD_MAX_SIZE_MB=20  # called on serializer's validate method, not model
 
 # Credit Case: required file type names
 CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED={
-    # # Financials
-    # 'bank_statement',
-    # 'balance_sheet',
+    # Financials
+    'bank_statement',
+    'balance_sheet',
     'cashflow_statement',
-    # 'income_statement',
-}
-CUSTOMER_FILE_TYPE_NAMES_REQUIRED={
-    # Legal
+    'income_statement',
     'constancia_de_situacion_fiscal',  # TODO later perhaps create this as separate set
 }
+# CUSTOMER_FILE_TYPE_NAMES_REQUIRED={
+#     # Legal
+# }
 
 # Loan: required file_type_name month requirement mappings
 LOAN_FILE_MONTHS_REQUIRED_FINANCIALS={

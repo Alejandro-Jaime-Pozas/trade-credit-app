@@ -1,5 +1,5 @@
 """
-Handle any object operations not directly related to drf implementations.
+Handle any object operations not directly related to drf implementations (side effects).
 """
 
 
@@ -40,14 +40,10 @@ def handle_upload_document_created(doc):
     show user a friendly name for their file.
     """
 
-    # Get UploadDocument's related account application
-    credit_case = doc.credit_cases.first()  # TODO may need to modify later since vague (but usually only one credit_case while user creating/uploading files)
+    # Get UploadDocument's related credit case
+    credit_case = doc.credit_case  # TODO may need to modify later since vague (but usually only one credit_case while user creating/uploading files)
     if not credit_case:
         raise ValueError('UploadDocument must have a related CreditCase obj.')
-
-    # If credit_case has been rejected, skip gpt analysis and return the credit_case
-    if credit_case.status == CreditCaseStatus.REJECTED:
-        return credit_case
 
     # Run gpt to update the doc's file_type_name, extracted_data
         # if file_type_name in required docs, then credit_case will pick it up automatically
@@ -62,34 +58,38 @@ def handle_upload_document_created(doc):
     if not file_type_name:
         return f'UploadDocument should have a file_type_name field from gpt process.'
 
-    # If file_type_name is Const de Situacion Fiscal, run credit process
-    if file_type_name == 'constancia_de_situacion_fiscal':
-        verdict = run_buro_de_credito_process(doc=doc, credit_case=credit_case)
+    # TODO LATER =====================================
+    # # TODO later: If file_type_name is Const de Situacion Fiscal, run credit process
+    # if file_type_name == 'constancia_de_situacion_fiscal':
+    #     verdict = run_buro_de_credito_process(doc=doc, credit_case=credit_case)
 
-        # If verdict for credit process = failed, terminate the credit_case's lifecycle, set status of credit_case to REJECTED, reject the loan applicant based on credit score
-        if verdict['passed'] == False:
-            credit_case.status = CreditCaseStatus.BURO_DE_CREDITO_REJECTED
-            credit_case.save()
-            print('Credit score did not pass minimum threshold.')
-            return verdict['bdc_report_obj']  # BuroDeCreditoReport obj
+    #     # If verdict for credit process = failed, terminate the credit_case's lifecycle, set status of credit_case to REJECTED, reject the loan applicant based on credit score
+    #     if verdict['passed'] == False:
+    #         credit_case.status = CreditCaseStatus.BURO_DE_CREDITO_REJECTED
+    #         credit_case.save()
+    #         print('Credit score did not pass minimum threshold.')
+    #         return verdict['bdc_report_obj']  # BuroDeCreditoReport obj
 
-    # Get the loan_credit_case and loan_verdict
-    loan_credit_case = credit_case.loan_credit_case
-    loan_verdict_obj = loan_credit_case.loan_verdicts.order_by('-id').first()  # grab latest
+    # # TODO later: Get the loan_credit_case and loan_verdict
+    # loan_credit_case = credit_case.loan_credit_case
+    # loan_verdict_obj = loan_credit_case.loan_verdicts.order_by('-id').first()  # grab latest
 
-    # If a related loan verdict obj already exists, skip openai process
-    if loan_verdict_obj:
-        print('\nloan_verdict obj already exists, skipping openai process.', loan_verdict_obj)
-        return loan_verdict_obj
+    # # If a related loan verdict obj already exists, skip openai process
+    # if loan_verdict_obj:
+    #     print('\nloan_verdict obj already exists, skipping openai process.', loan_verdict_obj)
+    #     return loan_verdict_obj
+    # END TODO LATER =====================================
 
-    # Get the missing file type names and their missing dates (if any) to check date range completion
-    credit_case_docs_are_completed = check_all_files_required_dates_complete(
-        credit_case=credit_case,
-        file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
-    )
-    print('\ncredit_case req docs are complete:', credit_case_docs_are_completed)  # TEMP
-    print(credit_case.all_files_required_dates_complete)  # TEMP
-    # pretty_print(credit_case.all_files_required_dates_complete)  # TEMP not working
+    # # TODO LATER =====================================
+    # # Get the missing file type names and their missing dates (if any) to check date range completion
+    # credit_case_docs_are_completed = check_all_files_required_dates_complete(
+    #     credit_case=credit_case,
+    #     file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+    # )
+    # print('\ncredit_case req docs are complete:', credit_case_docs_are_completed)  # TEMP
+    # print(credit_case.all_files_required_dates_complete)  # TEMP
+    # # pretty_print(credit_case.all_files_required_dates_complete)  # TEMP not working
+    # # END TODO LATER =====================================
 
     # # If no missing file type names in application and no missing dates, change its status to pending review, run loan analysis process
     # if credit_case.total_missing_files == 0 and credit_case_docs_are_completed:
@@ -125,7 +125,7 @@ def handle_upload_document_created(doc):
 
     #     # # TODO this is the process that takes a long time, implement celery/redis later and openai api fails/errors
     #     # # ===========================IN PROGRESS================================
-    #     # # If account application has all upload_documents submitted, trigger gpt process
+    #     # # If credit case has all upload_documents submitted, trigger gpt process
     #     # # TODO WILL REPLACE THIS BELOW WITH INTERNAL LOAN ANALYSIS PROCESS...
     #     # GPTService(credit_case).run_gpt_loan_verdict()
 
@@ -200,7 +200,7 @@ def create_friendly_file_name(doc: UploadDocument) -> str:
                 doc.file_type_name,
                 data.get("date_range_end"),
             ])
-        elif doc.file_type_name =='constancia_de_situacion_fiscal':
+        elif doc.file_type_name == "constancia_de_situacion_fiscal":
             doc.friendly_file_name = "-".join([
                 doc.file_type_name,
                 data.get("date_range_end"),
@@ -222,7 +222,7 @@ def create_friendly_file_name(doc: UploadDocument) -> str:
 # ):
 #     """
 #     Create a LoanAgreementDocument object and link to the user's
-#     account application.
+#     credit case.
 
 #     The LoanAgreementDocument object includes metadata as well as
 #     the actual file the user will need to e-sign to finalize the loan.
