@@ -33,6 +33,11 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
         view_name=f'{ORGANIZATION_BASENAME}-detail',
     )
 
+    required_file_type_names = serializers.SerializerMethodField()
+
+    def get_required_file_type_names(self, obj) -> list[str]:
+        return sorted(obj.required_file_type_names)
+
     class Meta:
         model = CreditCase
         fields = [
@@ -50,6 +55,7 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'assigned_to',
             'customer',
             'organization',
+            'required_file_type_names',
         ]
         read_only_fields = [
             'verdict',
@@ -58,6 +64,7 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'submitted_at',
             'verdict_at',
             'organization',
+            'required_file_type_names',
         ]
 
 

@@ -610,6 +610,7 @@ export interface components {
             customer: string;
             /** Format: uri */
             readonly organization: string;
+            readonly required_file_type_names: string[];
         };
         /**
          * @description * `MXN` - MXN
@@ -713,11 +714,15 @@ export interface components {
             readonly upload_document: string;
         };
         /**
-         * @description * `unknown` - Unknown
+         * @description * `balance_sheet` - Balance Sheet
+         *     * `unknown` - Unknown
+         *     * `bank_statement` - Bank Statement
          *     * `cashflow_statement` - Cashflow Statement
+         *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+         *     * `income_statement` - Income Statement
          * @enum {string}
          */
-        FileTypeNameEnum: "unknown" | "cashflow_statement";
+        FileTypeNameEnum: "balance_sheet" | "unknown" | "bank_statement" | "cashflow_statement" | "constancia_de_situacion_fiscal" | "income_statement";
         Label: {
             /** Format: uri */
             readonly url: string;
@@ -931,6 +936,7 @@ export interface components {
             customer?: string;
             /** Format: uri */
             readonly organization?: string;
+            readonly required_file_type_names?: string[];
         };
         PatchedCustomer: {
             /** Format: uri */
@@ -1047,8 +1053,12 @@ export interface components {
             /**
              * @description file type name given the choices list.
              *
+             *     * `balance_sheet` - Balance Sheet
              *     * `unknown` - Unknown
+             *     * `bank_statement` - Bank Statement
              *     * `cashflow_statement` - Cashflow Statement
+             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+             *     * `income_statement` - Income Statement
              */
             readonly file_type_name?: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @description mime type of the file. */
@@ -1146,8 +1156,12 @@ export interface components {
             /**
              * @description file type name given the choices list.
              *
+             *     * `balance_sheet` - Balance Sheet
              *     * `unknown` - Unknown
+             *     * `bank_statement` - Bank Statement
              *     * `cashflow_statement` - Cashflow Statement
+             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+             *     * `income_statement` - Income Statement
              */
             readonly file_type_name: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @description mime type of the file. */

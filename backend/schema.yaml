@@ -1588,11 +1588,17 @@ components:
           type: string
           format: uri
           readOnly: true
+        required_file_type_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
       required:
       - created_at
       - customer
       - id
       - organization
+      - required_file_type_names
       - submitted_at
       - updated_at
       - url
@@ -1802,12 +1808,20 @@ components:
       - url
     FileTypeNameEnum:
       enum:
+      - balance_sheet
       - unknown
+      - bank_statement
       - cashflow_statement
+      - constancia_de_situacion_fiscal
+      - income_statement
       type: string
       description: |-
+        * `balance_sheet` - Balance Sheet
         * `unknown` - Unknown
+        * `bank_statement` - Bank Statement
         * `cashflow_statement` - Cashflow Statement
+        * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+        * `income_statement` - Income Statement
     Label:
       type: object
       properties:
@@ -2161,6 +2175,11 @@ components:
           type: string
           format: uri
           readOnly: true
+        required_file_type_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
     PatchedCustomer:
       type: object
       properties:
@@ -2382,8 +2401,12 @@ components:
           description: |-
             file type name given the choices list.
 
+            * `balance_sheet` - Balance Sheet
             * `unknown` - Unknown
+            * `bank_statement` - Bank Statement
             * `cashflow_statement` - Cashflow Statement
+            * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+            * `income_statement` - Income Statement
           oneOf:
           - $ref: '#/components/schemas/FileTypeNameEnum'
           - $ref: '#/components/schemas/NullEnum'
@@ -2558,8 +2581,12 @@ components:
           description: |-
             file type name given the choices list.
 
+            * `balance_sheet` - Balance Sheet
             * `unknown` - Unknown
+            * `bank_statement` - Bank Statement
             * `cashflow_statement` - Cashflow Statement
+            * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+            * `income_statement` - Income Statement
           oneOf:
           - $ref: '#/components/schemas/FileTypeNameEnum'
           - $ref: '#/components/schemas/NullEnum'

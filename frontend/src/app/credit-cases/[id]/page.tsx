@@ -13,7 +13,6 @@ import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiForm, apiJson, ApiError, drfListAll } from "@/lib/api";
 import {
-  CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
   CREDIT_CASE_STATUS_LABELS,
   FILE_TYPE_NAME_LABELS,
   REQUESTED_TERM_DAYS_OPTIONS,
@@ -107,12 +106,12 @@ export default function CreditCaseDetailPage() {
   }, [uploads]);
 
   const requiredFileStatuses = useMemo(() => {
-    return CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED.map((fileType) => ({
+    return (creditCase?.required_file_type_names ?? []).map((fileType) => ({
       fileType,
       label: FILE_TYPE_NAME_LABELS[fileType] ?? fileType,
       satisfied: uploadedTypeNames.has(fileType),
     }));
-  }, [uploadedTypeNames]);
+  }, [creditCase?.required_file_type_names, uploadedTypeNames]);
 
   async function refreshUploads() {
     if (!creditCase) return;

@@ -1,14 +1,3 @@
-/**
- * Frontend mirrors of backend defaults in `backend/core/constants.py`.
- * Keep in sync when required file types change.
- */
-export const CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED = [
-  "cashflow_statement",
-] as const;
-
-export type CreditCaseRequiredFileType =
-  (typeof CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED)[number];
-
 /** Human-readable labels for upload file_type_name values. */
 export const FILE_TYPE_NAME_LABELS: Record<string, string> = {
   cashflow_statement: "Cashflow statement",
