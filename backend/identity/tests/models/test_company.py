@@ -4,8 +4,8 @@ from django.test import TestCase
 from identity.models import Organization, User
 
 from core.tests.obj_instances_global import (
-    test_create_organization_with_user_inst,
-    test_create_user_inst,
+    create_organization_with_user_inst,
+    create_user_inst,
 )
 from core.tests.constants_global import(
     TEST_ORGANIZATION_DATA,
@@ -21,7 +21,7 @@ class TestOrganizationModel(TestCase):
     # TIP: user is m2m, so relation is not enforced, no need to check for null relations
     def test_create_organization_with_user(self):
         c = Organization.objects.create(**self.organization_data)
-        user = test_create_user_inst()
+        user = create_user_inst()
         c.users.add(user)
         self.assertIsInstance(c, Organization)
         self.assertEqual(c.users.first(), user)
@@ -30,10 +30,10 @@ class TestOrganizationModel(TestCase):
 
     # test email_domain is unique
     def test_organization_domain_is_unique(self):
-        c1 = test_create_organization_with_user_inst()
+        c1 = create_organization_with_user_inst()
 
         with self.assertRaises(IntegrityError):
-            c2 = test_create_organization_with_user_inst()
+            c2 = create_organization_with_user_inst()
 
     # test name is not null
     def test_organization_name_not_null(self):
@@ -46,7 +46,7 @@ class TestOrganizationModel(TestCase):
 
     # test create organization for given user (using user email)
     def test_create_organization_with_user_for_user(self):
-        user = test_create_user_inst()
+        user = create_user_inst()
         def_organization_fields = TEST_ORGANIZATION_DATA.copy()
         exclude = ('name', 'email_domain')
         def_organization_fields = {k: v for k, v in def_organization_fields.items() if k not in exclude}

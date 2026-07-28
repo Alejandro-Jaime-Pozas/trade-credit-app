@@ -11,7 +11,7 @@ from core.tests.constants_global import (
     TEST_UPLOADED_FILE as TEST_LOAN_AGREEMENT_FILE,
 )
 from core.tests.obj_instances_global import (
-    test_create_account_application_inst,
+    create_account_application_inst,
 )
 
 # Create a temp media dir to mock
@@ -29,7 +29,7 @@ class TestLoanAgreementDocumentModel(TestCase):
 
     def setUp(self):
         self.loan_agmt_doc_data = TEST_LOAN_AGREEMENT_DOCUMENT_DATA.copy()
-        self.acct_app = test_create_account_application_inst()
+        self.acct_app = create_account_application_inst()
 
     # test create loan agmt doc model
     def test_create_loan_agreement_document_sucess(self):

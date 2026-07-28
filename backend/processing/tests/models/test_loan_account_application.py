@@ -3,7 +3,7 @@ from django.test import TestCase
 
 
 from core.tests.obj_instances_global import (
-    test_create_account_application_inst,
+    create_account_application_inst,
 )
 from core.tests.constants_global import (
     TEST_LOAN_ACCOUNT_APPLICATION_DATA,
@@ -18,7 +18,7 @@ class TestLoanApplicationAccount(TestCase):
 
     # test create loan app acct
     def test_create_loan_account_application(self):
-        acct_app = test_create_account_application_inst()
+        acct_app = create_account_application_inst()
         loan_acct_app = LoanAccountApplication.objects.create(
             account_application=acct_app,
             **self.loan_acct_app_data,

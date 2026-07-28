@@ -98,7 +98,7 @@ _MOD_LOAN_VERDICT_DATA = {
 
 # User
 
-def test_create_user_inst(email: str = _MOD_USER_DATA['email']):
+def create_user_inst(email: str = _MOD_USER_DATA['email']):
     """
     Creates a default user with these values for testing:
 
@@ -112,7 +112,7 @@ def test_create_user_inst(email: str = _MOD_USER_DATA['email']):
     )
     return user
 
-def test_create_user_inst_with_organization(email: str = _MOD_USER_DATA['email']):
+def create_user_inst_with_organization(email: str = _MOD_USER_DATA['email']):
     """
     Creates a default user with these values for testing:
 
@@ -133,7 +133,7 @@ def test_create_user_inst_with_organization(email: str = _MOD_USER_DATA['email']
 
 # Organization
 
-def test_create_organization_with_user_inst():
+def create_organization_with_user_inst():
     """
     'name': 'Mod_example',
     'email_domain': 'mod_example.com',
@@ -141,14 +141,14 @@ def test_create_organization_with_user_inst():
     organization = Organization.objects.create(
         **_MOD_ORGANIZATION_DATA,
     )
-    user = test_create_user_inst()
+    user = create_user_inst()
     organization.users.add(user)
     return organization
 
 
 # Account Application
 
-def test_create_account_application_inst():
+def create_account_application_inst():
     """
     'status': ApplicationStatus.PENDING_USER_DATA_UPLOAD,
     'type': 'checking',
@@ -156,15 +156,15 @@ def test_create_account_application_inst():
     acct_app = AccountApplication.objects.create(
         **_MOD_ACCOUNT_APPLICATION_DATA,
     )
-    user = test_create_user_inst_with_organization()  # user with organization
+    user = create_user_inst_with_organization()  # user with organization
     acct_app.users.add(user)
     return acct_app
 
 
 # Loan Account Application
 
-def test_create_loan_account_application_inst():
-    acct_app = test_create_account_application_inst()
+def create_loan_account_application_inst():
+    acct_app = create_account_application_inst()
     loan_acct_app = LoanAccountApplication.objects.create(
         account_application=acct_app,
         **_MOD_LOAN_ACCOUNT_APPLICATION_DATA,
@@ -174,7 +174,7 @@ def test_create_loan_account_application_inst():
 
 # UploadDocument
 
-def test_create_UploadDocument_inst():
+def create_UploadDocument_inst():
     doc = UploadDocument.objects.create(
         **_MOD_UPLOAD_DOCUMENT_DATA,
     )
@@ -183,8 +183,8 @@ def test_create_UploadDocument_inst():
 
 # LoanVerdictAI
 
-def test_create_loan_verdict_ai_inst():
-    loan_acct_app = test_create_loan_account_application_inst()
+def create_loan_verdict_ai_inst():
+    loan_acct_app = create_loan_account_application_inst()
     loan_verdict_ai = LoanVerdictAI.objects.create(
         loan_account_application=loan_acct_app,
         **_MOD_LOAN_VERDICT_AI_DATA,
@@ -194,8 +194,8 @@ def test_create_loan_verdict_ai_inst():
 
 # LoanVerdict
 
-def test_create_loan_verdict_inst():
-    loan_acct_app = test_create_loan_account_application_inst()
+def create_loan_verdict_inst():
+    loan_acct_app = create_loan_account_application_inst()
     loan_verdict_obj = LoanVerdict.objects.create(
         loan_account_application=loan_acct_app,
         **_MOD_LOAN_VERDICT_DATA,

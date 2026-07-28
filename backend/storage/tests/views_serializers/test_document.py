@@ -15,7 +15,7 @@ from core.constants import (
 )
 from core.serializer_utils import pass_into_serializer_check
 from core.tests.obj_instances_global import (
-    test_create_loan_account_application_inst,
+    create_loan_account_application_inst,
 )
 from core.tests.constants_global import (
     TEST_UPLOAD_DOCUMENT_DATA,
@@ -49,7 +49,7 @@ class TestPrivateUploadDocumentAPI(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        loan_acct_app = test_create_loan_account_application_inst()
+        loan_acct_app = create_loan_account_application_inst()
         cls.acct_app = loan_acct_app.account_application
 
     def setUp(self):

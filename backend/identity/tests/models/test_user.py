@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from core.tests.obj_instances_global import (
-    test_create_organization_with_user_inst,
+    create_organization_with_user_inst,
 )
 from core.tests.constants_global import (
     TEST_USER_DATA,
@@ -20,7 +20,7 @@ class TestUserModel(TestCase):
     # test create user, email = username, organization = default organization
     # TIP: organization is m2m, so relation is not enforced, no need to check for null relations
     def test_create_user_inst(self):
-        organization = test_create_organization_with_user_inst()
+        organization = create_organization_with_user_inst()
         user = User.objects.create_user(
             **self.user_data
         )

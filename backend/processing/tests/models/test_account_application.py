@@ -8,8 +8,8 @@ from core.tests.constants_global import (
     TEST_ACCOUNT_APPLICATION_DATA,
 )
 from core.tests.obj_instances_global import (
-    test_create_UploadDocument_inst,
-    test_create_user_inst_with_organization
+    create_UploadDocument_inst,
+    create_user_inst_with_organization
 )
 from core.str_utils import clean_account_name
 
@@ -25,7 +25,7 @@ class TestAccountApplicationModel(TestCase):
         acct_app = AccountApplication.objects.create(
             **self.account_application_data,
         )
-        user = test_create_user_inst_with_organization()
+        user = create_user_inst_with_organization()
         acct_app.users.add(user)
         self.assertIsInstance(acct_app, AccountApplication)
         self.assertEqual(acct_app.status, self.account_application_data['status'])
@@ -49,7 +49,7 @@ class TestAccountApplicationModel(TestCase):
         acct_app.save()
 
         # create UploadDocument and add to acct app
-        doc = test_create_UploadDocument_inst()
+        doc = create_UploadDocument_inst()
         acct_app.upload_documents.add(doc)
 
         # test required_file_type_names

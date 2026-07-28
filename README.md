@@ -67,10 +67,10 @@ Run migrations manually (normally automatic on `up`):
 docker compose exec backend python manage.py migrate
 ```
 
-Run backend tests:
+Run backend tests (pytest):
 
 ```bash
-docker compose exec backend python manage.py test
+docker compose exec backend pytest
 ```
 
 ## API type sync (frontend types)

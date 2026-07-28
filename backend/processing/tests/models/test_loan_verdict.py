@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.forms.models import model_to_dict
 
 from core.tests.obj_instances_global import (
-    test_create_loan_account_application_inst,
+    create_loan_account_application_inst,
 )
 from core.tests.constants_global import (
     TEST_LOAN_VERDICT_DATA,
@@ -18,7 +18,7 @@ class TestLoanVerdict(TestCase):
 
     def setUp(self):
         self.loan_verdict_data = TEST_LOAN_VERDICT_DATA.copy()
-        self.loan_acct_app = test_create_loan_account_application_inst()
+        self.loan_acct_app = create_loan_account_application_inst()
 
     # test create loan verdict
     def test_create_loan_verdict(self):

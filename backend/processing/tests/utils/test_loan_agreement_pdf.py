@@ -5,7 +5,7 @@ from processing.file_creation.loan_agreement_pdf_generator import (
     LoanAgreementPDFGenerator,
 )
 from core.tests.obj_instances_global import (
-    test_create_loan_verdict_inst,
+    create_loan_verdict_inst,
 )
 
 
@@ -13,7 +13,7 @@ class TestLoanAgreementPDF(TestCase):
     """ Test creating the loan agreement pdf file. """
 
     def setUp(self):
-        self.loan_verdict_obj = test_create_loan_verdict_inst()
+        self.loan_verdict_obj = create_loan_verdict_inst()
 
     # test create loan agreement pdf generator success
     def test_create_loan_agreement_pdf_generator_success(self):
