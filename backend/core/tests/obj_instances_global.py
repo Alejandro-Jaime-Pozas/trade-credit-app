@@ -31,7 +31,7 @@ _MOD_USER_DATA = {
 # Organization
 _MOD_ORGANIZATION_DATA = {
     'name': 'Mod_example',
-    'email_domain': 'mod_example.com',
+    'email_domain': 'mod-example.com',
 }
 
 # Account
@@ -136,7 +136,7 @@ def create_user_inst_with_organization(email: str = _MOD_USER_DATA['email']):
 def create_organization_with_user_inst():
     """
     'name': 'Mod_example',
-    'email_domain': 'mod_example.com',
+    'email_domain': 'mod-example.com',
     """
     organization = Organization.objects.create(
         **_MOD_ORGANIZATION_DATA,

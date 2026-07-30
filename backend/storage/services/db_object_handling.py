@@ -18,6 +18,7 @@ from core.constants import (
 from processing.loan_term_calculations.constants import CREDIT_SCORE_VERDICT
 from core.str_utils import pretty_print
 from storage.models import UploadDocument
+from customers.models import Customer
 from processing.file_creation.loan_agreement_pdf_generator import (
     LoanAgreementPDFGenerator,
 )
@@ -57,6 +58,9 @@ def handle_upload_document_created(doc):
     file_type_name = doc.file_type_name
     if not file_type_name:
         return f'UploadDocument should have a file_type_name field from gpt process.'
+
+    # If the doc is a CSF, auto-fill the customer's rfc/legal_name from the extracted data
+    promote_csf_fields_to_customer(doc)
 
     # TODO LATER =====================================
     # # TODO later: If file_type_name is Const de Situacion Fiscal, run credit process
@@ -211,6 +215,65 @@ def create_friendly_file_name(doc: UploadDocument) -> str:
         doc.save()
 
     return doc
+
+
+# Auto-fill the customer's rfc/legal_name from an uploaded CSF document
+def promote_csf_fields_to_customer(doc: UploadDocument) -> None:
+    """
+    Copy the fields gpt extracted from a Constancia de Situacion Fiscal (CSF)
+    onto the related Customer record, so the user doesn't have to retype them.
+
+    Behavior (kept intentionally simple):
+        - Only runs for CSF documents that have extracted_data.
+        - "Fill only if empty": never overwrites a value the user already set.
+        - rfc is only set if it does NOT collide with another Customer's rfc in
+          the same organization (the DB has a unique (organization, rfc) constraint,
+          and this whole flow runs inside a single atomic transaction, so a
+          collision would roll back the entire upload). We pre-check with a query
+          instead of catching an IntegrityError, which would poison the transaction.
+    """
+
+    # Only handle CSF docs that actually have extracted data
+    if doc.file_type_name != 'constancia_de_situacion_fiscal':
+        return
+    data = doc.extracted_data
+    if not data:
+        return
+
+    # The Customer is always reachable via the (required) credit_case FK here
+    customer = doc.credit_case.customer
+
+    # Pull the two fields we care about; treat empty strings as "not present"
+    extracted_rfc = (data.get('rfc') or '').strip()
+    extracted_legal_name = (data.get('razon_social') or '').strip()
+
+    updated_fields = []
+
+    # legal_name: fill only if the customer doesn't already have one
+    if extracted_legal_name and not customer.legal_name:
+        customer.legal_name = extracted_legal_name
+        updated_fields.append('legal_name')
+
+    # rfc: fill only if empty AND it won't collide with another customer in the org
+    if extracted_rfc and not customer.rfc:
+        rfc_taken = (
+            Customer.objects
+            .filter(organization=customer.organization, rfc=extracted_rfc)
+            .exclude(pk=customer.pk)
+            .exists()
+        )
+        if rfc_taken:
+            # Another customer in this org already uses this rfc; skip to avoid
+            # breaking the upload. legal_name (above) can still be filled.
+            print(f'Skipping rfc auto-fill: {extracted_rfc} already exists in organization.')
+        else:
+            customer.rfc = extracted_rfc
+            updated_fields.append('rfc')
+
+    # Only write to the db if something actually changed. Include updated_at so the
+    # auto_now timestamp bumps (Django doesn't add it to update_fields automatically).
+    if updated_fields:
+        customer.save(update_fields=updated_fields + ['updated_at'])
 
 
 # TODO maybe replace with a trade credit agreement/contract for user to sign.

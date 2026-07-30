@@ -19,7 +19,7 @@ TEST_USER_DATA = {
 
 TEST_ORGANIZATION_DATA = {
     'name': 'Def_example',
-    'email_domain': 'def_example.com',
+    'email_domain': 'def-example.com',
 }
 
 TEST_ACCOUNT_DATA = {
