@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from core.constants import (
+    CREDIT_CASE_ID,
     UPLOAD_DOCUMENT_BASENAME,
 )
 from core.serializer_utils import pass_into_serializer_check
@@ -39,7 +40,7 @@ def get_detail_url(id):
 
 @unittest.skip(
     'stale: written against a removed account_application FK/M2M on '
-    'UploadDocument (ACCOUNT_APPLICATION_ID no longer exists in '
+    'UploadDocument (CREDIT_CASE_ID no longer exists in '
     'core.constants); UploadDocument now links via customer/credit_case '
     'per docs/versions/v1.md. Needs rewrite.'
 )
@@ -61,7 +62,7 @@ class TestPrivateUploadDocumentAPI(TestCase):
     def setUp(self):
         self.upload_document_data = TEST_UPLOAD_DOCUMENT_DATA.copy()
         self.upload_document_data['files'] = [make_test_uploaded_file()]  # dummy file required for serializer files field
-        self.upload_document_data[ACCOUNT_APPLICATION_ID] = self.acct_app.id
+        self.upload_document_data[CREDIT_CASE_ID] = self.acct_app.id
         self.client = APIClient()
 
 
@@ -75,7 +76,7 @@ class TestPrivateUploadDocumentAPI(TestCase):
 
 
     def test_create_UploadDocument_no_account_application_field_error(self):
-        self.upload_document_data.pop(ACCOUNT_APPLICATION_ID)
+        self.upload_document_data.pop(CREDIT_CASE_ID)
         serializer = UploadDocumentSerializer(data=self.upload_document_data)
 
         with self.assertRaises(ValidationError):
@@ -84,7 +85,7 @@ class TestPrivateUploadDocumentAPI(TestCase):
 
     # test non-user related or null acct app error
     def test_non_user_or_null_acct_app_error(self):
-        self.upload_document_data[ACCOUNT_APPLICATION_ID] = -1
+        self.upload_document_data[CREDIT_CASE_ID] = -1
         serializer = UploadDocumentSerializer(data=self.upload_document_data)
         serializer.is_valid(raise_exception=True)
 
@@ -114,6 +115,6 @@ class TestPrivateUploadDocumentAPI(TestCase):
 
         self.assertEqual(res.data[0], serializer.data)
         self.assertEqual(
-            self.upload_document_data[ACCOUNT_APPLICATION_ID],
+            self.upload_document_data[CREDIT_CASE_ID],
             doc.account_applications.get(id=self.acct_app.id).id
         )

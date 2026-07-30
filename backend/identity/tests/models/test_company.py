@@ -1,4 +1,4 @@
-from django.db.utils import IntegrityError
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from identity.models import Organization, User
@@ -32,12 +32,14 @@ class TestOrganizationModel(TestCase):
     def test_organization_domain_is_unique(self):
         c1 = create_organization_with_user_inst()
 
-        with self.assertRaises(IntegrityError):
+        # save() runs full_clean() before hitting the DB, so the duplicate
+        # is caught as a ValidationError rather than a DB IntegrityError.
+        with self.assertRaises(ValidationError):
             c2 = create_organization_with_user_inst()
 
     # test name is not null
     def test_organization_name_not_null(self):
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             organization_data = self.organization_data.copy()
             organization_data['name'] = None
             Organization.objects.create(
@@ -56,8 +58,9 @@ class TestOrganizationModel(TestCase):
         )
         # fn returns organization obj
         self.assertIsInstance(organization, Organization)
-        # organization is created, not fetched
-        self.assertTrue(created)
+        # create_user_inst() already auto-creates the organization for this
+        # domain via UserManager._create_user(), so it's fetched, not created.
+        self.assertFalse(created)
         # organization is linked to the user
         self.assertEqual(user.organizations.get(pk=organization.pk), organization)
         # organization email_domain is in user email
