@@ -106,6 +106,14 @@ class ConstanciaDeSituacionFiscalPydantic(DateBaseModel):
     razon_social: str = Field(...,
         description='Organization name, known as denominacion or razon social.',
     )
+    nombre_de_vialidad: str = Field(...,
+        description='Street name, known as nombre de vialidad.',
+    )
+    codigo_postal: str = Field(...,
+        description='Postal code, known as codigo postal.',
+        min_length=5,
+        max_length=12,
+    )
 
 
 # GENERAL

@@ -1,8 +1,8 @@
 """
 Tests for promote_csf_fields_to_customer: after a CSF document is processed,
-its extracted rfc/razon_social should auto-fill the linked Customer, but only
-when those fields are empty and without breaking the (organization, rfc) unique
-constraint.
+its extracted rfc/razon_social/nombre_de_vialidad/codigo_postal should auto-fill
+the linked Customer, but only when those fields are empty and without breaking
+the (organization, rfc) unique constraint.
 """
 
 import pytest
@@ -42,22 +42,40 @@ def test_fills_rfc_and_legal_name_when_blank():
     org = make_org()
     customer = make_customer(org)  # rfc and legal_name start blank
     credit_case = CreditCase.objects.create(customer=customer)
-    doc = make_csf_doc(credit_case, {'rfc': 'ABC123456789', 'razon_social': 'ACME SA DE CV'})
+    doc = make_csf_doc(credit_case, {
+        'rfc': 'ABC123456789',
+        'razon_social': 'ACME SA DE CV',
+        'nombre_de_vialidad': 'Av Reforma',
+        'codigo_postal': '06600',
+    })
 
     promote_csf_fields_to_customer(doc)
 
     customer.refresh_from_db()
     assert customer.rfc == 'ABC123456789'
     assert customer.legal_name == 'ACME SA DE CV'
+    assert customer.nombre_de_vialidad == 'Av Reforma'
+    assert customer.codigo_postal == '06600'
 
 
 @pytest.mark.django_db
 def test_does_not_overwrite_existing_values():
     org = make_org()
-    # Customer already has both values set by the user
-    customer = make_customer(org, rfc='EXISTING1234', legal_name='Existing Legal Name')
+    # Customer already has all values set by the user
+    customer = make_customer(
+        org,
+        rfc='EXISTING1234',
+        legal_name='Existing Legal Name',
+        nombre_de_vialidad='Existing Street',
+        codigo_postal='11111',
+    )
     credit_case = CreditCase.objects.create(customer=customer)
-    doc = make_csf_doc(credit_case, {'rfc': 'ABC123456789', 'razon_social': 'New Extracted Name'})
+    doc = make_csf_doc(credit_case, {
+        'rfc': 'ABC123456789',
+        'razon_social': 'New Extracted Name',
+        'nombre_de_vialidad': 'New Street',
+        'codigo_postal': '22222',
+    })
 
     promote_csf_fields_to_customer(doc)
 
@@ -65,23 +83,52 @@ def test_does_not_overwrite_existing_values():
     # Fill-only-if-empty: nothing should change
     assert customer.rfc == 'EXISTING1234'
     assert customer.legal_name == 'Existing Legal Name'
+    assert customer.nombre_de_vialidad == 'Existing Street'
+    assert customer.codigo_postal == '11111'
 
 
 @pytest.mark.django_db
-def test_skips_rfc_on_collision_but_still_fills_legal_name():
+def test_skips_rfc_on_collision_but_still_fills_other_fields():
     org = make_org()
     # Another customer in the same org already uses this rfc
     make_customer(org, name='Other Customer', rfc='DUP123456789')
-    customer = make_customer(org, name='Target Customer')  # blank rfc + legal_name
+    customer = make_customer(org, name='Target Customer')  # all fields blank
     credit_case = CreditCase.objects.create(customer=customer)
-    doc = make_csf_doc(credit_case, {'rfc': 'DUP123456789', 'razon_social': 'Target Legal Name'})
+    doc = make_csf_doc(credit_case, {
+        'rfc': 'DUP123456789',
+        'razon_social': 'Target Legal Name',
+        'nombre_de_vialidad': 'Target Street',
+        'codigo_postal': '33333',
+    })
 
     promote_csf_fields_to_customer(doc)
 
     customer.refresh_from_db()
-    # rfc is skipped (would collide), but legal_name still fills
+    # rfc is skipped (would collide), but the other fields still fill
     assert customer.rfc is None
     assert customer.legal_name == 'Target Legal Name'
+    assert customer.nombre_de_vialidad == 'Target Street'
+    assert customer.codigo_postal == '33333'
+
+
+@pytest.mark.django_db
+def test_fills_only_blank_address_fields_individually():
+    org = make_org()
+    # codigo_postal already set by the user, nombre_de_vialidad still blank
+    customer = make_customer(org, codigo_postal='99999')
+    credit_case = CreditCase.objects.create(customer=customer)
+    doc = make_csf_doc(credit_case, {
+        'rfc': 'ABC123456789',
+        'razon_social': 'ACME SA DE CV',
+        'nombre_de_vialidad': 'Av Reforma',
+        'codigo_postal': '06600',
+    })
+
+    promote_csf_fields_to_customer(doc)
+
+    customer.refresh_from_db()
+    assert customer.nombre_de_vialidad == 'Av Reforma'
+    assert customer.codigo_postal == '99999'  # untouched, was already set
 
 
 @pytest.mark.django_db

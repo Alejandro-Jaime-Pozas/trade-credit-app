@@ -51,6 +51,14 @@ ALLOWED_FILE_EXTENSIONS=[
     'pptx',
 ]
 
+# Extensions that OpenAI's file-upload "context stuffing" (input_file) can't read;
+# these must be uploaded with purpose='vision' and sent as input_image instead.
+IMAGE_FILE_EXTENSIONS=[
+    'jpg',
+    'jpeg',
+    'png',
+]
+
 
 # Router basenames - TIP: DON'T CHANGE SINCE HYPERLINKED SERIALIZER REQUIRES EXACT NAME AS MODEL NAME LOWERCASE; can override this with viewname in serializers but not required for now
 ## banking

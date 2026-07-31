@@ -1,11 +1,15 @@
 from datetime import date
 import json
+import os
 from django.conf import settings
 
 from openai import OpenAI
 from openai.types.file_object import FileObject
 
-from core.constants import FILE_TYPE_NAME_MAPPING_PYDANTIC
+from core.constants import (
+    FILE_TYPE_NAME_MAPPING_PYDANTIC,
+    IMAGE_FILE_EXTENSIONS,
+)
 from storage.models import UploadDocument
 from integrations.openai.prompts.extract_file_data import (
     EXTRACT_FILE_TYPE_NAME,
@@ -54,13 +58,25 @@ class GPTService:
         self.client = OpenAI()  # defaults to system env var OPENAI_API_KEY's value
         self.credit_case = credit_case
 
+    # Check if a file is an image, since openai handles images differently from documents
+    def is_image_file(self, file_path: str) -> bool:
+        ext = os.path.splitext(file_path)[1].lstrip('.').lower()
+        return ext in IMAGE_FILE_EXTENSIONS
+
     # Upload a specific file to openai api
     def upload_file(self, file_path: str):
-        """ Upload a single file to openai api. """
+        """
+        Upload a single file to openai api.
+
+        Images must be uploaded with purpose='vision' (and later referenced as
+        input_image), since purpose='user_data' only supports document/text
+        "context stuffing" formats like .pdf/.docx, not image formats.
+        """
+        purpose = 'vision' if self.is_image_file(file_path) else 'user_data'
         with open(file_path, 'rb') as f:
             file = self.client.files.create(
                 file=f,
-                purpose='user_data',
+                purpose=purpose,
                 expires_after={'anchor': 'created_at', 'seconds': 2592000},
             )
 
@@ -77,10 +93,19 @@ class GPTService:
 
         return uploaded_files
 
+    # Build the correct content part for one uploaded file: images must be sent
+    # as input_image (they were uploaded with purpose='vision'), everything else
+    # as input_file.
+    def prep_file_for_request(self, uploaded_file: FileObject):
+        if uploaded_file.purpose == 'vision':
+            return {"type": "input_image", "file_id": uploaded_file.id, "detail": "auto"}
+
+        return {"type": "input_file", "file_id": uploaded_file.id}
+
     # Create json input-ready list with dict to include in gpt request
     def prep_files_for_request(self, uploaded_files):
         prepped_files = [
-            {"type": "input_file", "file_id": f.id} for f in uploaded_files
+            self.prep_file_for_request(f) for f in uploaded_files
         ]
 
         return prepped_files
@@ -154,10 +179,7 @@ class GPTService:
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "input_file",
-                            "file_id": uploaded_file.id,
-                        },
+                        self.prep_file_for_request(uploaded_file),
                     ]
                 },
             ],
@@ -195,10 +217,7 @@ class GPTService:
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "input_file",
-                            "file_id": uploaded_file.id,
-                        },
+                        self.prep_file_for_request(uploaded_file),
                     ]
                 },
             ],

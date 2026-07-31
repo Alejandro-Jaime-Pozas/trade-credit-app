@@ -217,7 +217,7 @@ def create_friendly_file_name(doc: UploadDocument) -> str:
     return doc
 
 
-# Auto-fill the customer's rfc/legal_name from an uploaded CSF document
+# Auto-fill the customer's rfc/legal_name/address fields from an uploaded CSF document
 def promote_csf_fields_to_customer(doc: UploadDocument) -> None:
     """
     Copy the fields gpt extracted from a Constancia de Situacion Fiscal (CSF)
@@ -243,9 +243,11 @@ def promote_csf_fields_to_customer(doc: UploadDocument) -> None:
     # The Customer is always reachable via the (required) credit_case FK here
     customer = doc.credit_case.customer
 
-    # Pull the two fields we care about; treat empty strings as "not present"
+    # Pull the fields we care about; treat empty strings as "not present"
     extracted_rfc = (data.get('rfc') or '').strip()
     extracted_legal_name = (data.get('razon_social') or '').strip()
+    extracted_nombre_de_vialidad = (data.get('nombre_de_vialidad') or '').strip()
+    extracted_codigo_postal = (data.get('codigo_postal') or '').strip()
 
     updated_fields = []
 
@@ -253,6 +255,16 @@ def promote_csf_fields_to_customer(doc: UploadDocument) -> None:
     if extracted_legal_name and not customer.legal_name:
         customer.legal_name = extracted_legal_name
         updated_fields.append('legal_name')
+
+    # nombre_de_vialidad / codigo_postal: no uniqueness constraints, so a plain
+    # fill-only-if-empty is enough (no collision pre-check needed like rfc below).
+    if extracted_nombre_de_vialidad and not customer.nombre_de_vialidad:
+        customer.nombre_de_vialidad = extracted_nombre_de_vialidad
+        updated_fields.append('nombre_de_vialidad')
+
+    if extracted_codigo_postal and not customer.codigo_postal:
+        customer.codigo_postal = extracted_codigo_postal
+        updated_fields.append('codigo_postal')
 
     # rfc: fill only if empty AND it won't collide with another customer in the org
     if extracted_rfc and not customer.rfc:
@@ -264,7 +276,7 @@ def promote_csf_fields_to_customer(doc: UploadDocument) -> None:
         )
         if rfc_taken:
             # Another customer in this org already uses this rfc; skip to avoid
-            # breaking the upload. legal_name (above) can still be filled.
+            # breaking the upload. Other fields (above) can still be filled.
             print(f'Skipping rfc auto-fill: {extracted_rfc} already exists in organization.')
         else:
             customer.rfc = extracted_rfc
