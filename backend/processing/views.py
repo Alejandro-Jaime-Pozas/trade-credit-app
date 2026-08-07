@@ -28,7 +28,7 @@ class CreditCaseViewSet(
     ModelViewSet,
 ):
 
-    queryset = CreditCase.objects.all().order_by('-updated_at')
+    queryset = CreditCase.objects.all().order_by('-updated_at').prefetch_related('label_values__label')
     serializer_class = CreditCaseSerializer
     organization_lookup = 'customer__organization'
 

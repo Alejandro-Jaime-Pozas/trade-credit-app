@@ -1,11 +1,13 @@
 from uuid6 import uuid7
 
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
 
 from customers.models import Customer
-from identity.models import User
+from identity.models import Organization, User
 from processing.models import (
     CreditCase,
 )
@@ -99,6 +101,9 @@ class UploadDocument(models.Model):
         related_name='upload_documents',
         help_text='the credit case the file belongs to.',
     )
+    # Custom field values (dynamic Labels) attached to this document.
+    # GenericRelation so deleting a document cascades away its LabelValue rows too.
+    label_values = GenericRelation('storage.LabelValue')
 
     def save(self, *args, **kwargs):
         if not self.original_title and self.file:
@@ -149,34 +154,120 @@ class DocumentDataExtract(models.Model):
 
 class Label(models.Model):
     """
-    Super abstract, general purpose label that can be applied to any model instance
-    in the system, mainly for UI filtering and categorization purposes.
+    A user-defined dynamic custom field. A Label is a field *definition* only —
+    it does not store any value itself. Each Label is scoped to exactly one model
+    (via `content_type`), so it behaves like adding a new field to that model
+    without needing a migration.
 
-    Example: user wants a new label named 'sucursal'. User then creates a few values for it.
-    Label is linked to appropiate model based on the endpoint/UI location. User can then
-    filter CreditCases by 'sucursal'.
+    Example: a user creates a Label named "sucursal" scoped to CreditCase. From then
+    on, every CreditCase can have (at most) one "sucursal" LabelValue, and that value
+    shows up in the CreditCase's `custom_fields` like a real field would.
+
+    ┌─────┬──────────┬──────────────┬──────────────┐
+    │ id  │   name   │ content_type │ organization │
+    ├─────┼──────────┼──────────────┼──────────────┤
+    │ 1   │ sucursal │ creditcase   │ Gringotts    │
+    └─────┴──────────┴──────────────┴──────────────┘
     """
 
     name = models.CharField(
         max_length=50,
-        help_text='The name of the label, e.g. "sucursal".',
+        help_text='The custom field name, e.g. "sucursal".',
     )
-    value = models.CharField(
-        max_length=250,
-        help_text='The value of the label, e.g. "sucursal MTY norte".',
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='labels',
+        null=True,
+        blank=True,
+        help_text='The organization that owns this custom field definition.',
+    )
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        related_name='+',
+        null=True,
+        blank=True,
+        help_text='The single model this custom field applies to, e.g. CreditCase.',
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    # Can link labels to other models as well, as needed
-    credit_cases = models.ManyToManyField(
-        CreditCase,
-        related_name='labels',
-        help_text='The CreditCase that this label is associated with.',
-    )
-    customers = models.ManyToManyField(
-        Customer,
-        related_name='labels',
-        help_text='The Customer that this label is associated with.',
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='The user that created this custom field.',
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'content_type', 'name'],
+                name='unique_label_per_organization_and_model',
+            ),
+        ]
+
     def __str__(self):
-        return f'name={self.name}, value={self.value}'
+        return f'name={self.name}, content_type={self.content_type}'
+
+
+class LabelValue(models.Model):
+    """
+    The value of a Label (custom field) for one specific object.
+
+    One row per (label, object) — the unique constraint below is what makes this
+    behave like a real field: setting the same label on the same object again
+    must UPDATE this row, never create a second one (see LabelValueViewSet).
+
+    ┌─────┬──────────────┬──────────────┬───────────┬───────────┐
+    │ id  │    label     │ content_type │ object_id │   value   │
+    ├─────┼──────────────┼──────────────┼───────────┼───────────┤
+    │ 1   │ sucursal (1) │ creditcase   │ 47        │ MTY Norte │
+    └─────┴──────────────┴──────────────┴───────────┴───────────┘
+    """
+
+    label = models.ForeignKey(
+        Label,
+        on_delete=models.CASCADE,
+        related_name='values',
+        help_text='The custom field definition this value belongs to.',
+    )
+    # content_type is denormalized from label.content_type (always equal to it),
+    # but Django's GenericForeignKey/GenericRelation require a real field here to
+    # build queries against — it can't be derived through the label FK at query time.
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text='The model type of the labeled object (must match label.content_type).',
+    )
+    object_id = models.PositiveBigIntegerField(
+        help_text='The primary key of the labeled object.',
+    )
+    content_object = GenericForeignKey('content_type', 'object_id')
+    value = models.CharField(
+        max_length=250,
+        help_text='The field value, e.g. "MTY Norte".',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='The user that set this value.',
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['label', 'content_type', 'object_id'],
+                name='unique_value_per_label_per_object',
+            ),
+        ]
+
+    def __str__(self):
+        return f'label={self.label.name}, object_id={self.object_id}, value={self.value}'

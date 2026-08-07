@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
@@ -100,6 +101,9 @@ class CreditCase(models.Model):
         on_delete=models.CASCADE,
         related_name='credit_cases',
     )
+    # Custom field values (dynamic Labels) attached to this credit case.
+    # GenericRelation so deleting a credit case cascades away its LabelValue rows too.
+    label_values = GenericRelation('storage.LabelValue')
 
     @property
     def required_file_type_names(self):

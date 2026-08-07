@@ -38,6 +38,13 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
     def get_required_file_type_names(self, obj) -> list[str]:
         return sorted(obj.required_file_type_names)
 
+    # Dynamic custom fields (Labels) set on this credit case, e.g. {"sucursal": "MTY Norte"}.
+    # Read-only here — values are set/updated via LabelValueViewSet.
+    custom_fields = serializers.SerializerMethodField()
+
+    def get_custom_fields(self, obj) -> dict[str, str]:
+        return {lv.label.name: lv.value for lv in obj.label_values.select_related('label').all()}
+
     class Meta:
         model = CreditCase
         fields = [
@@ -56,6 +63,7 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'customer',
             'organization',
             'required_file_type_names',
+            'custom_fields',
         ]
         read_only_fields = [
             'verdict',

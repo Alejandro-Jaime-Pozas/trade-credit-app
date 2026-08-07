@@ -3,11 +3,13 @@ from rest_framework import routers
 from core.constants import (
     DOCUMENT_DATA_EXTRACT_BASENAME,
     LABEL_BASENAME,
+    LABEL_VALUE_BASENAME,
     UPLOAD_DOCUMENT_BASENAME,
 )
 from .views import (
     DocumentDataExtractViewSet,
     LabelViewSet,
+    LabelValueViewSet,
     UploadDocumentViewSet,
 )
 
@@ -26,6 +28,11 @@ router.register(
     'labels',
     LabelViewSet,
     basename=LABEL_BASENAME,
+)
+router.register(
+    'label-values',
+    LabelValueViewSet,
+    basename=LABEL_VALUE_BASENAME,
 )
 
 urlpatterns = router.urls

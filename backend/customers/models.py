@@ -1,3 +1,4 @@
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import MinLengthValidator
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
@@ -120,6 +121,9 @@ class Customer(models.Model):
         blank=True,
         help_text='Entre calle 2.',
     )
+    # Custom field values (dynamic Labels) attached to this customer.
+    # GenericRelation so deleting a customer cascades away its LabelValue rows too.
+    label_values = GenericRelation('storage.LabelValue')
 
     class Meta:
         constraints = [

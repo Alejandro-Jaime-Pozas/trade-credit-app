@@ -16,7 +16,7 @@ class CustomerViewSet(
     OrganizationScopedMixin,
     ModelViewSet,
 ):
-    queryset = Customer.objects.all()
+    queryset = Customer.objects.all().prefetch_related('label_values__label')
     serializer_class = CustomerSerializer
     organization_lookup = 'organization'
 

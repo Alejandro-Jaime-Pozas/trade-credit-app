@@ -88,6 +88,17 @@ BURO_DE_CREDITO_REPORT_BASENAME='burodecreditoreport'
 UPLOAD_DOCUMENT_BASENAME='uploaddocument'
 DOCUMENT_DATA_EXTRACT_BASENAME='documentdataextract'
 LABEL_BASENAME='label'
+LABEL_VALUE_BASENAME='labelvalue'
+
+
+# Models that can have dynamic custom fields (Label/LabelValue) attached, and the ORM
+# lookup path(s) from that model back to Organization, used to enforce tenant isolation
+# when a LabelValue is created (a target object must be reachable via at least one path).
+LABELABLE_MODEL_ORG_LOOKUPS={
+    'creditcase': ['customer__organization'],
+    'customer': ['organization'],
+    'uploaddocument': ['customer__organization', 'credit_case__customer__organization'],
+}
 
 
 # Naming conventions for model ids

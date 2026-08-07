@@ -272,6 +272,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/label-values/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The per-object value of a Label (custom field). An object can have at most
+         *     one LabelValue per Label — see the `unique_value_per_label_per_object`
+         *     constraint on the model.
+         */
+        get: operations["label_values_list"];
+        put?: never;
+        /**
+         * @description Set a Label's value on an object. This behaves like setting a real model
+         *     field: if a value already exists for this (label, object), it's UPDATED
+         *     in place (200) instead of raising a uniqueness conflict; otherwise a new
+         *     LabelValue is created (201).
+         */
+        post: operations["label_values_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/label-values/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The per-object value of a Label (custom field). An object can have at most
+         *     one LabelValue per Label — see the `unique_value_per_label_per_object`
+         *     constraint on the model.
+         */
+        get: operations["label_values_retrieve"];
+        /**
+         * @description The per-object value of a Label (custom field). An object can have at most
+         *     one LabelValue per Label — see the `unique_value_per_label_per_object`
+         *     constraint on the model.
+         */
+        put: operations["label_values_update"];
+        post?: never;
+        /**
+         * @description The per-object value of a Label (custom field). An object can have at most
+         *     one LabelValue per Label — see the `unique_value_per_label_per_object`
+         *     constraint on the model.
+         */
+        delete: operations["label_values_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description The per-object value of a Label (custom field). An object can have at most
+         *     one LabelValue per Label — see the `unique_value_per_label_per_object`
+         *     constraint on the model.
+         */
+        patch: operations["label_values_partial_update"];
+        trace?: never;
+    };
     "/api/v1/labels/": {
         parameters: {
             query?: never;
@@ -280,16 +343,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
-         *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         * @description A Label is a custom field DEFINITION (e.g. "sucursal" for CreditCase) that the
+         *     user creates and manages themselves. It holds no value — see LabelValueViewSet
+         *     for setting/reading the per-object value of a Label.
          */
         get: operations["labels_list"];
         put?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
-         *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         * @description A Label is a custom field DEFINITION (e.g. "sucursal" for CreditCase) that the
+         *     user creates and manages themselves. It holds no value — see LabelValueViewSet
+         *     for setting/reading the per-object value of a Label.
          */
         post: operations["labels_create"];
         delete?: never;
@@ -306,32 +369,52 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
-         *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         * @description A Label is a custom field DEFINITION (e.g. "sucursal" for CreditCase) that the
+         *     user creates and manages themselves. It holds no value — see LabelValueViewSet
+         *     for setting/reading the per-object value of a Label.
          */
         get: operations["labels_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
-         *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         * @description A Label is a custom field DEFINITION (e.g. "sucursal" for CreditCase) that the
+         *     user creates and manages themselves. It holds no value — see LabelValueViewSet
+         *     for setting/reading the per-object value of a Label.
          */
         put: operations["labels_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
-         *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         * @description A Label is a custom field DEFINITION (e.g. "sucursal" for CreditCase) that the
+         *     user creates and manages themselves. It holds no value — see LabelValueViewSet
+         *     for setting/reading the per-object value of a Label.
          */
         delete: operations["labels_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
-         *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         * @description A Label is a custom field DEFINITION (e.g. "sucursal" for CreditCase) that the
+         *     user creates and manages themselves. It holds no value — see LabelValueViewSet
+         *     for setting/reading the per-object value of a Label.
          */
         patch: operations["labels_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/labels/{id}/existing-values/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description List the distinct values already used for this label, so a user can
+         *     quickly reuse e.g. "MTY Norte" instead of retyping a near-duplicate.
+         */
+        get: operations["labels_existing_values_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/organizations/": {
@@ -611,6 +694,9 @@ export interface components {
             /** Format: uri */
             readonly organization: string;
             readonly required_file_type_names: string[];
+            readonly custom_fields: {
+                [key: string]: string;
+            };
         };
         /**
          * @description * `MXN` - MXN
@@ -653,6 +739,9 @@ export interface components {
              */
             readonly created_by: string | null;
             readonly customer_contacts: string[];
+            readonly custom_fields: {
+                [key: string]: string;
+            };
         };
         CustomerContact: {
             /** Format: uri */
@@ -714,29 +803,64 @@ export interface components {
             readonly upload_document: string;
         };
         /**
-         * @description * `balance_sheet` - Balance Sheet
-         *     * `unknown` - Unknown
-         *     * `bank_statement` - Bank Statement
+         * @description * `bank_statement` - Bank Statement
          *     * `cashflow_statement` - Cashflow Statement
-         *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+         *     * `unknown` - Unknown
          *     * `income_statement` - Income Statement
+         *     * `balance_sheet` - Balance Sheet
+         *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
          * @enum {string}
          */
-        FileTypeNameEnum: "balance_sheet" | "unknown" | "bank_statement" | "cashflow_statement" | "constancia_de_situacion_fiscal" | "income_statement";
+        FileTypeNameEnum: "bank_statement" | "cashflow_statement" | "unknown" | "income_statement" | "balance_sheet" | "constancia_de_situacion_fiscal";
+        /**
+         * @description A Label is a custom field *definition* the user creates, e.g. "sucursal" for
+         *     CreditCase. `content_type` picks which single model it applies to, by model
+         *     name (e.g. "creditcase") rather than a raw database id, since ContentType ids
+         *     aren't stable across databases.
+         */
         Label: {
             /** Format: uri */
             readonly url: string;
             readonly id: number;
-            /** @description The name of the label, e.g. "sucursal". */
+            /** @description The custom field name, e.g. "sucursal". */
             name: string;
-            /** @description The value of the label, e.g. "sucursal MTY norte". */
+            /** Python model class name */
+            content_type: string;
+            /** Format: uri */
+            readonly organization: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description The value of a Label (custom field) for one specific object, e.g.
+         *     label="sucursal", object_id=<some CreditCase id>, value="MTY Norte".
+         *
+         *     `content_type` is never taken from the client — it's always derived from
+         *     `label.content_type`, so a value can never end up attached to the wrong kind
+         *     of object.
+         */
+        LabelValue: {
+            /** Format: uri */
+            readonly url: string;
+            readonly id: number;
+            /**
+             * Format: uri
+             * @description The custom field definition this value belongs to.
+             */
+            label: string;
+            /** Python model class name */
+            readonly content_type: string;
+            /**
+             * Format: int64
+             * @description The primary key of the labeled object.
+             */
+            object_id: number;
+            /** @description The field value, e.g. "MTY Norte". */
             value: string;
             /** Format: date-time */
             readonly created_at: string;
-            /** @description The CreditCase that this label is associated with. */
-            credit_cases: string[];
-            /** @description The Customer that this label is associated with. */
-            customers: string[];
+            /** Format: date-time */
+            readonly updated_at: string;
         };
         /**
          * @description * `gpt-5-nano` - GPT-5 Nano
@@ -827,6 +951,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["Label"][];
+        };
+        PaginatedLabelValueList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LabelValue"][];
         };
         PaginatedOrganizationList: {
             /** @example 123 */
@@ -937,6 +1076,9 @@ export interface components {
             /** Format: uri */
             readonly organization?: string;
             readonly required_file_type_names?: string[];
+            readonly custom_fields?: {
+                [key: string]: string;
+            };
         };
         PatchedCustomer: {
             /** Format: uri */
@@ -974,6 +1116,9 @@ export interface components {
              */
             readonly created_by?: string | null;
             readonly customer_contacts?: string[];
+            readonly custom_fields?: {
+                [key: string]: string;
+            };
         };
         PatchedCustomerContact: {
             /** Format: uri */
@@ -1012,20 +1157,55 @@ export interface components {
              */
             readonly organization?: string | null;
         };
+        /**
+         * @description A Label is a custom field *definition* the user creates, e.g. "sucursal" for
+         *     CreditCase. `content_type` picks which single model it applies to, by model
+         *     name (e.g. "creditcase") rather than a raw database id, since ContentType ids
+         *     aren't stable across databases.
+         */
         PatchedLabel: {
             /** Format: uri */
             readonly url?: string;
             readonly id?: number;
-            /** @description The name of the label, e.g. "sucursal". */
+            /** @description The custom field name, e.g. "sucursal". */
             name?: string;
-            /** @description The value of the label, e.g. "sucursal MTY norte". */
+            /** Python model class name */
+            content_type?: string;
+            /** Format: uri */
+            readonly organization?: string;
+            /** Format: date-time */
+            readonly created_at?: string;
+        };
+        /**
+         * @description The value of a Label (custom field) for one specific object, e.g.
+         *     label="sucursal", object_id=<some CreditCase id>, value="MTY Norte".
+         *
+         *     `content_type` is never taken from the client — it's always derived from
+         *     `label.content_type`, so a value can never end up attached to the wrong kind
+         *     of object.
+         */
+        PatchedLabelValue: {
+            /** Format: uri */
+            readonly url?: string;
+            readonly id?: number;
+            /**
+             * Format: uri
+             * @description The custom field definition this value belongs to.
+             */
+            label?: string;
+            /** Python model class name */
+            readonly content_type?: string;
+            /**
+             * Format: int64
+             * @description The primary key of the labeled object.
+             */
+            object_id?: number;
+            /** @description The field value, e.g. "MTY Norte". */
             value?: string;
             /** Format: date-time */
             readonly created_at?: string;
-            /** @description The CreditCase that this label is associated with. */
-            credit_cases?: string[];
-            /** @description The Customer that this label is associated with. */
-            customers?: string[];
+            /** Format: date-time */
+            readonly updated_at?: string;
         };
         PatchedOrganization: {
             /** Format: uri */
@@ -1053,12 +1233,12 @@ export interface components {
             /**
              * @description file type name given the choices list.
              *
-             *     * `balance_sheet` - Balance Sheet
-             *     * `unknown` - Unknown
              *     * `bank_statement` - Bank Statement
              *     * `cashflow_statement` - Cashflow Statement
-             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+             *     * `unknown` - Unknown
              *     * `income_statement` - Income Statement
+             *     * `balance_sheet` - Balance Sheet
+             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
              */
             readonly file_type_name?: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @description mime type of the file. */
@@ -1075,6 +1255,9 @@ export interface components {
              * @description the customer the file belongs to.
              */
             customer?: string | null;
+            readonly custom_fields?: {
+                [key: string]: string;
+            };
         };
         PatchedUser: {
             /** Format: uri */
@@ -1156,12 +1339,12 @@ export interface components {
             /**
              * @description file type name given the choices list.
              *
-             *     * `balance_sheet` - Balance Sheet
-             *     * `unknown` - Unknown
              *     * `bank_statement` - Bank Statement
              *     * `cashflow_statement` - Cashflow Statement
-             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+             *     * `unknown` - Unknown
              *     * `income_statement` - Income Statement
+             *     * `balance_sheet` - Balance Sheet
+             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
              */
             readonly file_type_name: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @description mime type of the file. */
@@ -1178,6 +1361,9 @@ export interface components {
              * @description the customer the file belongs to.
              */
             customer?: string | null;
+            readonly custom_fields: {
+                [key: string]: string;
+            };
         };
         User: {
             /** Format: uri */
@@ -1755,6 +1941,152 @@ export interface operations {
             };
         };
     };
+    label_values_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedLabelValueList"];
+                };
+            };
+        };
+    };
+    label_values_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabelValue"];
+                "application/x-www-form-urlencoded": components["schemas"]["LabelValue"];
+                "multipart/form-data": components["schemas"]["LabelValue"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelValue"];
+                };
+            };
+        };
+    };
+    label_values_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this label value. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelValue"];
+                };
+            };
+        };
+    };
+    label_values_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this label value. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabelValue"];
+                "application/x-www-form-urlencoded": components["schemas"]["LabelValue"];
+                "multipart/form-data": components["schemas"]["LabelValue"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelValue"];
+                };
+            };
+        };
+    };
+    label_values_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this label value. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    label_values_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this label value. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLabelValue"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLabelValue"];
+                "multipart/form-data": components["schemas"]["PatchedLabelValue"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelValue"];
+                };
+            };
+        };
+    };
     labels_list: {
         parameters: {
             query?: {
@@ -1890,6 +2222,28 @@ export interface operations {
                 "multipart/form-data": components["schemas"]["PatchedLabel"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Label"];
+                };
+            };
+        };
+    };
+    labels_existing_values_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this label. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

@@ -16,6 +16,13 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
         view_name=f'{CUSTOMER_CONTACT_BASENAME}-detail',
     )
 
+    # Dynamic custom fields (Labels) set on this customer, e.g. {"sucursal": "MTY Norte"}.
+    # Read-only here — values are set/updated via LabelValueViewSet.
+    custom_fields = serializers.SerializerMethodField()
+
+    def get_custom_fields(self, obj) -> dict[str, str]:
+        return {lv.label.name: lv.value for lv in obj.label_values.select_related('label').all()}
+
     class Meta:
         model = Customer
         fields = [
@@ -33,6 +40,7 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
             'organization',
             'created_by',
             'customer_contacts',
+            'custom_fields',
         ]
         read_only_fields = [
             'url',

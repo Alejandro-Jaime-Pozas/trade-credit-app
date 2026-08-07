@@ -59,11 +59,23 @@ Postgres DB accessed via Django/Python ORM
   - model_version (AI model used to extract data)
   - created_at
   - upload_document FK null
-- Label
+- Label (a user-defined dynamic custom field DEFINITION, e.g. "sucursal" — holds no value itself)
   - name (ie. sucursal)
+  - organization FK
+  - content_type FK (contenttypes.ContentType; the single model this field applies to, e.g. CreditCase)
+  - created_at
+  - created_by FK User
+  - unique_together: (organization, content_type, name)
+- LabelValue (the per-object value of a Label, e.g. sucursal="Mty Nte" on a specific CreditCase)
+  - label FK Label
+  - content_type FK (contenttypes.ContentType; denormalized, always == label.content_type)
+  - object_id (PositiveBigIntegerField; generic FK target, together with content_type)
   - value (ie. Mty Nte)
-  - credit_case m2m null
-  - customer m2m null
+  - created_at
+  - updated_at
+  - created_by FK User
+  - unique_together: (label, content_type, object_id) — enforces one value per label per object
+  - labelable models (all expose a `label_values` GenericRelation): CreditCase, Customer, UploadDocument
 
 ## v2 New Models
 
