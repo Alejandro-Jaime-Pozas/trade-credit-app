@@ -11,7 +11,7 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
-import { apiForm, apiJson, ApiError, drfListAll } from "@/lib/api";
+import { apiForm, apiJson, ApiError, drfListAll, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import type { Customer, CustomerContact, UploadDocument } from "@/lib/types";
@@ -240,6 +240,21 @@ export default function CustomerDetailPage() {
                     });
                     setUploads([...(uploads ?? []), ...created]);
                     setFile(null);
+
+                    // The backend runs GPT extraction synchronously before responding, so
+                    // by now a CSF upload may have already filled rfc/zip/street on the
+                    // customer server-side (fill-only-if-empty). Re-fetch to pick those up
+                    // without requiring a page refresh. Only overwrite an edit box that's
+                    // still blank, so an in-progress (unsaved) edit is never clobbered.
+                    try {
+                      const refreshed = await apiJson<Customer>({ pathOrUrl: customer.url });
+                      setCustomer(refreshed);
+                      setEditingRfc((prev) => prev || refreshed.rfc || "");
+                      setEditingStreet((prev) => prev || refreshed.nombre_de_vialidad || "");
+                      setEditingZip((prev) => prev || refreshed.codigo_postal || "");
+                    } catch (err) {
+                      logError("customer:refreshAfterUpload", err);
+                    }
                   } catch (err) {
                     setError(err instanceof ApiError ? err.message : "Upload failed");
                   } finally {
