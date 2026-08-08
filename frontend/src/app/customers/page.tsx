@@ -12,6 +12,7 @@ import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
 import { ApiError, drfListAll } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { formatDate } from "@/lib/format";
 import type { Customer } from "@/lib/types";
 
 export default function CustomersPage() {
@@ -118,7 +119,7 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-600">{c.rfc || "—"}</td>
                     <td className="px-4 py-3 text-zinc-600">
-                      {new Date(c.created_at).toLocaleString()}
+                      {formatDate(c.created_at)}
                     </td>
                   </tr>
                 ))

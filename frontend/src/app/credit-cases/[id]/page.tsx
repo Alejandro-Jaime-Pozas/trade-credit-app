@@ -17,14 +17,8 @@ import {
   FILE_TYPE_NAME_LABELS,
   REQUESTED_TERM_DAYS_OPTIONS,
 } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 import type { CreditCase, Customer, UploadDocument, User } from "@/lib/types";
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString();
-}
 
 function fileTypeLabel(fileTypeName: string | null | undefined): string {
   if (!fileTypeName) return "Pending classification";

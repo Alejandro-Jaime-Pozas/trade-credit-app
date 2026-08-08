@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function SignupPage() {
@@ -40,6 +41,7 @@ export default function SignupPage() {
               await signup({ email: email.trim(), password });
               router.push("/credit-cases");
             } catch (err) {
+              logError("signup:submit", err);
               setError(err instanceof Error ? err.message : "Signup failed");
             } finally {
               setSubmitting(false);

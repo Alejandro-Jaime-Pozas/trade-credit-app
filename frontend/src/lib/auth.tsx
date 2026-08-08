@@ -25,6 +25,7 @@ import {
   clearStoredTokens,
   getStoredTokens,
   getUserIdFromAccessToken,
+  logError,
   setStoredTokens,
 } from "./api";
 import type { TokenObtainPair, User } from "./types";
@@ -76,7 +77,8 @@ export function AuthProvider(props: { children: React.ReactNode }) {
       try {
         const currentUser = await fetchCurrentUser(access);
         if (!cancelled) setUser(currentUser);
-      } catch {
+      } catch (err) {
+        logError("auth:restoreSession", err);
         clearStoredTokens();
       }
     }

@@ -30,6 +30,7 @@ function NavLink(props: { href: string; label: string }) {
 export function AppShell(props: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   return (
     <div className="min-h-full flex flex-col bg-zinc-50">
@@ -65,18 +66,22 @@ export function AppShell(props: { children: React.ReactNode }) {
               </>
             ) : (
               <div className="flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-zinc-50"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
-                >
-                  Sign up
-                </Link>
+                {pathname !== "/login" && (
+                  <Link
+                    href="/login"
+                    className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-zinc-50"
+                  >
+                    Log in
+                  </Link>
+                )}
+                {pathname !== "/signup" && (
+                  <Link
+                    href="/signup"
+                    className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+                  >
+                    Sign up
+                  </Link>
+                )}
               </div>
             )}
           </div>

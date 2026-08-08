@@ -13,6 +13,12 @@ import type { Customer } from "@/lib/types";
 
 type Phase = "customer" | "creditcase";
 
+// A row in the customer search dropdown: either an existing customer or the
+// trailing "create new customer" action.
+type CustomerDropdownOption =
+  | { kind: "customer"; customer: Customer }
+  | { kind: "create" };
+
 export default function NewCreditCasePage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -23,6 +29,7 @@ export default function NewCreditCasePage() {
   const [allCustomers, setAllCustomers] = useState<Customer[] | null>(null);
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // ── Linked customer (confirmed) ─────────────────────────────────
   const [linkedCustomer, setLinkedCustomer] = useState<Customer | null>(null);
@@ -75,6 +82,16 @@ export default function NewCreditCasePage() {
       .slice(0, 8);
   }, [allCustomers, search]);
 
+  // Flat, keyboard-navigable list backing the dropdown: matching customers
+  // plus a trailing "create new" row. Empty while customers are still loading.
+  const dropdownOptions = useMemo<CustomerDropdownOption[]>(() => {
+    if (allCustomers === null || !search.trim()) return [];
+    return [
+      ...filteredCustomers.map((c) => ({ kind: "customer" as const, customer: c })),
+      { kind: "create" as const },
+    ];
+  }, [allCustomers, search, filteredCustomers]);
+
   // ── Handlers ─────────────────────────────────────────────────────
 
   function handleSelectExisting(customer: Customer) {
@@ -90,6 +107,41 @@ export default function NewCreditCasePage() {
     setCreateMode(true);
     setCustomerName(search.trim());
     setShowDropdown(false);
+  }
+
+  function commitDropdownOption(option: CustomerDropdownOption | undefined) {
+    if (!option) return;
+    if (option.kind === "customer") {
+      handleSelectExisting(option.customer);
+    } else {
+      handleStartCreate();
+    }
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!showDropdown || dropdownOptions.length === 0) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1) % dropdownOptions.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((i) => (i - 1 + dropdownOptions.length) % dropdownOptions.length);
+        break;
+      case "Enter":
+        e.preventDefault();
+        commitDropdownOption(dropdownOptions[activeIndex]);
+        break;
+      case "Tab":
+        // Commit the highlighted option, then let focus continue moving as normal.
+        commitDropdownOption(dropdownOptions[activeIndex]);
+        break;
+      case "Escape":
+        setShowDropdown(false);
+        break;
+    }
   }
 
   async function handleCreateCustomer() {
@@ -203,59 +255,100 @@ export default function NewCreditCasePage() {
             ) : (
               <>
                 {/* Search input + dropdown */}
-                <div className="relative mt-4">
+                <div
+                  className="relative mt-4"
+                  onBlur={(e) => {
+                    // Only close when focus leaves the whole combobox (input + listbox),
+                    // not when it moves from the input onto one of the option buttons.
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                      setShowDropdown(false);
+                    }
+                  }}
+                >
                   <input
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
                       setCreateMode(false);
                       setShowDropdown(true);
+                      setActiveIndex(0);
                     }}
                     onFocus={() => setShowDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                    onKeyDown={handleSearchKeyDown}
                     placeholder="Search by name or RFC…"
                     className="w-full rounded-md border px-3 py-2 text-sm"
                     autoComplete="off"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={showDropdown}
+                    aria-controls="new-credit-case-customer-listbox"
+                    aria-activedescendant={
+                      showDropdown && dropdownOptions[activeIndex]
+                        ? `new-credit-case-customer-option-${activeIndex}`
+                        : undefined
+                    }
                   />
 
                   {showDropdown && search.trim().length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg">
+                    <div
+                      id="new-credit-case-customer-listbox"
+                      role="listbox"
+                      className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg"
+                    >
                       {allCustomers === null ? (
                         <div className="px-4 py-3 text-sm text-zinc-500">
                           Loading customers…
                         </div>
-                      ) : filteredCustomers.length > 0 ? (
-                        <>
-                          {filteredCustomers.map((c) => (
-                            <button
-                              key={c.url}
-                              type="button"
-                              onMouseDown={() => handleSelectExisting(c)}
-                              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-zinc-50"
-                            >
-                              <span className="font-medium">{c.name}</span>
-                              {c.rfc && (
-                                <span className="text-zinc-500">· {c.rfc}</span>
-                              )}
-                            </button>
-                          ))}
-                          <div className="border-t" />
-                          <button
-                            type="button"
-                            onMouseDown={handleStartCreate}
-                            className="flex w-full items-center px-4 py-2.5 text-left text-sm text-zinc-600 hover:bg-zinc-50"
-                          >
-                            + Create &ldquo;{search.trim()}&rdquo; as new customer
-                          </button>
-                        </>
                       ) : (
-                        <button
-                          type="button"
-                          onMouseDown={handleStartCreate}
-                          className="flex w-full items-center px-4 py-2.5 text-left text-sm hover:bg-zinc-50"
-                        >
-                          + Create &ldquo;{search.trim()}&rdquo; as new customer
-                        </button>
+                        <>
+                          {dropdownOptions.map((option, index) => {
+                            const active = index === activeIndex;
+                            const optionId = `new-credit-case-customer-option-${index}`;
+                            if (option.kind === "customer") {
+                              const c = option.customer;
+                              return (
+                                <button
+                                  key={c.url}
+                                  id={optionId}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={active}
+                                  onMouseEnter={() => setActiveIndex(index)}
+                                  onMouseDown={() => handleSelectExisting(c)}
+                                  className={[
+                                    "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm",
+                                    active ? "bg-zinc-100" : "hover:bg-zinc-50",
+                                  ].join(" ")}
+                                >
+                                  <span className="font-medium">{c.name}</span>
+                                  {c.rfc && (
+                                    <span className="text-zinc-500">· {c.rfc}</span>
+                                  )}
+                                </button>
+                              );
+                            }
+                            return (
+                              <React.Fragment key="create">
+                                {filteredCustomers.length > 0 && <div className="border-t" />}
+                                <button
+                                  id={optionId}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={active}
+                                  onMouseEnter={() => setActiveIndex(index)}
+                                  onMouseDown={handleStartCreate}
+                                  className={[
+                                    "flex w-full items-center px-4 py-2.5 text-left text-sm",
+                                    filteredCustomers.length > 0 ? "text-zinc-600" : "",
+                                    active ? "bg-zinc-100" : "hover:bg-zinc-50",
+                                  ].join(" ")}
+                                >
+                                  + Create &ldquo;{search.trim()}&rdquo; as new customer
+                                </button>
+                              </React.Fragment>
+                            );
+                          })}
+                        </>
                       )}
                     </div>
                   )}

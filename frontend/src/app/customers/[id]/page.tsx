@@ -13,14 +13,8 @@ import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiForm, apiJson, ApiError, drfListAll } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { formatDate } from "@/lib/format";
 import type { Customer, CustomerContact, UploadDocument } from "@/lib/types";
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString();
-}
 
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();

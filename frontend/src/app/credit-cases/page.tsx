@@ -12,14 +12,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiJson, ApiError, drfListAll } from "@/lib/api";
+import { formatDate, formatMoney } from "@/lib/format";
 import type { CreditCase, Customer } from "@/lib/types";
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
-}
 
 export default function CreditCasesPage() {
   const [cases, setCases] = useState<CreditCase[] | null>(null);
@@ -184,7 +178,7 @@ export default function CreditCasesPage() {
                       <td className="px-4 py-3">{cc.status}</td>
                       <td className="px-4 py-3">{cc.verdict}</td>
                       <td className="px-4 py-3">
-                        {cc.currency} {cc.requested_amount} / {cc.requested_term_days}d
+                        {formatMoney(cc.requested_amount, cc.currency)} / {cc.requested_term_days}d
                       </td>
                       <td className="px-4 py-3 text-zinc-600">{formatDate(cc.created_at)}</td>
                     </tr>

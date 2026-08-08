@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -39,6 +40,7 @@ export default function LoginPage() {
               await login({ email: email.trim(), password });
               router.push("/credit-cases");
             } catch (err) {
+              logError("login:submit", err);
               setError(err instanceof Error ? err.message : "Login failed");
             } finally {
               setSubmitting(false);

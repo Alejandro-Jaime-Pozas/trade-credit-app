@@ -34,6 +34,14 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Logs a labeled error to the console so failures are visible in devtools
+ * instead of only surfacing as a generic banner message in the UI.
+ */
+export function logError(context: string, err: unknown): void {
+  console.error(`[${context}]`, err);
+}
+
 // Human-readable labels for API field names shown in validation errors.
 const FIELD_LABELS: Record<string, string> = {
   rfc: "RFC",
@@ -97,6 +105,24 @@ function toUrl(pathOrUrl: string): string {
   const base = getApiBaseUrl();
   const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
   return `${base}${path}`;
+}
+
+/**
+ * Wraps `fetch` so a network-level failure (backend down, CORS reject, DNS
+ * failure) throws a readable `ApiError` naming the API base URL instead of
+ * the opaque browser `TypeError: Failed to fetch`.
+ */
+async function safeFetch(pathOrUrl: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(toUrl(pathOrUrl), init);
+  } catch (err) {
+    logError("api:fetch", err);
+    throw new ApiError({
+      status: 0,
+      body: null,
+      message: `Cannot reach API at ${getApiBaseUrl()}. Is the backend running?`,
+    });
+  }
 }
 
 export function getStoredTokens(): Partial<AuthTokens> {
@@ -164,7 +190,7 @@ export async function refreshAccessToken(): Promise<AuthTokens> {
       });
     }
 
-    const res = await fetch(toUrl("/auth/refresh/"), {
+    const res = await safeFetch("/auth/refresh/", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ refresh }),
@@ -232,7 +258,7 @@ async function authenticatedFetch(
     headers.set("Authorization", `Bearer ${access}`);
   }
 
-  const res = await fetch(toUrl(pathOrUrl), {
+  const res = await safeFetch(pathOrUrl, {
     ...init,
     headers,
     cache: "no-store",
@@ -274,7 +300,7 @@ export async function apiJson<T>(args: {
   };
   const res =
     args.auth === false
-      ? await fetch(toUrl(args.pathOrUrl), { ...init, cache: "no-store" })
+      ? await safeFetch(args.pathOrUrl, { ...init, cache: "no-store" })
       : await authenticatedFetch(args.pathOrUrl, init);
 
   if (!res.ok) {
