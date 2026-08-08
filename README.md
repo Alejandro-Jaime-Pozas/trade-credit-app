@@ -73,6 +73,21 @@ Run backend tests (pytest):
 docker compose exec backend pytest
 ```
 
+Run frontend tests (Vitest):
+
+```bash
+docker compose exec frontend npm test
+```
+
+Or, to run either suite as a one-off container that tears itself down afterward
+(including the `postgres-db` dependency for the backend suite):
+
+```bash
+make pytest   # backend
+make vitest   # frontend
+make test     # both
+```
+
 ## API type sync (frontend types)
 
 The backend's OpenAPI schema (`backend/schema.yaml`) drives the generated

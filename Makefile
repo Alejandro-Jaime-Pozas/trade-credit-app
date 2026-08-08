@@ -1,7 +1,10 @@
-.PHONY: test pytest vitest up down down-v cli build build-nc
+.PHONY: test ci pytest vitest typecheck lint up down down-v cli build build-nc
 
 # Run both test suites (backend pytest + frontend vitest).
 test: pytest vitest
+
+# Everything CI would gate on: tests plus static checks (typecheck + lint).
+ci: pytest vitest typecheck lint
 
 # Run the backend's pytest suite inside a one-off container, then tear
 # down every container (including the postgres-db dependency) after.
@@ -13,6 +16,14 @@ pytest:
 # make a real HTTP call, so the dependency chain would just be dead weight.
 vitest:
 	docker compose run --rm --no-deps frontend npm test; docker compose down
+
+# Typecheck the frontend (no build output, just type errors).
+typecheck:
+	docker compose run --rm --no-deps frontend npx tsc --noEmit; docker compose down
+
+# Lint the frontend.
+lint:
+	docker compose run --rm --no-deps frontend npm run lint; docker compose down
 
 # Bring up all services (backend, frontend, postgres-db) in the foreground;
 # Ctrl+C stops them, then down cleans up containers/networks afterward.
