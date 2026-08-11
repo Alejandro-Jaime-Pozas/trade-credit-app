@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Tailwind v4's preflight no longer gives buttons a pointer cursor, so every
+ * button in the app showed the plain arrow and didn't read as clickable.
+ * Restore the hand cursor, except on disabled buttons where it would promise
+ * an interaction that won't happen.
+ */
+button:not(:disabled) {
+  cursor: pointer;
+}
