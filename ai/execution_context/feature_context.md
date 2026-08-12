@@ -4,6 +4,8 @@
 - Always log your planned changes as `logs/plans/<feature_file_name>-<yyyy-mm-dd-hh-mm-ss>`.
 - Always log your actual code changes as `logs/implementations/<feature_file_name>-<yyyy-mm-dd-hh-mm-ss>`.
 - Always log errors as `logs/errors/<feature_file_name>-<yyyy-mm-dd-hh-mm-ss>`.
+- Always log the most important architectural changes to the full stack application as appended/updated content in @docs/architecture/decisions.md.
+  - Important here means they meaningfully reshape functionality attached to previous versions of the app and are fundamental to the app's architecture.
 - Execute the `ai/workflows/feature.md` file for the given feature.
 - Implement the correct agent contract in `ai/agents/` for the given feature.
 - Reference the `docs/architecture/architecture.md/` file for the tech stack and architecture.

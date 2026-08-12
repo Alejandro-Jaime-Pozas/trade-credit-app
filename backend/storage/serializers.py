@@ -62,21 +62,36 @@ class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
     def validate(self, attrs):
-        # # TODO change this when switching to request.user functionality
-        # credit_case_id = attrs.get(CREDIT_CASE_ID, None)
+        # A doc must be linked to at least one of credit_case / customer (both
+        # are optional FKs, so nothing else enforces this) — see
+        # UploadDocument.save()'s TODO and handle_upload_document_created().
+        if not attrs.get('credit_case') and not attrs.get('customer'):
+            raise serializers.ValidationError(
+                'You must provide a credit_case and/or a customer field.'
+            )
 
-        # if not credit_case_id:
-        #     raise serializers.ValidationError(f'You must provide a {CREDIT_CASE_ID} field.')
+        # Both FKs are optional and independent, so a user belonging to more than one
+        # organization could otherwise link a document to a customer in org A and a
+        # credit case in org B, leaving one row visible from two tenants (the
+        # organization_scoped_fields check on UploadDocumentViewSet only guarantees
+        # each FK *individually* belongs to one of the user's orgs, not that they
+        # belong to the SAME one).
+        customer = attrs.get('customer')
+        credit_case = attrs.get('credit_case')
+        if customer and credit_case and credit_case.customer_id != customer.id:
+            raise serializers.ValidationError(
+                'credit_case and customer must belong to the same customer record.'
+            )
 
         return attrs
 
     @transaction.atomic
     def create(self, validated_data):
         """
-        Create the UploadDocument object(s), link to an CreditCase object.
+        Create the UploadDocument object(s), link to a CreditCase object.
 
-        Must be linked to either an CreditCase object
-        or an Account object or both.
+        Must be linked to either a CreditCase object
+        or a Customer object or both.
 
         Return a list of UploadDocument db objects.
         """
@@ -192,20 +207,12 @@ class LabelValueSerializer(serializers.HyperlinkedModelSerializer):
             'updated_at',
         ]
 
-    def __init__(self, *args, **kwargs):
-        """
-        By default a HyperlinkedModelSerializer's auto-generated FK field for
-        `label` allows/lists EVERY organization's labels (`Label.objects.all()`),
-        not just the requesting user's own. Narrow it here so another org's
-        label never even appears as a valid choice, on top of the `validate()`
-        check below.
-        """
-        super().__init__(*args, **kwargs)
-        request = self.context.get('request')
-        if request is not None and request.user.is_authenticated and not request.user.is_superuser:
-            self.fields['label'].queryset = Label.objects.filter(
-                organization__in=request.user.organizations.all()
-            )
+    # By default a HyperlinkedModelSerializer's auto-generated FK field for `label`
+    # allows/lists EVERY organization's labels (`Label.objects.all()`), not just the
+    # requesting user's own. That's narrowed declaratively by
+    # LabelValueViewSet.organization_scoped_fields (see OrganizationScopedMixin), so
+    # another org's label never even appears as a valid choice, on top of the
+    # `validate()` check below.
 
     def validate(self, attrs):
         """

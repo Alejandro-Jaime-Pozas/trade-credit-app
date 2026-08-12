@@ -9,21 +9,21 @@ ci: pytest vitest typecheck lint
 # Run the backend's pytest suite inside a one-off container, then tear
 # down every container (including the postgres-db dependency) after.
 pytest:
-	docker compose run --rm backend pytest; docker compose down
+	docker compose run --rm backend pytest
 
 # Run the frontend's vitest suite inside a one-off container. --no-deps
 # skips starting backend/postgres-db: these tests mock fetch and never
 # make a real HTTP call, so the dependency chain would just be dead weight.
 vitest:
-	docker compose run --rm --no-deps frontend npm test; docker compose down
+	docker compose run --rm --no-deps frontend npm test
 
 # Typecheck the frontend (no build output, just type errors).
 typecheck:
-	docker compose run --rm --no-deps frontend npx tsc --noEmit; docker compose down
+	docker compose run --rm --no-deps frontend npx tsc --noEmit
 
 # Lint the frontend.
 lint:
-	docker compose run --rm --no-deps frontend npm run lint; docker compose down
+	docker compose run --rm --no-deps frontend npm run lint
 
 # Bring up all services (backend, frontend, postgres-db) in the foreground;
 # Ctrl+C stops them, then down cleans up containers/networks afterward.
@@ -37,9 +37,9 @@ down:
 down-v:
 	docker compose down -v
 
-# Drop into a shell inside the backend container, then tear everything down on exit.
+# Drop into a shell inside the backend container
 cli:
-	docker compose run --rm backend sh; docker compose down
+	docker compose run --rm backend sh
 
 # Rebuild all images: prune any orphaned containers.
 build:

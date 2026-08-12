@@ -22,10 +22,10 @@ from storage.models import UploadDocument
 
 
 class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
-
-    # assigned_to = serializers.HiddenField(
-    #     default=serializers.CurrentUserDefault()
-    # )  # TODO implement later
+    # assigned_to defaults to the requesting user on create (see
+    # CreditCaseViewSet.perform_create) but stays a normal writable/readable
+    # field so it can still be viewed and reassigned from the credit case
+    # detail page.
 
     organization = serializers.HyperlinkedRelatedField(
         read_only=True,

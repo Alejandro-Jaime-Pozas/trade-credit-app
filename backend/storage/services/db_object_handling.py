@@ -39,12 +39,17 @@ def handle_upload_document_created(doc):
     """
     1. Extract important file data using gpt for later use and to
     show user a friendly name for their file.
+
+    A doc may be linked to a credit_case, a customer, or both (see
+    UploadDocumentSerializer.validate, which requires at least one). GPT
+    extraction only needs the file itself, so it runs either way — the
+    credit_case is just passed through for GPTService's own bookkeeping.
     """
 
-    # Get UploadDocument's related credit case
+    # Get UploadDocument's related credit case (may be None for a customer-only upload)
     credit_case = doc.credit_case  # TODO may need to modify later since vague (but usually only one credit_case while user creating/uploading files)
-    if not credit_case:
-        raise ValueError('UploadDocument must have a related CreditCase obj.')
+    if not credit_case and not doc.customer:
+        raise ValueError('UploadDocument must have a related CreditCase or Customer obj.')
 
     # Run gpt to update the doc's file_type_name, extracted_data
         # if file_type_name in required docs, then credit_case will pick it up automatically
@@ -240,8 +245,11 @@ def promote_csf_fields_to_customer(doc: UploadDocument) -> None:
     if not data:
         return
 
-    # The Customer is always reachable via the (required) credit_case FK here
-    customer = doc.credit_case.customer
+    # The customer may be linked directly (customer-only upload from the Customer
+    # page) or reachable via the credit_case (upload from the Credit Case page).
+    customer = doc.customer or (doc.credit_case.customer if doc.credit_case else None)
+    if not customer:
+        return
 
     # Pull the fields we care about; treat empty strings as "not present"
     extracted_rfc = (data.get('rfc') or '').strip()

@@ -1,4 +1,7 @@
+import logging
+
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,7 +10,7 @@ from rest_framework.viewsets import (
     ReadOnlyModelViewSet,
 )
 
-from app.mixins import OrganizationScopedMixin
+from core.mixins import OrganizationScopedMixin
 from core.str_utils import pretty_print
 
 from .serializers import (
@@ -24,6 +27,8 @@ from .models import (
 )
 from .services.db_object_handling import handle_upload_document_created
 
+logger = logging.getLogger(__name__)
+
 
 class UploadDocumentViewSet(
     OrganizationScopedMixin,
@@ -32,7 +37,29 @@ class UploadDocumentViewSet(
 
     queryset = UploadDocument.objects.all().prefetch_related('label_values__label')
     serializer_class = UploadDocumentSerializer
-    organization_lookup = 'customer__organization'  # TODO this is missing credit_case lookups if no customer linked to doc and only credit_case...fix
+    organization_scoped_fields = {
+        'customer': 'organization',
+        'credit_case': 'customer__organization',
+    }
+
+    def get_queryset(self):
+        # A doc can be linked to a customer, a credit_case, or both, so
+        # organization scoping must check both relations — a single
+        # `organization_lookup` (as OrganizationScopedMixin expects) can only
+        # follow one path and would hide credit-case-only documents. Skip
+        # straight to the base queryset and scope it ourselves.
+        queryset = super(OrganizationScopedMixin, self).get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return queryset.none()
+        if user.is_superuser:
+            return queryset
+
+        orgs = user.organizations.all()
+        return queryset.filter(
+            Q(customer__organization__in=orgs) | Q(credit_case__customer__organization__in=orgs)
+        ).distinct()
 
     # This create override is required to replace single obj req/res with list of objs
     def create(self, request, *args, **kwargs):
@@ -40,15 +67,25 @@ class UploadDocumentViewSet(
         Trigger gpt process if this was the last UploadDocument required
         in account application process.
         """
-        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
+        # self.get_serializer() (not self.serializer_class(...)) is required here so
+        # OrganizationScopedMixin.get_serializer() gets a chance to narrow the
+        # customer/credit_case fields to the requesting user's organization.
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        docs = serializer.save()  # list[UploadDocument]
+        docs = serializer.save(uploaded_by=request.user)  # list[UploadDocument]
 
         # Run your side effects TODO later fix handling for new models, this is just temp for now
         for doc in docs:
-            # Run gpt analysis of credit case if all required docs uploaded
-            result = handle_upload_document_created(doc)  # TEMP TODO later fix handling for new models
-            pretty_print(result)  # TEMP, this wont work for atomic txs
+            # Run gpt analysis of credit case if all required docs uploaded. The
+            # UploadDocument row is already saved at this point (and the whole
+            # request runs in one atomic transaction — see ATOMIC_REQUESTS), so a
+            # failure here (e.g. an OpenAI outage) must not turn a successful
+            # upload into a 500/rollback: log it and leave the doc un-classified.
+            try:
+                result = handle_upload_document_created(doc)  # TEMP TODO later fix handling for new models
+                pretty_print(result)  # TEMP, this wont work for atomic txs
+            except Exception:
+                logger.exception('handle_upload_document_created failed for doc id=%s', doc.pk)
 
         # Return list response
         out = self.get_serializer(docs, many=True)
@@ -112,6 +149,7 @@ class LabelValueViewSet(
     queryset = LabelValue.objects.all()
     serializer_class = LabelValueSerializer
     organization_lookup = 'label__organization'
+    organization_scoped_fields = {'label': 'organization'}
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):

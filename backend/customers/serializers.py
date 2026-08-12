@@ -77,5 +77,18 @@ class CustomerContactSerializer(serializers.HyperlinkedModelSerializer):
             'updated_at',
             'created_by',
             # 'customer',
-            'organization',
+            'organization',  # derived from customer.organization in validate() below, never client-set
         ]
+
+    def validate(self, attrs):
+        """
+        Keep `organization` in lockstep with the customer's own organization. These
+        are two separate columns that could otherwise disagree, and the unique
+        (organization, email) constraint (see CustomerContact.Meta) is only
+        meaningful if `organization` always matches the customer the contact
+        actually belongs to.
+        """
+        customer = attrs.get('customer') or getattr(self.instance, 'customer', None)
+        if customer:
+            attrs['organization'] = customer.organization
+        return attrs

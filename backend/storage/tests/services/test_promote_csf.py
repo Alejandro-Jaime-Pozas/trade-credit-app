@@ -37,6 +37,15 @@ def make_csf_doc(credit_case, extracted_data, file_type_name=CSF):
     )
 
 
+def make_customer_only_csf_doc(customer, extracted_data, file_type_name=CSF):
+    # No credit_case at all — e.g. a doc uploaded from the Customer detail page.
+    return UploadDocument(
+        customer=customer,
+        file_type_name=file_type_name,
+        extracted_data=extracted_data,
+    )
+
+
 @pytest.mark.django_db
 def test_fills_rfc_and_legal_name_when_blank():
     org = make_org()
@@ -147,6 +156,40 @@ def test_noop_for_non_csf_document():
     customer.refresh_from_db()
     assert customer.rfc is None
     assert customer.legal_name is None
+
+
+@pytest.mark.django_db
+def test_fills_rfc_and_legal_name_from_customer_only_doc():
+    """
+    Regression test: a CSF uploaded from the Customer detail page (no
+    credit_case at all) must still auto-fill the customer, via the
+    doc.customer fallback.
+    """
+    org = make_org()
+    customer = make_customer(org)  # rfc and legal_name start blank
+    doc = make_customer_only_csf_doc(customer, {
+        'rfc': 'ABC123456789',
+        'razon_social': 'ACME SA DE CV',
+        'nombre_de_vialidad': 'Av Reforma',
+        'codigo_postal': '06600',
+    })
+
+    promote_csf_fields_to_customer(doc)
+
+    customer.refresh_from_db()
+    assert customer.rfc == 'ABC123456789'
+    assert customer.legal_name == 'ACME SA DE CV'
+
+
+@pytest.mark.django_db
+def test_noop_when_no_customer_or_credit_case():
+    doc = UploadDocument(
+        file_type_name=CSF,
+        extracted_data={'rfc': 'ABC123456789', 'razon_social': 'ACME SA DE CV'},
+    )
+
+    # Must not raise (e.g. AttributeError from doc.credit_case.customer).
+    promote_csf_fields_to_customer(doc)
 
 
 @pytest.mark.django_db

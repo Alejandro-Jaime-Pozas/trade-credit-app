@@ -14,8 +14,8 @@
 
 # Documentation
 - Docstrings and comments should make a piece of code's purpose clear enough for a beginner coder with limited experience to understand it.
-- Always required: Django models (every model and field's purpose), complex code (non-obvious logic, multi-step or non-trivial behavior), and code that wraps/uses external packages (why the package is used and what it's doing).
-- Not required: simple, self-explanatory functions.
+  - Always required: Django models (every model and field's purpose), complex code (non-obvious logic, multi-step or non-trivial behavior), and code that wraps/uses external packages (why the package is used and what it's doing).
+  - Not required: simple, self-explanatory functions.
 
 # Testing
 - Any code implementation that warrants tests shall implement those tests, run them, and verify they pass after the code is implemented, always.

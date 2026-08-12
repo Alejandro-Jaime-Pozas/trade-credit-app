@@ -1,7 +1,7 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from app.mixins import OrganizationScopedMixin
+from core.mixins import OrganizationScopedMixin
 
 from .serializers import (
     OrganizationSerializer,
@@ -19,8 +19,14 @@ class UserViewSet(
 ):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]  # TODO need to fix this, should do AllowAny ONLY FOR CREATE USER?
     organization_lookup = 'organizations'  # this is prob wrong, need to fix lookup syntax
+
+    def get_permissions(self):
+        # Signup (create) must be reachable by anonymous visitors; every other
+        # action (list/retrieve/update/delete) requires a logged-in user.
+        if self.action == 'create':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
 
 class OrganizationViewSet(

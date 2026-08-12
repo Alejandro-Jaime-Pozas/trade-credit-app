@@ -271,7 +271,8 @@ class GPTService:
         print('doc.file.name:', doc.file.name)
         print('doc.file_type_name:', doc.file_type_name)
         print('doc.extracted_data:', doc.extracted_data)
-        print('missing docs for credit_case:', doc.credit_case.missing_file_type_names)
+        if doc.credit_case:
+            print('missing docs for credit_case:', doc.credit_case.missing_file_type_names)
 
         # Delete gpt uploaded files for proper clean up
         # For some reason, there's a server error that happens often...
