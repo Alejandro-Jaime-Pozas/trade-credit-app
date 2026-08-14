@@ -2,9 +2,7 @@ import unittest
 
 from django.test import TestCase
 
-from core.constants import (
-    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
-)
+from core.file_type_spec import DEFAULT_SUGGESTION_KEYS
 from processing.models import AccountApplication
 from core.tests.constants_global import (
     TEST_ACCOUNT_APPLICATION_DATA,
@@ -61,7 +59,7 @@ class TestAccountApplicationModel(TestCase):
         # test required_file_type_names
         self.assertEqual(
             acct_app.required_file_type_names,
-            CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED if acct_app.type == 'loan' else None
+            set(DEFAULT_SUGGESTION_KEYS) if acct_app.type == 'loan' else None
         )
         # test uploaded_file_type_names
         self.assertEqual(
@@ -97,7 +95,7 @@ class TestAccountApplicationModel(TestCase):
         # test required_file_type_names
         self.assertEqual(
             acct_app.required_file_type_names,
-            CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED if acct_app.type == 'loan' else None
+            set(DEFAULT_SUGGESTION_KEYS) if acct_app.type == 'loan' else None
         )
         # test uploaded_file_type_names
         self.assertEqual(

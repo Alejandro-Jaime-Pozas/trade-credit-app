@@ -1,11 +1,13 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from core.constants import UPLOAD_DOCUMENT_FILE_TYPE_NAMES
-from core.enum_utils import build_enum
 
+# NOTE: `file_type_name` used to be a TextChoices enum generated from a Python set of
+# names. It no longer is: file types now live in the database (storage.FileType, seeded
+# from core/file_type_catalog.py) so that organizations can eventually add their own,
+# and a static enum can't enumerate database rows. `UploadDocument.file_type_name` is
+# therefore a plain CharField holding a catalog key.
 
-FileTypeName = models.TextChoices('FileTypeName', build_enum(UPLOAD_DOCUMENT_FILE_TYPE_NAMES))
 
 class ModelVersion(models.TextChoices):
     """

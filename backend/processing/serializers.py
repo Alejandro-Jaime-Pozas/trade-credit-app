@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from core.constants import (
@@ -18,7 +19,8 @@ from .models import (
     LoanVerdict,
     LoanVerdictAI,
 )
-from storage.models import UploadDocument
+from storage.models import RequirementTemplate, UploadDocument
+from storage.services.requirements import seed_requirements_from_template
 
 
 class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
@@ -37,6 +39,24 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_required_file_type_names(self, obj) -> list[str]:
         return sorted(obj.required_file_type_names)
+
+    # Documents this case lists as nice-to-have. Shown alongside the required ones but
+    # excluded from required_file_type_names, so they never block completion.
+    optional_file_type_names = serializers.SerializerMethodField()
+
+    def get_optional_file_type_names(self, obj) -> list[str]:
+        return sorted(obj.optional_file_type_names)
+
+    # Which requirement template to copy onto this new case. Write-only and optional:
+    # when omitted, the organization's default template is used. An organization with no
+    # template yet produces a case with no requirements, which is the signal the frontend
+    # uses to prompt the user to set one up.
+    requirement_template = serializers.PrimaryKeyRelatedField(
+        queryset=RequirementTemplate.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
 
     # Dynamic custom fields (Labels) set on this credit case, e.g. {"sucursal": "MTY Norte"}.
     # Read-only here — values are set/updated via LabelValueViewSet.
@@ -63,6 +83,8 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'customer',
             'organization',
             'required_file_type_names',
+            'optional_file_type_names',
+            'requirement_template',
             'custom_fields',
         ]
         read_only_fields = [
@@ -73,7 +95,37 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'verdict_at',
             'organization',
             'required_file_type_names',
+            'optional_file_type_names',
         ]
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """
+        Create the credit case, then copy a requirement template onto it.
+
+        The copy happens here rather than the case pointing at the template, so that
+        editing the template later can't rewrite what an already-reviewed case was
+        required to provide. See storage/services/requirements.py.
+        """
+        # Not a model field - pull it out before the case itself is created.
+        template = validated_data.pop('requirement_template', None)
+
+        credit_case = super().create(validated_data)
+
+        if template is None:
+            template = RequirementTemplate.objects.filter(
+                organization=credit_case.customer.organization,
+                is_default=True,
+            ).first()
+
+        request = self.context.get('request')
+        seed_requirements_from_template(
+            credit_case,
+            template,
+            user=getattr(request, 'user', None),
+        )
+
+        return credit_case
 
 
 # ================================================================

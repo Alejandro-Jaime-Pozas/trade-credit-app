@@ -2,7 +2,6 @@ import datetime
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from storage.choices_for_models import FileTypeName
 from processing.choices_for_models import (
     ApplicationStatus,
     LoanVerdictStatus,
@@ -66,7 +65,7 @@ def make_test_uploaded_file():
 TEST_UPLOAD_DOCUMENT_DATA = {
     'original_title': 'def_title',  # later check if titles include ext
     'file': TEST_UPLOADED_FILE,
-    'file_type_name': FileTypeName.CASHFLOW_STATEMENT,
+    'file_type_name': 'cashflow_statement',
     'mimetype': 'application/pdf',
 }
 

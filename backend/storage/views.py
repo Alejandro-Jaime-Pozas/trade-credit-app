@@ -14,16 +14,28 @@ from core.mixins import OrganizationScopedMixin
 from core.str_utils import pretty_print
 
 from .serializers import (
+    CreditCaseRequirementSerializer,
     DocumentDataExtractSerializer,
+    FileTypeSerializer,
     LabelSerializer,
     LabelValueSerializer,
+    RequirementTemplateSerializer,
     UploadDocumentSerializer,
 )
 from .models import (
+    CreditCaseRequirement,
     DocumentDataExtract,
+    FileType,
     Label,
     LabelValue,
+    RequirementTemplate,
     UploadDocument,
+)
+from .services.requirements import (
+    apply_template_to_case,
+    diff_template_against_case,
+    file_types_with_uploads,
+    open_cases_for_template,
 )
 from .services.db_object_handling import handle_upload_document_created
 
@@ -179,3 +191,201 @@ class LabelValueViewSet(
         out = self.get_serializer(label_value)
         response_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(out.data, status=response_status)
+
+
+class FileTypeViewSet(
+    ReadOnlyModelViewSet,
+):
+    """
+    The kinds of documents that can be required, for building requirement templates.
+
+    Read-only: app-provided types are seeded from core/file_type_catalog.py by
+    `manage.py sync_file_types`. Organization-created types are planned but not built
+    (see docs/versions/v2.md).
+    """
+
+    queryset = FileType.objects.all()
+    serializer_class = FileTypeSerializer
+
+    def get_queryset(self):
+        """
+        Return the app-provided types (organization is null, shared by everyone) plus
+        the requesting user's own organization's types.
+
+        This can't use OrganizationScopedMixin: that mixin builds a single
+        `filter(organization__in=...)`, which would drop every global row, since NULL
+        never matches an IN clause.
+        """
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return queryset.none()
+
+        if user.is_superuser:
+            return queryset
+
+        return queryset.filter(
+            Q(organization__isnull=True) | Q(organization__in=user.organizations.all())
+        ).distinct()
+
+
+class RequirementTemplateViewSet(
+    OrganizationScopedMixin,
+    ModelViewSet,
+):
+    """
+    An organization's reusable lists of documents to require on a credit case.
+
+    A new credit case is seeded from the organization's default template. Editing a
+    template afterwards does not touch existing cases on its own — use `impact` to see
+    what would change and `apply` to push it onto chosen open cases.
+    """
+
+    queryset = RequirementTemplate.objects.all().prefetch_related('items__file_type')
+    serializer_class = RequirementTemplateSerializer
+    organization_lookup = 'organization'
+
+    def perform_create(self, serializer):
+        # Every template belongs to the creating user's organization, same as Customer.
+        serializer.save(
+            organization=self.request.user.organizations.first(),
+            created_by=self.request.user,
+        )
+
+    def _serialize_file_types(self, file_types):
+        return [
+            {'id': file_type.id, 'key': file_type.key, 'label_en': file_type.label_en}
+            for file_type in file_types
+        ]
+
+    @action(detail=True, methods=['get'])
+    def impact(self, request, pk=None):
+        """
+        Show what re-applying this template would do to each open credit case.
+
+        Only cases seeded from this template and not yet submitted are considered — a
+        submitted case's requirement list is the evidence its reviewer worked from.
+
+        The diff is computed fresh against each case's current rows rather than from a
+        record of what the user just edited, so this is safe to call any time and
+        returns an empty list once everything is in sync.
+        """
+        template = self.get_object()
+
+        results = []
+        for credit_case in open_cases_for_template(template):
+            diff = diff_template_against_case(template, credit_case)
+            if not (diff['adds'] or diff['removes'] or diff['updates']):
+                continue
+
+            results.append({
+                'credit_case_id': credit_case.id,
+                'customer_name': credit_case.customer.name,
+                'adds': self._serialize_file_types(diff['adds']),
+                'removes': self._serialize_file_types(diff['removes']),
+                'updates': self._serialize_file_types(diff['updates']),
+                # Removing a requirement the customer already satisfied leaves that
+                # document in place but no longer counting - worth warning about first.
+                'removes_with_uploads': self._serialize_file_types(
+                    file_types_with_uploads(credit_case, diff['removes'])
+                ),
+            })
+
+        return Response({'credit_cases': results})
+
+    @action(detail=True, methods=['post'])
+    def apply(self, request, pk=None):
+        """
+        Re-apply this template to the credit cases named in `credit_case_ids`.
+
+        Deliberately explicit rather than "all open cases": the user picks after seeing
+        the impact report. Requirements they added by hand are preserved, and a case's
+        status is never changed - it simply reports any new document as missing.
+        """
+        template = self.get_object()
+
+        credit_case_ids = request.data.get('credit_case_ids')
+        if not isinstance(credit_case_ids, list) or not credit_case_ids:
+            return Response(
+                {'detail': 'credit_case_ids must be a non-empty list of credit case ids.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Re-derive the allowed cases from the database instead of trusting the ids in
+        # the request body: this is the only thing standing between a crafted payload
+        # and another organization's credit cases.
+        allowed = {case.id: case for case in open_cases_for_template(template)}
+        unknown = [i for i in credit_case_ids if i not in allowed]
+        if unknown:
+            return Response(
+                {
+                    'detail': (
+                        'These credit case ids are not open cases belonging to this '
+                        f'template: {unknown}'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        applied = []
+        with transaction.atomic():
+            for credit_case_id in credit_case_ids:
+                diff = apply_template_to_case(
+                    template, allowed[credit_case_id], user=request.user
+                )
+                applied.append({
+                    'credit_case_id': credit_case_id,
+                    'added': self._serialize_file_types(diff['adds']),
+                    'removed': self._serialize_file_types(diff['removes']),
+                    'updated': self._serialize_file_types(diff['updates']),
+                })
+
+        return Response({'credit_cases': applied})
+
+
+class CreditCaseRequirementViewSet(
+    OrganizationScopedMixin,
+    ModelViewSet,
+):
+    """
+    The documents one specific credit case needs.
+
+    Used for per-case deviations - the extra document needed for one particular
+    customer, or dropping one that doesn't apply. Anything created here is marked
+    `source='manual'` and is never altered by a later template re-sync.
+    """
+
+    queryset = CreditCaseRequirement.objects.all().select_related('file_type', 'credit_case')
+    serializer_class = CreditCaseRequirementSerializer
+    organization_lookup = 'credit_case__customer__organization'
+    organization_scoped_fields = {'credit_case': 'customer__organization'}
+
+    def get_serializer(self, *args, **kwargs):
+        """
+        Narrow the selectable file types to global ones plus the user's own.
+
+        organization_scoped_fields can't express this: it only knows how to filter a
+        field's queryset down to the user's organizations, which would exclude every
+        app-provided (null-organization) type.
+        """
+        serializer = super().get_serializer(*args, **kwargs)
+
+        user = self.request.user
+        if not user.is_authenticated or user.is_superuser:
+            return serializer
+
+        fields = getattr(serializer, 'child', serializer).fields
+        file_type_field = fields.get('file_type')
+        if file_type_field is not None and getattr(file_type_field, 'queryset', None) is not None:
+            file_type_field.queryset = file_type_field.queryset.filter(
+                Q(organization__isnull=True) | Q(organization__in=user.organizations.all())
+            ).distinct()
+
+        return serializer
+
+    def perform_create(self, serializer):
+        serializer.save(
+            source=CreditCaseRequirement.Source.MANUAL,
+            created_by=self.request.user,
+        )

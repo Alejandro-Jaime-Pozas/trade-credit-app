@@ -10,12 +10,11 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 from core.str_utils import pretty_print
-from core.constants import (
-    LOAN_FILE_MONTHS_REQUIRED_LEGAL,
-    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
-    LOAN_FILE_MONTHS_REQUIRED_FINANCIALS,
-    MAX_FILE_MONTHS_BACK_FINANCIALS,
-    MAX_FILE_MONTHS_BACK_LEGAL,
+from core.file_type_catalog import FileTypeCategory
+from core.file_type_spec import (
+    DEFAULT_SUGGESTION_KEYS,
+    max_months_back,
+    months_required_by_category,
 )
 from core.date_utils import (
     get_current_date,
@@ -23,12 +22,15 @@ from core.date_utils import (
 # from processing.models import AccountApplication
 
 
-file_type_names = CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
-months_required_financials = LOAN_FILE_MONTHS_REQUIRED_FINANCIALS
-months_required_legal = LOAN_FILE_MONTHS_REQUIRED_LEGAL
+# All derived from the one file type catalog (core/file_type_catalog.py) rather than
+# from separate hand-maintained dicts. Financial and legal documents are kept apart
+# because they age at different rates.
+file_type_names = set(DEFAULT_SUGGESTION_KEYS)
+months_required_financials = months_required_by_category(FileTypeCategory.FINANCIAL)
+months_required_legal = months_required_by_category(FileTypeCategory.LEGAL)
 all_months_required = months_required_financials | months_required_legal
-max_mths_back_financials = MAX_FILE_MONTHS_BACK_FINANCIALS
-max_mths_back_legal = MAX_FILE_MONTHS_BACK_LEGAL
+max_mths_back_financials = max_months_back(FileTypeCategory.FINANCIAL)
+max_mths_back_legal = max_months_back(FileTypeCategory.LEGAL)
 
 
 def build_possible_month_intervals(file_type_name: str):

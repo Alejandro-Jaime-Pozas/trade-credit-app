@@ -7,8 +7,11 @@ from openai import OpenAI
 from openai.types.file_object import FileObject
 
 from core.constants import (
-    FILE_TYPE_NAME_MAPPING_PYDANTIC,
     IMAGE_FILE_EXTENSIONS,
+)
+from core.file_type_spec import (
+    FILE_TYPE_KEYS,
+    PYDANTIC_BY_KEY,
 )
 from storage.models import UploadDocument
 from integrations.openai.prompts.extract_file_data import (
@@ -35,14 +38,13 @@ from processing.models import (
     LoanVerdictAI,
 )
 from .pydantic_models.file_type_models import (
-    FileTypeNamePydantic,
+    build_file_type_name_pydantic,
 )
 from .pydantic_models.loan_verdict_models import (
     LoanVerdictAIPydantic
 )
 
 
-FILE_TYPE_NAME_SCHEMA = FileTypeNamePydantic.model_json_schema()
 LOAN_DETAILS_SCHEMA = LoanVerdictAIPydantic.model_json_schema()
 
 
@@ -158,9 +160,19 @@ class GPTService:
             print(f'Error turning response json into dict: {e}')
 
     def get_pydantic_model_json_schema(self, file_type_name):
-        model = FILE_TYPE_NAME_MAPPING_PYDANTIC.get(file_type_name)
+        model = PYDANTIC_BY_KEY.get(file_type_name)
         if model:
             return model.model_json_schema()
+
+    def get_file_type_name_json_schema(self):
+        """
+        Build the JSON schema that limits GPT's classification answer to the file type
+        names the app currently knows about.
+
+        Built per request rather than cached at import so newly added catalog entries
+        (and, later, an organization's own file types) are picked up without a restart.
+        """
+        return build_file_type_name_pydantic(FILE_TYPE_KEYS).model_json_schema()
 
     # Request structured json response based on file and prompt input
     def get_gpt_file_type_name(self, uploaded_file: FileObject):
@@ -188,7 +200,7 @@ class GPTService:
                     "type": "json_schema",
                     "name": "FileTypeNamePydantic",
                     "strict": True,
-                    "schema": FILE_TYPE_NAME_SCHEMA,
+                    "schema": self.get_file_type_name_json_schema(),
                 },
             },
             max_output_tokens=MAX_OUTPUT_TOKENS,  # hard limit on tokens, if not enough no response

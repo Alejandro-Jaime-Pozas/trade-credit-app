@@ -1,11 +1,10 @@
 from datetime import date
-from typing import Literal, List, Optional
+from typing import Literal, List, Optional, Sequence
 from pydantic import (
     BaseModel,
     Field,
+    create_model,
 )
-
-from core.constants import UPLOAD_DOCUMENT_FILE_TYPE_NAMES
 
 
 # FILE DATA EXTRACTION
@@ -118,5 +117,21 @@ class ConstanciaDeSituacionFiscalPydantic(DateBaseModel):
 
 # GENERAL
 
-class FileTypeNamePydantic(StrictBaseModel):
-    file_type_name: Literal[*UPLOAD_DOCUMENT_FILE_TYPE_NAMES]
+def build_file_type_name_pydantic(file_type_keys: Sequence[str]) -> type[StrictBaseModel]:
+    """
+    Build the model constraining GPT's document-classification answer to a known set of
+    file type names.
+
+    This is built per call rather than declared once at import because the set of valid
+    names comes from the file type catalog, and will eventually also include the
+    file types a specific organization has defined for itself (see `docs/versions/v2.md`).
+    A module-level `Literal[...]` would freeze that set at process start.
+
+    `create_model` is pydantic's programmatic equivalent of writing out a class body;
+    `Literal[tuple(...)]` is the same as writing `Literal['a', 'b', ...]` by hand.
+    """
+    return create_model(
+        'FileTypeNamePydantic',
+        file_type_name=(Literal[tuple(file_type_keys)], ...),
+        __base__=StrictBaseModel,
+    )

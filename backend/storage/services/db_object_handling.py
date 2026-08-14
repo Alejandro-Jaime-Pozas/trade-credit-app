@@ -12,9 +12,6 @@ from processing.services.credit_case import (
     check_aggregate_satisfied_month_intervals,
     check_all_files_required_dates_complete,
 )
-from core.constants import (
-    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
-)
 from processing.loan_term_calculations.constants import CREDIT_SCORE_VERDICT
 from core.str_utils import pretty_print
 from storage.models import UploadDocument

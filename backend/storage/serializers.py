@@ -16,7 +16,16 @@ from core.constants import (
 )
 from processing.models import CreditCase
 
-from .models import DocumentDataExtract, Label, LabelValue, UploadDocument
+from .models import (
+    CreditCaseRequirement,
+    DocumentDataExtract,
+    FileType,
+    Label,
+    LabelValue,
+    RequirementTemplate,
+    RequirementTemplateItem,
+    UploadDocument,
+)
 
 
 class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
@@ -246,6 +255,301 @@ class LabelValueSerializer(serializers.HyperlinkedModelSerializer):
         if not model_class.objects.filter(org_reachable_q, pk=object_id).exists():
             raise serializers.ValidationError(
                 f'No {label.content_type.model} with id={object_id} found in the label\'s organization.'
+            )
+
+        return attrs
+
+
+class FileTypeSerializer(serializers.HyperlinkedModelSerializer):
+    """
+    A kind of document the app can recognize, e.g. "bank_statement".
+
+    Read-only: the app-provided types come from core/file_type_catalog.py via
+    `manage.py sync_file_types`. Letting organizations create their own is planned
+    (see docs/versions/v2.md) but not implemented.
+    """
+
+    is_global = serializers.SerializerMethodField()
+
+    def get_is_global(self, obj) -> bool:
+        """True for app-provided types, which every organization can use."""
+        return obj.organization_id is None
+
+    class Meta:
+        model = FileType
+        fields = [
+            'url',
+            'id',
+            'key',
+            'label_en',
+            'label_es',
+            'category',
+            'months_required',
+            'is_active',
+            'is_global',
+        ]
+
+
+class RequirementTemplateItemSerializer(serializers.ModelSerializer):
+    """
+    One document type listed in a requirement template.
+
+    Written as part of its parent template's payload (see RequirementTemplateSerializer),
+    not through its own endpoint, so a template and its lines are always saved together.
+    """
+
+    file_type_key = serializers.CharField(source='file_type.key', read_only=True)
+    label_en = serializers.CharField(source='file_type.label_en', read_only=True)
+
+    class Meta:
+        model = RequirementTemplateItem
+        fields = [
+            'id',
+            'file_type',
+            'file_type_key',
+            'label_en',
+            'is_required',
+            'months_required',
+            'order',
+        ]
+
+
+class RequirementTemplateSerializer(serializers.HyperlinkedModelSerializer):
+    """
+    An organization's reusable list of documents to ask for on a credit case.
+
+    `items` is writable and behaves as a full replacement: whatever list is sent becomes
+    the template's contents. That matches how the UI edits a template (as one list the
+    user rearranges) and keeps the client from having to diff line-by-line.
+
+    Editing a template does NOT change existing credit cases. Use the `impact` and
+    `apply` actions on this viewset to review and push changes onto open cases.
+    """
+
+    items = RequirementTemplateItemSerializer(many=True)
+    organization = serializers.HyperlinkedRelatedField(
+        read_only=True,
+        view_name=f'{ORGANIZATION_BASENAME}-detail',
+    )
+
+    class Meta:
+        model = RequirementTemplate
+        fields = [
+            'url',
+            'id',
+            'name',
+            'is_default',
+            'organization',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'organization',
+            'created_at',
+            'updated_at',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        """
+        Narrow the file types selectable on nested items to the ones this user may use:
+        the app-provided (global) ones plus their own organization's.
+
+        Without this, DRF builds the nested `file_type` field with an unfiltered
+        FileType.objects.all(), which would offer another organization's custom types
+        as valid input once those exist.
+        """
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get('request')
+        if request is None or not request.user.is_authenticated or request.user.is_superuser:
+            return
+
+        item_fields = getattr(self.fields['items'], 'child', self.fields['items']).fields
+        file_type_field = item_fields.get('file_type')
+        if file_type_field is not None and getattr(file_type_field, 'queryset', None) is not None:
+            file_type_field.queryset = file_type_field.queryset.filter(
+                django_models.Q(organization__isnull=True)
+                | django_models.Q(organization__in=request.user.organizations.all())
+            )
+
+    def validate_items(self, items):
+        """Reject a template that lists the same document type twice."""
+        file_types = [item['file_type'] for item in items]
+        if len(file_types) != len(set(file_types)):
+            raise serializers.ValidationError('A template cannot list the same file type twice.')
+        return items
+
+    def _replace_items(self, template, items_data):
+        """Swap the template's lines for the supplied list, in one transaction."""
+        template.items.all().delete()
+        RequirementTemplateItem.objects.bulk_create([
+            RequirementTemplateItem(
+                template=template,
+                file_type=item['file_type'],
+                is_required=item.get('is_required', True),
+                months_required=item.get('months_required'),
+                order=item.get('order', order),
+            )
+            for order, item in enumerate(items_data)
+        ])
+
+    @transaction.atomic
+    def create(self, validated_data):
+        items_data = validated_data.pop('items', [])
+        template = RequirementTemplate.objects.create(**validated_data)
+        self._replace_items(template, items_data)
+        return template
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+
+        if items_data is not None:
+            self._replace_items(instance, items_data)
+
+        return instance
+
+
+class CreditCaseRequirementSerializer(serializers.HyperlinkedModelSerializer):
+    """
+    One document a specific credit case needs.
+
+    Requirements created through this endpoint are always `source='manual'` — they are
+    the per-case additions a user makes for one particular customer, and a later template
+    re-sync will leave them untouched. Template-sourced rows are created by seeding, not
+    here.
+    """
+
+    # Selected by id rather than by hyperlink, matching how a template's items are
+    # written and how the frontend gets them from /file-types/.
+    file_type = serializers.PrimaryKeyRelatedField(queryset=FileType.objects.all())
+    file_type_key = serializers.CharField(source='file_type.key', read_only=True)
+    label_en = serializers.CharField(source='file_type.label_en', read_only=True)
+
+    class Meta:
+        model = CreditCaseRequirement
+        fields = [
+            'url',
+            'id',
+            'credit_case',
+            'file_type',
+            'file_type_key',
+            'label_en',
+            'is_required',
+            'months_required',
+            'source',
+            'created_at',
+            'synced_at',
+        ]
+        read_only_fields = [
+            'source',
+            'created_at',
+            'synced_at',
+        ]
+
+    def validate(self, attrs):
+        """
+        Confirm the credit case and the file type are both things this user may use.
+
+        The viewset's organization_scoped_fields already narrows these querysets, but
+        this repeats the check independently: a scoped queryset protects the browsable
+        API's choices, while this protects the actual write no matter how the request
+        was built.
+        """
+        user = self.context['request'].user
+        credit_case = attrs.get('credit_case') or getattr(self.instance, 'credit_case', None)
+        file_type = attrs.get('file_type') or getattr(self.instance, 'file_type', None)
+
+        if user.is_superuser:
+            return attrs
+
+        organizations = user.organizations.all()
+
+        if credit_case is not None and credit_case.customer.organization not in organizations:
+            raise serializers.ValidationError('You do not have access to this credit case.')
+
+        # A file type is usable if it is app-provided (no organization) or owned by one
+        # of the user's own organizations.
+        if (
+            file_type is not None
+            and file_type.organization_id is not None
+            and file_type.organization not in organizations
+        ):
+            raise serializers.ValidationError('You do not have access to this file type.')
+
+        return attrs
+
+
+class SetCreditCaseRequirementsSerializer(serializers.Serializer):
+    """
+    Request body for `POST /credit-cases/{id}/set-requirements/`.
+
+    Two mutually exclusive modes, mirroring the two things the UI lets a user click when
+    a credit case is created:
+
+      - `requirement_template` — "use my organization's default". Rows are seeded from
+        the template, so the case stays eligible for that template's future re-syncs.
+      - `file_type_ids` — "pick documents for this customer". Rows are written as
+        `source='manual'`, so a later re-sync deliberately leaves this case alone.
+
+    Not a ModelSerializer: this describes an action's input, not a row to save.
+    """
+
+    requirement_template = serializers.PrimaryKeyRelatedField(
+        queryset=RequirementTemplate.objects.all(),
+        required=False,
+    )
+    file_type_ids = serializers.PrimaryKeyRelatedField(
+        queryset=FileType.objects.all(),
+        many=True,
+        required=False,
+    )
+
+    def __init__(self, *args, **kwargs):
+        """
+        Narrow both fields to what this user may actually reference, so another
+        organization's template or custom file type is never even a valid choice.
+        """
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get('request')
+        if request is None or not request.user.is_authenticated or request.user.is_superuser:
+            return
+
+        organizations = request.user.organizations.all()
+
+        self.fields['requirement_template'].queryset = RequirementTemplate.objects.filter(
+            organization__in=organizations
+        )
+        # A file type is usable if it is app-provided (no organization) or owned by one
+        # of the user's own organizations - the same "global OR mine" rule as
+        # FileTypeViewSet.get_queryset().
+        self.fields['file_type_ids'].child_relation.queryset = FileType.objects.filter(
+            django_models.Q(organization__isnull=True)
+            | django_models.Q(organization__in=organizations)
+        ).distinct()
+
+    def validate(self, attrs):
+        """
+        Exactly one mode must be chosen. Allowing both would leave it ambiguous whether
+        the resulting rows should be template-sourced (re-syncable) or manual, and
+        allowing neither is almost certainly a client bug rather than "clear everything".
+        """
+        template = attrs.get('requirement_template')
+        file_types = attrs.get('file_type_ids')
+
+        if template is not None and file_types:
+            raise serializers.ValidationError(
+                'Provide either requirement_template or file_type_ids, not both.'
+            )
+        if template is None and not file_types:
+            raise serializers.ValidationError(
+                'Provide either requirement_template or file_type_ids.'
             )
 
         return attrs

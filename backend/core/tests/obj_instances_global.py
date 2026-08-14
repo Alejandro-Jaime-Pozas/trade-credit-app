@@ -5,9 +5,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from storage.models import (
     UploadDocument,
 )
-from storage.choices_for_models import (
-    FileTypeName,
-)
 from processing.models import (
     AccountApplication,
     LoanAccountApplication,
@@ -71,7 +68,7 @@ _MOD_LOAN_ACCOUNT_APPLICATION_DATA = {
 _MOD_UPLOAD_DOCUMENT_DATA = {
     'original_title': 'mod_title',
     # 'file': _MOD_UPLOADED_FILE,
-    'file_type_name': FileTypeName.CASHFLOW_STATEMENT,
+    'file_type_name': 'cashflow_statement',
     'mimetype': 'application/pdf',
 }
 

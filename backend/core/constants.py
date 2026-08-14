@@ -1,39 +1,12 @@
 FILE_UPLOAD_MAX_SIZE_MB=20  # called on serializer's validate method, not model
 
 
-# Credit Case: required file type names
-CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED={
-    # Financials
-    'bank_statement',
-    'balance_sheet',
-    'cashflow_statement',
-    'income_statement',
-    'constancia_de_situacion_fiscal',  # TODO later perhaps create this as separate set
-}
-# CUSTOMER_FILE_TYPE_NAMES_REQUIRED={
-#     # Legal
-# }
-
-# Loan: required file_type_name month requirement mappings
-LOAN_FILE_MONTHS_REQUIRED_FINANCIALS={
-    'bank_statement': 12,
-    'balance_sheet': 1,
-    'cashflow_statement': 12,
-    'income_statement': 12,
-}
-LOAN_FILE_MONTHS_REQUIRED_LEGAL={
-    'constancia_de_situacion_fiscal': 1,
-}
-
-# All allowed file type names
-UPLOAD_DOCUMENT_FILE_TYPE_NAMES={
-    'unknown',
-}
-UPLOAD_DOCUMENT_FILE_TYPE_NAMES.update(CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED)
-
-# Min required months back from current date to satisfy file requirement; files before this date do not count
-MAX_FILE_MONTHS_BACK_FINANCIALS=2
-MAX_FILE_MONTHS_BACK_LEGAL=3
+# File type names, month requirements, extraction schemas and recency limits all now
+# live in ONE place: core/file_type_catalog.py (derived lookups in core/file_type_spec.py).
+# Add a new file type to the catalog, not here.
+# (This block previously held CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+# UPLOAD_DOCUMENT_FILE_TYPE_NAMES, LOAN_FILE_MONTHS_REQUIRED_* and
+# MAX_FILE_MONTHS_BACK_*, which all had to be kept in sync by hand.)
 
 
 # Allowed file extensions
@@ -89,6 +62,10 @@ UPLOAD_DOCUMENT_BASENAME='uploaddocument'
 DOCUMENT_DATA_EXTRACT_BASENAME='documentdataextract'
 LABEL_BASENAME='label'
 LABEL_VALUE_BASENAME='labelvalue'
+FILE_TYPE_BASENAME='filetype'
+REQUIREMENT_TEMPLATE_BASENAME='requirementtemplate'
+REQUIREMENT_TEMPLATE_ITEM_BASENAME='requirementtemplateitem'
+CREDIT_CASE_REQUIREMENT_BASENAME='creditcaserequirement'
 
 
 # Models that can have dynamic custom fields (Label/LabelValue) attached, and the ORM
@@ -105,16 +82,5 @@ LABELABLE_MODEL_ORG_LOOKUPS={
 CREDIT_CASE_ID='credit_case_id'
 
 
-# Mappings for file_type_names to pydantic models
-from integrations.openai.services.pydantic_models.file_type_models import *  # this to avoid circular import
-FILE_TYPE_NAME_MAPPING_PYDANTIC={
-    # Financials
-    'balance_sheet': BalanceSheetPydantic,
-    'bank_statement': BankStatementPydantic,
-    'cashflow_statement': CashflowStatementPydantic,
-    'income_statement': IncomeStatementPydantic,
-    # Legal
-    'constancia_de_situacion_fiscal': ConstanciaDeSituacionFiscalPydantic,
-    # Extra
-    'unknown': UnknownFileDataPydantic,
-}
+# file_type_name -> pydantic extraction model now lives in core/file_type_spec.py
+# as PYDANTIC_BY_KEY, derived from the core/file_type_catalog.py entries.

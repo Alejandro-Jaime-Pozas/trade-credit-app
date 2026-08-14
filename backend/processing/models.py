@@ -8,8 +8,8 @@ from customers.models import Customer
 from processing.services.credit_case import check_aggregate_satisfied_month_intervals
 from core.constants import (
     ALLOWED_FILE_EXTENSIONS,
-    CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
 )
+from core.file_type_spec import DEFAULT_SUGGESTION_KEYS
 from core.str_utils import clean_account_name
 from .choices_for_models import (
     CreditCaseFinalVerdict,
@@ -108,10 +108,35 @@ class CreditCase(models.Model):
     @property
     def required_file_type_names(self):
         """
-        Get a set of all required file_type_name files
-        for this instance's credit case.
+        Get a set of all required file_type_name files for this credit case.
+
+        Read from this case's own CreditCaseRequirement rows (see
+        storage.models.CreditCaseRequirement), which were copied from the
+        organization's requirement template when the case was created. Each case
+        therefore keeps its own snapshot of what was required, so later edits to the
+        template can't rewrite the history of a case that's already been reviewed.
+
+        Only requirements flagged `is_required` count — optional ones are listed for
+        the user's convenience but never block a case from being complete.
         """
-        return CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
+        return {
+            requirement.file_type.key
+            for requirement in self.requirements.all()
+            if requirement.is_required
+        }
+
+    @property
+    def optional_file_type_names(self):
+        """
+        Get a set of the file types this case lists as nice-to-have rather than
+        mandatory. These are shown alongside the required ones but are excluded from
+        `missing_file_type_names`, so they never hold up completion.
+        """
+        return {
+            requirement.file_type.key
+            for requirement in self.requirements.all()
+            if not requirement.is_required
+        }
 
     @property
     def uploaded_file_type_names(self):
@@ -149,7 +174,7 @@ class CreditCase(models.Model):
         if self.type == 'loan':
             file_dates = check_aggregate_satisfied_month_intervals(
                 acct_app=self,
-                file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+                file_type_names=set(DEFAULT_SUGGESTION_KEYS),
             )
             try:
                 data = {
@@ -215,8 +240,10 @@ class AccountApplication(models.Model):
         Get a set of all required file_type_name files
         for this instance's account application type.
         """
+        # AccountApplication is the older, pre-CreditCase flow and has no per-object
+        # requirement rows, so it still uses the catalog's default suggestions.
         if self.type == 'loan':
-            return CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED
+            return set(DEFAULT_SUGGESTION_KEYS)
         else:
             raise ValueError(
                 'Must implement code for type field other than "loan" for acct app.'
@@ -257,7 +284,7 @@ class AccountApplication(models.Model):
         if self.type == 'loan':
             file_dates = check_aggregate_satisfied_month_intervals(
                 acct_app=self,
-                file_type_names=CREDIT_CASE_FILE_TYPE_NAMES_REQUIRED,
+                file_type_names=set(DEFAULT_SUGGESTION_KEYS),
             )
             try:
                 data = {

@@ -57,13 +57,217 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
           description: ''
+  /api/v1/credit-case-requirements/:
+    get:
+      operationId: credit_case_requirements_list
+      description: |-
+        The documents one specific credit case needs.
+
+        Used for per-case deviations - the extra document needed for one particular
+        customer, or dropping one that doesn't apply. Anything created here is marked
+        `source='manual'` and is never altered by a later template re-sync.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - credit-case-requirements
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCreditCaseRequirementList'
+          description: ''
+    post:
+      operationId: credit_case_requirements_create
+      description: |-
+        The documents one specific credit case needs.
+
+        Used for per-case deviations - the extra document needed for one particular
+        customer, or dropping one that doesn't apply. Anything created here is marked
+        `source='manual'` and is never altered by a later template re-sync.
+      tags:
+      - credit-case-requirements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCaseRequirement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreditCaseRequirement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreditCaseRequirement'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCaseRequirement'
+          description: ''
+  /api/v1/credit-case-requirements/{id}/:
+    get:
+      operationId: credit_case_requirements_retrieve
+      description: |-
+        The documents one specific credit case needs.
+
+        Used for per-case deviations - the extra document needed for one particular
+        customer, or dropping one that doesn't apply. Anything created here is marked
+        `source='manual'` and is never altered by a later template re-sync.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case requirement.
+        required: true
+      tags:
+      - credit-case-requirements
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCaseRequirement'
+          description: ''
+    put:
+      operationId: credit_case_requirements_update
+      description: |-
+        The documents one specific credit case needs.
+
+        Used for per-case deviations - the extra document needed for one particular
+        customer, or dropping one that doesn't apply. Anything created here is marked
+        `source='manual'` and is never altered by a later template re-sync.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case requirement.
+        required: true
+      tags:
+      - credit-case-requirements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCaseRequirement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreditCaseRequirement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreditCaseRequirement'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCaseRequirement'
+          description: ''
+    patch:
+      operationId: credit_case_requirements_partial_update
+      description: |-
+        The documents one specific credit case needs.
+
+        Used for per-case deviations - the extra document needed for one particular
+        customer, or dropping one that doesn't apply. Anything created here is marked
+        `source='manual'` and is never altered by a later template re-sync.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case requirement.
+        required: true
+      tags:
+      - credit-case-requirements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCreditCaseRequirement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCreditCaseRequirement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCreditCaseRequirement'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCaseRequirement'
+          description: ''
+    delete:
+      operationId: credit_case_requirements_destroy
+      description: |-
+        The documents one specific credit case needs.
+
+        Used for per-case deviations - the extra document needed for one particular
+        customer, or dropping one that doesn't apply. Anything created here is marked
+        `source='manual'` and is never altered by a later template re-sync.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case requirement.
+        required: true
+      tags:
+      - credit-case-requirements
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/credit-cases/:
     get:
       operationId: credit_cases_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -86,9 +290,25 @@ paths:
     post:
       operationId: credit_cases_create
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       tags:
       - credit-cases
       requestBody:
@@ -117,9 +337,25 @@ paths:
     get:
       operationId: credit_cases_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -142,9 +378,25 @@ paths:
     put:
       operationId: credit_cases_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -179,9 +431,25 @@ paths:
     patch:
       operationId: credit_cases_partial_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -215,9 +483,25 @@ paths:
     delete:
       operationId: credit_cases_destroy
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -233,13 +517,81 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/credit-cases/{id}/set-requirements/:
+    post:
+      operationId: credit_cases_set_requirements_create
+      description: |-
+        Set exactly which documents this credit case requires.
+
+        Exists because the credit case is created BEFORE the user picks its documents in
+        the create-case flow, so the client has to reconcile an already-seeded case
+        against the user's choice. Doing that from the browser would be a series of
+        deletes and posts with no transaction around them, leaving a half-configured case
+        whenever one call failed.
+
+        Two mutually exclusive bodies, matching the two things the UI lets a user click:
+
+          {"requirement_template": <id>}  - "use my organization's default". Rows are
+              copied from the template and stay linked to it, so this case is still
+              picked up by that template's later impact/apply re-syncs.
+
+          {"file_type_ids": [<id>, ...]}  - "pick documents for this customer". Rows are
+              written as manual, so a later re-sync deliberately skips this case: the
+              user has opted out of the default for it.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this credit case.
+        required: true
+      tags:
+      - credit-cases
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreditCase'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCase'
+          description: ''
   /api/v1/customer-contacts/:
     get:
       operationId: customer_contacts_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -262,9 +614,25 @@ paths:
     post:
       operationId: customer_contacts_create
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       tags:
       - customer-contacts
       requestBody:
@@ -293,9 +661,25 @@ paths:
     get:
       operationId: customer_contacts_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -318,9 +702,25 @@ paths:
     put:
       operationId: customer_contacts_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -355,9 +755,25 @@ paths:
     patch:
       operationId: customer_contacts_partial_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -391,9 +807,25 @@ paths:
     delete:
       operationId: customer_contacts_destroy
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -413,9 +845,25 @@ paths:
     get:
       operationId: customers_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -438,9 +886,25 @@ paths:
     post:
       operationId: customers_create
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       tags:
       - customers
       requestBody:
@@ -469,9 +933,25 @@ paths:
     get:
       operationId: customers_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -494,9 +974,25 @@ paths:
     put:
       operationId: customers_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -531,9 +1027,25 @@ paths:
     patch:
       operationId: customers_partial_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -567,9 +1079,25 @@ paths:
     delete:
       operationId: customers_destroy
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -589,9 +1117,25 @@ paths:
     get:
       operationId: document_data_extracts_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -615,9 +1159,25 @@ paths:
     get:
       operationId: document_data_extracts_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -636,6 +1196,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentDataExtract'
+          description: ''
+  /api/v1/file-types/:
+    get:
+      operationId: file_types_list
+      description: |-
+        The kinds of documents that can be required, for building requirement templates.
+
+        Read-only: app-provided types are seeded from core/file_type_catalog.py by
+        `manage.py sync_file_types`. Organization-created types are planned but not built
+        (see docs/versions/v2.md).
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - file-types
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFileTypeList'
+          description: ''
+  /api/v1/file-types/{id}/:
+    get:
+      operationId: file_types_retrieve
+      description: |-
+        The kinds of documents that can be required, for building requirement templates.
+
+        Read-only: app-provided types are seeded from core/file_type_catalog.py by
+        `manage.py sync_file_types`. Organization-created types are planned but not built
+        (see docs/versions/v2.md).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this file type.
+        required: true
+      tags:
+      - file-types
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileType'
           description: ''
   /api/v1/label-values/:
     get:
@@ -1019,9 +1635,25 @@ paths:
     get:
       operationId: organizations_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -1044,9 +1676,25 @@ paths:
     post:
       operationId: organizations_create
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       tags:
       - organizations
       requestBody:
@@ -1075,9 +1723,25 @@ paths:
     get:
       operationId: organizations_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1100,9 +1764,25 @@ paths:
     put:
       operationId: organizations_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1137,9 +1817,25 @@ paths:
     patch:
       operationId: organizations_partial_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1173,9 +1869,25 @@ paths:
     delete:
       operationId: organizations_destroy
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1191,6 +1903,265 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/requirement-templates/:
+    get:
+      operationId: requirement_templates_list
+      description: |-
+        An organization's reusable lists of documents to require on a credit case.
+
+        A new credit case is seeded from the organization's default template. Editing a
+        template afterwards does not touch existing cases on its own — use `impact` to see
+        what would change and `apply` to push it onto chosen open cases.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - requirement-templates
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRequirementTemplateList'
+          description: ''
+    post:
+      operationId: requirement_templates_create
+      description: |-
+        An organization's reusable lists of documents to require on a credit case.
+
+        A new credit case is seeded from the organization's default template. Editing a
+        template afterwards does not touch existing cases on its own — use `impact` to see
+        what would change and `apply` to push it onto chosen open cases.
+      tags:
+      - requirement-templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
+  /api/v1/requirement-templates/{id}/:
+    get:
+      operationId: requirement_templates_retrieve
+      description: |-
+        An organization's reusable lists of documents to require on a credit case.
+
+        A new credit case is seeded from the organization's default template. Editing a
+        template afterwards does not touch existing cases on its own — use `impact` to see
+        what would change and `apply` to push it onto chosen open cases.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
+    put:
+      operationId: requirement_templates_update
+      description: |-
+        An organization's reusable lists of documents to require on a credit case.
+
+        A new credit case is seeded from the organization's default template. Editing a
+        template afterwards does not touch existing cases on its own — use `impact` to see
+        what would change and `apply` to push it onto chosen open cases.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
+    patch:
+      operationId: requirement_templates_partial_update
+      description: |-
+        An organization's reusable lists of documents to require on a credit case.
+
+        A new credit case is seeded from the organization's default template. Editing a
+        template afterwards does not touch existing cases on its own — use `impact` to see
+        what would change and `apply` to push it onto chosen open cases.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRequirementTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRequirementTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRequirementTemplate'
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
+    delete:
+      operationId: requirement_templates_destroy
+      description: |-
+        An organization's reusable lists of documents to require on a credit case.
+
+        A new credit case is seeded from the organization's default template. Editing a
+        template afterwards does not touch existing cases on its own — use `impact` to see
+        what would change and `apply` to push it onto chosen open cases.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/requirement-templates/{id}/apply/:
+    post:
+      operationId: requirement_templates_apply_create
+      description: |-
+        Re-apply this template to the credit cases named in `credit_case_ids`.
+
+        Deliberately explicit rather than "all open cases": the user picks after seeing
+        the impact report. Requirements they added by hand are preserved, and a case's
+        status is never changed - it simply reports any new document as missing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
+  /api/v1/requirement-templates/{id}/impact/:
+    get:
+      operationId: requirement_templates_impact_retrieve
+      description: |-
+        Show what re-applying this template would do to each open credit case.
+
+        Only cases seeded from this template and not yet submitted are considered — a
+        submitted case's requirement list is the evidence its reviewer worked from.
+
+        The diff is computed fresh against each case's current rows rather than from a
+        record of what the user just edited, so this is safe to call any time and
+        returns an empty list once everything is in sync.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
   /api/v1/schema/:
     get:
       operationId: schema_retrieve
@@ -1341,9 +2312,25 @@ paths:
     get:
       operationId: upload_documents_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -1396,9 +2383,25 @@ paths:
     get:
       operationId: upload_documents_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1421,9 +2424,25 @@ paths:
     put:
       operationId: upload_documents_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1458,9 +2477,25 @@ paths:
     patch:
       operationId: upload_documents_partial_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1494,9 +2529,25 @@ paths:
     delete:
       operationId: upload_documents_destroy
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1516,9 +2567,25 @@ paths:
     get:
       operationId: users_list
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - name: page
         required: false
@@ -1531,7 +2598,6 @@ paths:
       security:
       - cookieAuth: []
       - jwtAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -1542,9 +2608,25 @@ paths:
     post:
       operationId: users_create
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       tags:
       - users
       requestBody:
@@ -1574,9 +2656,25 @@ paths:
     get:
       operationId: users_retrieve
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1589,7 +2687,6 @@ paths:
       security:
       - cookieAuth: []
       - jwtAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -1600,9 +2697,25 @@ paths:
     put:
       operationId: users_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1627,7 +2740,6 @@ paths:
       security:
       - cookieAuth: []
       - jwtAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -1638,9 +2750,25 @@ paths:
     patch:
       operationId: users_partial_update
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1664,7 +2792,6 @@ paths:
       security:
       - cookieAuth: []
       - jwtAuth: []
-      - {}
       responses:
         '200':
           content:
@@ -1675,9 +2802,25 @@ paths:
     delete:
       operationId: users_destroy
       description: |-
-        Template to scope other model views to the user's (active) organization.
+        Scope every user action on a view to the user's organization(s).
 
-        Queryset must be customized as a lookup to ensure accurate relationship lookup.
+        Two halves, because Django and DRF enforce them in different places:
+
+        - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+          their own organization's rows.
+        - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+          allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+          `Model.objects.all()`, so a user could POST a link to another organization's row
+          and attach their record to another tenant's data.
+
+        Example on a viewset:
+
+            organization_lookup = 'customer__organization'
+            organization_scoped_fields = {'customer': 'organization'}
+
+        `organization_lookup` is the ORM path from THIS view's model to Organization;
+        each value in `organization_scoped_fields` is the path from THAT FIELD's model
+        to Organization.
       parameters:
       - in: path
         name: id
@@ -1690,7 +2833,6 @@ paths:
       security:
       - cookieAuth: []
       - jwtAuth: []
-      - {}
       responses:
         '204':
           description: No response body
@@ -1795,6 +2937,15 @@ components:
           items:
             type: string
           readOnly: true
+        optional_file_type_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        requirement_template:
+          type: integer
+          writeOnly: true
+          nullable: true
         custom_fields:
           type: object
           additionalProperties:
@@ -1805,6 +2956,7 @@ components:
       - custom_fields
       - customer
       - id
+      - optional_file_type_names
       - organization
       - required_file_type_names
       - submitted_at
@@ -1812,6 +2964,75 @@ components:
       - url
       - verdict
       - verdict_at
+    CreditCaseRequirement:
+      type: object
+      description: |-
+        One document a specific credit case needs.
+
+        Requirements created through this endpoint are always `source='manual'` — they are
+        the per-case additions a user makes for one particular customer, and a later template
+        re-sync will leave them untouched. Template-sourced rows are created by seeding, not
+        here.
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        credit_case:
+          type: string
+          format: uri
+          description: The credit case that needs this document.
+        file_type:
+          type: integer
+        file_type_key:
+          type: string
+          readOnly: true
+        label_en:
+          type: string
+          readOnly: true
+        is_required:
+          type: boolean
+          description: True means the case is incomplete without it. False means it
+            is listed as optional and never blocks completion.
+        months_required:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+          description: Overrides FileType.months_required for this case only.
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+          description: |-
+            Whether this came from a template (re-syncable) or was added by hand for this case (never overwritten by a re-sync).
+
+            * `template` - Template
+            * `manual` - Manual
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        synced_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When this row was last added or changed by a template re-sync.
+            Null means it has not been touched since the case was created.
+      required:
+      - created_at
+      - credit_case
+      - file_type
+      - file_type_key
+      - id
+      - label_en
+      - source
+      - synced_at
+      - url
     CurrencyEnum:
       enum:
       - MXN
@@ -2020,22 +3241,66 @@ components:
       - raw_json
       - upload_document
       - url
-    FileTypeNameEnum:
-      enum:
-      - bank_statement
-      - cashflow_statement
-      - unknown
-      - income_statement
-      - balance_sheet
-      - constancia_de_situacion_fiscal
-      type: string
+    FileType:
+      type: object
       description: |-
-        * `bank_statement` - Bank Statement
-        * `cashflow_statement` - Cashflow Statement
-        * `unknown` - Unknown
-        * `income_statement` - Income Statement
-        * `balance_sheet` - Balance Sheet
-        * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
+        A kind of document the app can recognize, e.g. "bank_statement".
+
+        Read-only: the app-provided types come from core/file_type_catalog.py via
+        `manage.py sync_file_types`. Letting organizations create their own is planned
+        (see docs/versions/v2.md) but not implemented.
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        key:
+          type: string
+          description: Stable identifier matching UploadDocument.file_type_name, e.g.
+            "bank_statement". Never change this after creation — documents are already
+            stored under it. Rename label_en/label_es instead.
+          maxLength: 50
+        label_en:
+          type: string
+          description: Display name in English, e.g. "Bank statement".
+          maxLength: 100
+        label_es:
+          type: string
+          description: Display name in Spanish, e.g. "Estado de cuenta bancario".
+          maxLength: 100
+        category:
+          type: string
+          description: 'One of core.file_type_catalog.FileTypeCategory: financial,
+            legal or other. Decides how recent a document must be to still count.'
+          maxLength: 20
+        months_required:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+          description: How many distinct months this document must cover to satisfy
+            a requirement (e.g. 12 monthly bank statements). Null means one document
+            is enough regardless of period.
+        is_active:
+          type: boolean
+          description: Whether this type can still be added to new templates. Existing
+            documents keep resolving either way — a type is never deleted, because
+            documents already reference its key.
+        is_global:
+          type: boolean
+          description: True for app-provided types, which every organization can use.
+          readOnly: true
+      required:
+      - category
+      - id
+      - is_global
+      - key
+      - label_en
+      - label_es
+      - url
     Label:
       type: object
       description: |-
@@ -2184,6 +3449,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CreditCase'
+    PaginatedCreditCaseRequirementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditCaseRequirement'
     PaginatedCustomerContactList:
       type: object
       required:
@@ -2253,6 +3541,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DocumentDataExtract'
+    PaginatedFileTypeList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileType'
     PaginatedLabelList:
       type: object
       required:
@@ -2322,6 +3633,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Organization'
+    PaginatedRequirementTemplateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementTemplate'
     PaginatedUploadDocumentList:
       type: object
       required:
@@ -2464,11 +3798,79 @@ components:
           items:
             type: string
           readOnly: true
+        optional_file_type_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        requirement_template:
+          type: integer
+          writeOnly: true
+          nullable: true
         custom_fields:
           type: object
           additionalProperties:
             type: string
           readOnly: true
+    PatchedCreditCaseRequirement:
+      type: object
+      description: |-
+        One document a specific credit case needs.
+
+        Requirements created through this endpoint are always `source='manual'` — they are
+        the per-case additions a user makes for one particular customer, and a later template
+        re-sync will leave them untouched. Template-sourced rows are created by seeding, not
+        here.
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        credit_case:
+          type: string
+          format: uri
+          description: The credit case that needs this document.
+        file_type:
+          type: integer
+        file_type_key:
+          type: string
+          readOnly: true
+        label_en:
+          type: string
+          readOnly: true
+        is_required:
+          type: boolean
+          description: True means the case is incomplete without it. False means it
+            is listed as optional and never blocks completion.
+        months_required:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+          description: Overrides FileType.months_required for this case only.
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+          description: |-
+            Whether this came from a template (re-syncable) or was added by hand for this case (never overwritten by a re-sync).
+
+            * `template` - Template
+            * `manual` - Manual
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        synced_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When this row was last added or changed by a template re-sync.
+            Null means it has not been touched since the case was created.
     PatchedCustomer:
       type: object
       properties:
@@ -2699,6 +4101,50 @@ components:
             type: string
             format: uri
           readOnly: true
+    PatchedRequirementTemplate:
+      type: object
+      description: |-
+        An organization's reusable list of documents to ask for on a credit case.
+
+        `items` is writable and behaves as a full replacement: whatever list is sent becomes
+        the template's contents. That matches how the UI edits a template (as one list the
+        user rearranges) and keeps the client from having to diff line-by-line.
+
+        Editing a template does NOT change existing credit cases. Use the `impact` and
+        `apply` actions on this viewset to review and push changes onto open cases.
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: What the user calls this template, e.g. "Default" or "Clientes
+            grandes".
+          maxLength: 100
+        is_default:
+          type: boolean
+          description: Whether new credit cases in this organization use this template
+            automatically. At most one per organization.
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementTemplateItem'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     PatchedUploadDocument:
       type: object
       properties:
@@ -2729,20 +4175,14 @@ components:
           nullable: true
           description: friendly file name for readability.
         file_type_name:
+          type: string
           readOnly: true
           nullable: true
-          description: |-
-            file type name given the choices list.
-
-            * `bank_statement` - Bank Statement
-            * `cashflow_statement` - Cashflow Statement
-            * `unknown` - Unknown
-            * `income_statement` - Income Statement
-            * `balance_sheet` - Balance Sheet
-            * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
-          oneOf:
-          - $ref: '#/components/schemas/FileTypeNameEnum'
-          - $ref: '#/components/schemas/NullEnum'
+          description: 'The kind of document this is, as a file type key (e.g. "bank_statement").
+            Set by the GPT classification step after upload, not by the user. Deliberately
+            has no `choices`: valid keys live in the storage.FileType table (seeded
+            from core/file_type_catalog.py) so organizations can eventually define
+            their own types, which a static enum could never list.'
         mimetype:
           type: string
           readOnly: true
@@ -2831,6 +4271,107 @@ components:
         * `45` - 45 days
         * `60` - 60 days
         * `90` - 90 days
+    RequirementTemplate:
+      type: object
+      description: |-
+        An organization's reusable list of documents to ask for on a credit case.
+
+        `items` is writable and behaves as a full replacement: whatever list is sent becomes
+        the template's contents. That matches how the UI edits a template (as one list the
+        user rearranges) and keeps the client from having to diff line-by-line.
+
+        Editing a template does NOT change existing credit cases. Use the `impact` and
+        `apply` actions on this viewset to review and push changes onto open cases.
+      properties:
+        url:
+          type: string
+          format: uri
+          readOnly: true
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: What the user calls this template, e.g. "Default" or "Clientes
+            grandes".
+          maxLength: 100
+        is_default:
+          type: boolean
+          description: Whether new credit cases in this organization use this template
+            automatically. At most one per organization.
+        organization:
+          type: string
+          format: uri
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementTemplateItem'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - items
+      - name
+      - organization
+      - updated_at
+      - url
+    RequirementTemplateItem:
+      type: object
+      description: |-
+        One document type listed in a requirement template.
+
+        Written as part of its parent template's payload (see RequirementTemplateSerializer),
+        not through its own endpoint, so a template and its lines are always saved together.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        file_type:
+          type: integer
+          description: The kind of document being asked for.
+        file_type_key:
+          type: string
+          readOnly: true
+        label_en:
+          type: string
+          readOnly: true
+        is_required:
+          type: boolean
+          description: True means a credit case is incomplete without it. False means
+            it is shown as a nice-to-have and never blocks completion.
+        months_required:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+          description: Overrides FileType.months_required for this template only.
+            Null means use the file type's own value.
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          description: Display order within the template.
+      required:
+      - file_type
+      - file_type_key
+      - id
+      - label_en
+    SourceEnum:
+      enum:
+      - template
+      - manual
+      type: string
+      description: |-
+        * `template` - Template
+        * `manual` - Manual
     StatusEnum:
       enum:
       - missing_documents
@@ -2914,20 +4455,14 @@ components:
           nullable: true
           description: friendly file name for readability.
         file_type_name:
+          type: string
           readOnly: true
           nullable: true
-          description: |-
-            file type name given the choices list.
-
-            * `bank_statement` - Bank Statement
-            * `cashflow_statement` - Cashflow Statement
-            * `unknown` - Unknown
-            * `income_statement` - Income Statement
-            * `balance_sheet` - Balance Sheet
-            * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
-          oneOf:
-          - $ref: '#/components/schemas/FileTypeNameEnum'
-          - $ref: '#/components/schemas/NullEnum'
+          description: 'The kind of document this is, as a file type key (e.g. "bank_statement").
+            Set by the GPT classification step after upload, not by the user. Deliberately
+            has no `choices`: valid keys live in the storage.FileType table (seeded
+            from core/file_type_catalog.py) so organizations can eventually define
+            their own types, which a static enum could never list.'
         mimetype:
           type: string
           readOnly: true
