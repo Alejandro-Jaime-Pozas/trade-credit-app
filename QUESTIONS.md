@@ -1,0 +1,2 @@
+- what if in http://localhost:3000/requirements user clicks save button with the exact same requirements as before? what does this impact backend?
+- what exactly is the frontend > backend flow when a user sets a new default required docs template? what happens from beg to end?

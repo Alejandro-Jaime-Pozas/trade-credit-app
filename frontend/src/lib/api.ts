@@ -283,6 +283,23 @@ export type DrfPaginated<T> = {
   results: T[];
 };
 
+/**
+ * Parse a successful response's body, tolerating one that has no body at all.
+ *
+ * DRF answers a successful DELETE with `204 No Content` and an empty body, so calling
+ * `res.json()` on it throws a SyntaxError. That error escaped as a generic failure, and
+ * every Delete button in the app reported "Delete failed" on a delete that had actually
+ * succeeded. A bodyless success is a success — it just resolves to `undefined`.
+ */
+async function readJsonAllowingEmpty(res: Response): Promise<unknown> {
+  if (res.status === 204) return undefined;
+
+  const text = await res.text();
+  if (text.trim() === "") return undefined;
+
+  return JSON.parse(text);
+}
+
 export async function apiJson<T>(args: {
   pathOrUrl: string;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -309,7 +326,7 @@ export async function apiJson<T>(args: {
     throw new ApiError({ status: res.status, body, message: msg });
   }
 
-  return (await res.json()) as T;
+  return (await readJsonAllowingEmpty(res)) as T;
 }
 
 export async function apiForm<T>(args: {

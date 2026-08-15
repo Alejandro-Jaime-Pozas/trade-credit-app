@@ -19,7 +19,7 @@ export async function listCreditCasesForCustomer(
   customerUrl: string,
 ): Promise<CreditCase[]> {
   const all = await drfListAll<CreditCase>({ path: "/credit-cases/" });
-  return sortByCreatedAtDesc(all.filter((c) => c.customer === customerUrl));
+  return sortByCreatedAtDesc(all.filter((c) => c.customer.url === customerUrl));
 }
 
 /**

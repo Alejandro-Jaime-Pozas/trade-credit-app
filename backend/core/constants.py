@@ -82,5 +82,19 @@ LABELABLE_MODEL_ORG_LOOKUPS={
 CREDIT_CASE_ID='credit_case_id'
 
 
+# Whether the AI credit verdict process is wired up and safe to run.
+#
+# Decides where a credit case goes once all its required documents are in: to
+# PENDING_AI_VERDICT if True, or straight to PENDING_FINAL_VERDICT (human review) if
+# False — there is no point parking a case in front of a process that will never pick
+# it up.
+#
+# False today because that process is not running: GPTService.run_gpt_loan_verdict()
+# exists but its only call site is commented out, and it reads
+# `credit_case.buro_de_credito_reports` — a relation that lives on AccountApplication,
+# not CreditCase — so it would raise AttributeError if called with a credit case.
+CREDIT_CASE_AI_VERDICT_ENABLED=False
+
+
 # file_type_name -> pydantic extraction model now lives in core/file_type_spec.py
 # as PYDANTIC_BY_KEY, derived from the core/file_type_catalog.py entries.

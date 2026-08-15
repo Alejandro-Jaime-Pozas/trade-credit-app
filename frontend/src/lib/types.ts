@@ -16,6 +16,14 @@ export type CustomerContact = components["schemas"]["CustomerContact"];
 export type CreditCase = components["schemas"]["CreditCase"];
 export type UploadDocument = components["schemas"]["UploadDocument"];
 
+/** Document requirements: the catalog, an org's template, and one case's rows. */
+export type FileType = components["schemas"]["FileType"];
+export type RequirementTemplate = components["schemas"]["RequirementTemplate"];
+export type RequirementTemplateItem =
+  components["schemas"]["RequirementTemplateItem"];
+export type CreditCaseRequirement =
+  components["schemas"]["CreditCaseRequirement"];
+
 export type PatchedCustomer = components["schemas"]["PatchedCustomer"];
 export type PatchedCustomerContact =
   components["schemas"]["PatchedCustomerContact"];

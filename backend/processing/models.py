@@ -89,6 +89,15 @@ class CreditCase(models.Model):
         blank=True,
         help_text='Final verdict timestamp after human review.',
     )
+    requirements_completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When every required document for this case had been uploaded and '
+                    'classified. Stamped once, the first time it happens, as a record of '
+                    'when the file requirements were satisfied. Whether the case is '
+                    'complete RIGHT NOW is answered by the requirements_complete '
+                    'property, which is always derived from the current documents.',
+    )
     assigned_to = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -122,7 +131,7 @@ class CreditCase(models.Model):
         return {
             requirement.file_type.key
             for requirement in self.requirements.all()
-            if requirement.is_required
+            if requirement.is_required and not requirement.is_excluded
         }
 
     @property
@@ -135,7 +144,7 @@ class CreditCase(models.Model):
         return {
             requirement.file_type.key
             for requirement in self.requirements.all()
-            if not requirement.is_required
+            if not requirement.is_required and not requirement.is_excluded
         }
 
     @property
@@ -163,6 +172,21 @@ class CreditCase(models.Model):
             return len(self.missing_file_type_names)
         else:
             return 0
+
+    @property
+    def requirements_complete(self):
+        """
+        Whether every required document for this case has been uploaded.
+
+        Deliberately computed from the case's current documents rather than stored, so it
+        can never disagree with reality — if a requirement is added later, this correctly
+        goes back to False.
+
+        A case with NO requirements at all counts as NOT complete: that means nobody has
+        set up what this case needs yet, which is a very different situation from
+        "everything we asked for has arrived".
+        """
+        return bool(self.required_file_type_names) and not self.missing_file_type_names
 
     @property
     # TODO will need to modify this to use in credit case...

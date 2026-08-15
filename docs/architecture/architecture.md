@@ -61,6 +61,12 @@
 
 -   Future Implementation (don't implement now): GitHub Actions (free tier)
 
+### Deployment / Hosting
+
+-   Not yet implemented — the app currently only runs locally via Docker Compose.
+-   Planned platform: Railway (see `docs/architecture/decisions.md` § Deployment for the full
+    reasoning and alternatives considered).
+
 ## Directory Structure
 
 -   `/ai`: contains agent contracts and workflow blueprints.

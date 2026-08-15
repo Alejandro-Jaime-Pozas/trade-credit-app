@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from core.constants import (
@@ -9,7 +10,9 @@ from core.constants import (
     ORGANIZATION_BASENAME,
     UPLOAD_DOCUMENT_BASENAME,
 )
+from core.serializer_utils import NamedHyperlinkedModelSerializer, NamedHyperlinkedRelatedField
 
+from .choices_for_models import CreditCaseFinalVerdict
 from .models import (
     CreditCase,
     AccountApplication,
@@ -23,22 +26,31 @@ from storage.models import RequirementTemplate, UploadDocument
 from storage.services.requirements import seed_requirements_from_template
 
 
-class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
+class CreditCaseSerializer(NamedHyperlinkedModelSerializer):
     # assigned_to defaults to the requesting user on create (see
     # CreditCaseViewSet.perform_create) but stays a normal writable/readable
     # field so it can still be viewed and reassigned from the credit case
     # detail page.
 
-    organization = serializers.HyperlinkedRelatedField(
+    organization = NamedHyperlinkedRelatedField(
         read_only=True,
         source='customer.organization',
         view_name=f'{ORGANIZATION_BASENAME}-detail',
+        # Organization's own __str__ shows its email domain, not its name.
+        display_source='name',
     )
 
     required_file_type_names = serializers.SerializerMethodField()
 
     def get_required_file_type_names(self, obj) -> list[str]:
         return sorted(obj.required_file_type_names)
+
+    # Whether every required document is in. Computed from the case's current documents,
+    # so it flips back to false if a requirement is added later.
+    requirements_complete = serializers.SerializerMethodField()
+
+    def get_requirements_complete(self, obj) -> bool:
+        return obj.requirements_complete
 
     # Documents this case lists as nice-to-have. Shown alongside the required ones but
     # excluded from required_file_type_names, so they never block completion.
@@ -84,11 +96,15 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'organization',
             'required_file_type_names',
             'optional_file_type_names',
+            'requirements_complete',
+            'requirements_completed_at',
             'requirement_template',
             'custom_fields',
         ]
         read_only_fields = [
-            'verdict',
+            # 'verdict' is deliberately NOT here: a reviewer records the final
+            # approve/reject decision by hand from the credit case detail page,
+            # the same way they set status and assigned_to.
             'created_at',
             'updated_at',
             'submitted_at',
@@ -96,6 +112,8 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
             'organization',
             'required_file_type_names',
             'optional_file_type_names',
+            'requirements_complete',
+            'requirements_completed_at',
         ]
 
     @transaction.atomic
@@ -126,6 +144,26 @@ class CreditCaseSerializer(serializers.HyperlinkedModelSerializer):
         )
 
         return credit_case
+
+    def update(self, instance, validated_data):
+        """
+        Stamp `verdict_at` the moment a reviewer records a real decision.
+
+        `verdict` is writable so a reviewer can approve/reject from the detail page, but
+        the timestamp is not theirs to set — it records WHEN the decision was made. Only
+        a change to an actual decision counts: moving back to 'pending' clears the stamp,
+        because there is no longer a decision for it to be the time of.
+        """
+        new_verdict = validated_data.get('verdict')
+
+        if new_verdict is not None and new_verdict != instance.verdict:
+            validated_data['verdict_at'] = (
+                timezone.now()
+                if new_verdict != CreditCaseFinalVerdict.PENDING
+                else None
+            )
+
+        return super().update(instance, validated_data)
 
 
 # ================================================================
@@ -184,10 +222,11 @@ class SimpleLoanAgreementDocumentSerializer(serializers.ModelSerializer):
         ]
 
 
-class LoanAccountApplicationSerializer(serializers.HyperlinkedModelSerializer):
-    account_application = serializers.HyperlinkedRelatedField(
+class LoanAccountApplicationSerializer(NamedHyperlinkedModelSerializer):
+    account_application = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{ACCOUNT_APPLICATION_BASENAME}-detail',
+        display_source='name',
     )
     loan_verdicts = SimpleLoanVerdictSerializer(
         many=True,
@@ -200,7 +239,7 @@ class LoanAccountApplicationSerializer(serializers.HyperlinkedModelSerializer):
     missing_file_type_names = serializers.ReadOnlyField(
         source='account_application.missing_file_type_names',
     )  # lets you reference related model's obj attrs
-    buro_de_credito_reports = serializers.HyperlinkedRelatedField(
+    buro_de_credito_reports = NamedHyperlinkedRelatedField(
         many=True,
         read_only=True,
         source='account_application.buro_de_credito_reports',
@@ -222,8 +261,8 @@ class LoanAccountApplicationSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class AccountApplicationSerializer(serializers.HyperlinkedModelSerializer):
-    account = serializers.HyperlinkedRelatedField(
+class AccountApplicationSerializer(NamedHyperlinkedModelSerializer):
+    account = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{ACCOUNT_BASENAME}-detail',
     )
@@ -279,8 +318,8 @@ class AccountApplicationSerializer(serializers.HyperlinkedModelSerializer):
         return acct_app
 
 
-class LoanVerdictSerializer(serializers.HyperlinkedModelSerializer):
-    loan_account_application = serializers.HyperlinkedRelatedField(
+class LoanVerdictSerializer(NamedHyperlinkedModelSerializer):
+    loan_account_application = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{LOAN_ACCOUNT_APPLICATION_BASENAME}-detail',
     )
@@ -311,10 +350,11 @@ class LoanVerdictSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class LoanAgreementDocumentSerializer(serializers.HyperlinkedModelSerializer):
-    account_application = serializers.HyperlinkedRelatedField(
+class LoanAgreementDocumentSerializer(NamedHyperlinkedModelSerializer):
+    account_application = NamedHyperlinkedRelatedField(
         read_only=True,
-        view_name=f'{ACCOUNT_APPLICATION_BASENAME}-detail'
+        view_name=f'{ACCOUNT_APPLICATION_BASENAME}-detail',
+        display_source='name',
     )
 
     class Meta:
@@ -332,7 +372,7 @@ class LoanAgreementDocumentSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class BuroDeCreditoReportSerializer(serializers.HyperlinkedModelSerializer):
+class BuroDeCreditoReportSerializer(NamedHyperlinkedModelSerializer):
     class Meta:
         model = BuroDeCreditoReport
         fields = [
@@ -353,8 +393,8 @@ class BuroDeCreditoReportSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class LoanVerdictAISerializer(serializers.HyperlinkedModelSerializer):
-    loan_account_application = serializers.HyperlinkedRelatedField(
+class LoanVerdictAISerializer(NamedHyperlinkedModelSerializer):
+    loan_account_application = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{LOAN_ACCOUNT_APPLICATION_BASENAME}-detail',
     )

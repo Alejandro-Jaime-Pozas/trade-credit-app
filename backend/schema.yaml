@@ -2843,6 +2843,16 @@ components:
       - ''
     CreditCase:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -2864,15 +2874,15 @@ components:
           - $ref: '#/components/schemas/StatusEnum'
           - $ref: '#/components/schemas/BlankEnum'
         verdict:
-          allOf:
-          - $ref: '#/components/schemas/VerdictEnum'
-          readOnly: true
           description: |-
             Credit case status like pending, approved, rejected. Items are in order of sequence.
 
             * `pending` - Pending
             * `approved` - Approved
             * `rejected` - Rejected
+          oneOf:
+          - $ref: '#/components/schemas/VerdictEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         requested_amount:
           type: string
           format: decimal
@@ -2922,15 +2932,39 @@ components:
           nullable: true
           description: Final verdict timestamp after human review.
         assigned_to:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           nullable: true
         customer:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
         required_file_type_names:
           type: array
@@ -2942,6 +2976,19 @@ components:
           items:
             type: string
           readOnly: true
+        requirements_complete:
+          type: boolean
+          readOnly: true
+        requirements_completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When every required document for this case had been uploaded
+            and classified. Stamped once, the first time it happens, as a record of
+            when the file requirements were satisfied. Whether the case is complete
+            RIGHT NOW is answered by the requirements_complete property, which is
+            always derived from the current documents.
         requirement_template:
           type: integer
           writeOnly: true
@@ -2959,10 +3006,11 @@ components:
       - optional_file_type_names
       - organization
       - required_file_type_names
+      - requirements_complete
+      - requirements_completed_at
       - submitted_at
       - updated_at
       - url
-      - verdict
       - verdict_at
     CreditCaseRequirement:
       type: object
@@ -2982,8 +3030,16 @@ components:
           type: integer
           readOnly: true
         credit_case:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           description: The credit case that needs this document.
         file_type:
           type: integer
@@ -2995,8 +3051,7 @@ components:
           readOnly: true
         is_required:
           type: boolean
-          description: True means the case is incomplete without it. False means it
-            is listed as optional and never blocks completion.
+          default: true
         months_required:
           type: integer
           maximum: 32767
@@ -3040,6 +3095,16 @@ components:
       description: '* `MXN` - MXN'
     Customer:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3093,21 +3158,45 @@ components:
           format: date-time
           readOnly: true
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           description: User's Organization that created this customer record.
         created_by:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           nullable: true
           description: User that created this customer record.
         customer_contacts:
           type: array
           items:
-            type: string
-            format: uri
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              display:
+                type: string
+            required:
+            - url
+            - display
           readOnly: true
         custom_fields:
           type: object
@@ -3126,6 +3215,16 @@ components:
       - url
     CustomerContact:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3168,18 +3267,42 @@ components:
           format: date-time
           readOnly: true
         created_by:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           nullable: true
           description: User that created this customer record.
         customer:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           description: The customer this contact belongs to.
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           nullable: true
           description: User's Organization that created this customer contact record.
@@ -3194,6 +3317,16 @@ components:
       - url
     DocumentDataExtract:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3230,8 +3363,16 @@ components:
           format: date-time
           readOnly: true
         upload_document:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
       required:
       - confidence_score
@@ -3324,8 +3465,16 @@ components:
           type: string
           title: Python model class name
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
         created_at:
           type: string
@@ -3356,8 +3505,16 @@ components:
           type: integer
           readOnly: true
         label:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           description: The custom field definition this value belongs to.
         content_type:
           type: string
@@ -3400,6 +3557,16 @@ components:
       - null
     Organization:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3417,8 +3584,16 @@ components:
         users:
           type: array
           items:
-            type: string
-            format: uri
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              display:
+                type: string
+            required:
+            - url
+            - display
           readOnly: true
       required:
       - email_domain
@@ -3704,6 +3879,16 @@ components:
             $ref: '#/components/schemas/User'
     PatchedCreditCase:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3725,15 +3910,15 @@ components:
           - $ref: '#/components/schemas/StatusEnum'
           - $ref: '#/components/schemas/BlankEnum'
         verdict:
-          allOf:
-          - $ref: '#/components/schemas/VerdictEnum'
-          readOnly: true
           description: |-
             Credit case status like pending, approved, rejected. Items are in order of sequence.
 
             * `pending` - Pending
             * `approved` - Approved
             * `rejected` - Rejected
+          oneOf:
+          - $ref: '#/components/schemas/VerdictEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         requested_amount:
           type: string
           format: decimal
@@ -3783,15 +3968,39 @@ components:
           nullable: true
           description: Final verdict timestamp after human review.
         assigned_to:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           nullable: true
         customer:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
         required_file_type_names:
           type: array
@@ -3803,6 +4012,19 @@ components:
           items:
             type: string
           readOnly: true
+        requirements_complete:
+          type: boolean
+          readOnly: true
+        requirements_completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When every required document for this case had been uploaded
+            and classified. Stamped once, the first time it happens, as a record of
+            when the file requirements were satisfied. Whether the case is complete
+            RIGHT NOW is answered by the requirements_complete property, which is
+            always derived from the current documents.
         requirement_template:
           type: integer
           writeOnly: true
@@ -3830,8 +4052,16 @@ components:
           type: integer
           readOnly: true
         credit_case:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           description: The credit case that needs this document.
         file_type:
           type: integer
@@ -3843,8 +4073,7 @@ components:
           readOnly: true
         is_required:
           type: boolean
-          description: True means the case is incomplete without it. False means it
-            is listed as optional and never blocks completion.
+          default: true
         months_required:
           type: integer
           maximum: 32767
@@ -3873,6 +4102,16 @@ components:
             Null means it has not been touched since the case was created.
     PatchedCustomer:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3926,21 +4165,45 @@ components:
           format: date-time
           readOnly: true
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           description: User's Organization that created this customer record.
         created_by:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           nullable: true
           description: User that created this customer record.
         customer_contacts:
           type: array
           items:
-            type: string
-            format: uri
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              display:
+                type: string
+            required:
+            - url
+            - display
           readOnly: true
         custom_fields:
           type: object
@@ -3949,6 +4212,16 @@ components:
           readOnly: true
     PatchedCustomerContact:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -3991,18 +4264,42 @@ components:
           format: date-time
           readOnly: true
         created_by:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           nullable: true
           description: User that created this customer record.
         customer:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           description: The customer this contact belongs to.
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
           nullable: true
           description: User's Organization that created this customer contact record.
@@ -4029,8 +4326,16 @@ components:
           type: string
           title: Python model class name
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
         created_at:
           type: string
@@ -4054,8 +4359,16 @@ components:
           type: integer
           readOnly: true
         label:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           description: The custom field definition this value belongs to.
         content_type:
           type: string
@@ -4081,6 +4394,16 @@ components:
           readOnly: true
     PatchedOrganization:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -4098,8 +4421,16 @@ components:
         users:
           type: array
           items:
-            type: string
-            format: uri
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              display:
+                type: string
+            required:
+            - url
+            - display
           readOnly: true
     PatchedRequirementTemplate:
       type: object
@@ -4130,8 +4461,16 @@ components:
           description: Whether new credit cases in this organization use this template
             automatically. At most one per organization.
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
         items:
           type: array
@@ -4147,6 +4486,16 @@ components:
           readOnly: true
     PatchedUploadDocument:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -4176,13 +4525,13 @@ components:
           description: friendly file name for readability.
         file_type_name:
           type: string
-          readOnly: true
           nullable: true
           description: 'The kind of document this is, as a file type key (e.g. "bank_statement").
             Set by the GPT classification step after upload, not by the user. Deliberately
             has no `choices`: valid keys live in the storage.FileType table (seeded
             from core/file_type_catalog.py) so organizations can eventually define
             their own types, which a static enum could never list.'
+          maxLength: 50
         mimetype:
           type: string
           readOnly: true
@@ -4193,13 +4542,29 @@ components:
           nullable: true
           description: Useful JSON data that gpt extracts from files.
         credit_case:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           nullable: true
           description: the credit case the file belongs to.
         customer:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           nullable: true
           description: the customer the file belongs to.
         custom_fields:
@@ -4209,6 +4574,16 @@ components:
           readOnly: true
     PatchedUser:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -4254,8 +4629,16 @@ components:
         organizations:
           type: array
           items:
-            type: string
-            format: uri
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              display:
+                type: string
+            required:
+            - url
+            - display
           readOnly: true
     RequestedTermDaysEnum:
       enum:
@@ -4300,8 +4683,16 @@ components:
           description: Whether new credit cases in this organization use this template
             automatically. At most one per organization.
         organization:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           readOnly: true
         items:
           type: array
@@ -4427,6 +4818,16 @@ components:
         * `moral` - Persona moral
     UploadDocument:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -4456,13 +4857,13 @@ components:
           description: friendly file name for readability.
         file_type_name:
           type: string
-          readOnly: true
           nullable: true
           description: 'The kind of document this is, as a file type key (e.g. "bank_statement").
             Set by the GPT classification step after upload, not by the user. Deliberately
             has no `choices`: valid keys live in the storage.FileType table (seeded
             from core/file_type_catalog.py) so organizations can eventually define
             their own types, which a static enum could never list.'
+          maxLength: 50
         mimetype:
           type: string
           readOnly: true
@@ -4473,13 +4874,29 @@ components:
           nullable: true
           description: Useful JSON data that gpt extracts from files.
         credit_case:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           nullable: true
           description: the credit case the file belongs to.
         customer:
-          type: string
-          format: uri
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            display:
+              type: string
+          required:
+          - url
+          - display
           nullable: true
           description: the customer the file belongs to.
         custom_fields:
@@ -4491,7 +4908,6 @@ components:
       - custom_fields
       - extracted_data
       - file
-      - file_type_name
       - friendly_file_name
       - id
       - mimetype
@@ -4500,6 +4916,16 @@ components:
       - url
     User:
       type: object
+      description: |-
+        Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+        auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+        above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+        links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+
+        Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+        CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+        untouched by this, by design: that field is how the browsable API/frontend already
+        identifies "this specific record", not a link to something else.
       properties:
         url:
           type: string
@@ -4545,8 +4971,16 @@ components:
         organizations:
           type: array
           items:
-            type: string
-            format: uri
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+              display:
+                type: string
+            required:
+            - url
+            - display
           readOnly: true
       required:
       - date_joined

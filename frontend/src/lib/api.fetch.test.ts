@@ -226,3 +226,54 @@ describe("drfListAll", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("empty success bodies", () => {
+  const validToken = () =>
+    makeToken({ user_id: 1, exp: Math.floor(Date.now() / 1000) + 3600 });
+
+  /**
+   * DRF answers a successful DELETE with 204 and no body. `res.json()` throws on that,
+   * and the resulting SyntaxError surfaced as a generic failure — so every Delete button
+   * in the app reported "Delete failed" on a delete that had actually worked.
+   */
+  it("resolves a 204 DELETE instead of throwing on the empty body", async () => {
+    setStoredTokens({ access: validToken(), refresh: "r" });
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      apiJson<void>({ pathOrUrl: "/customers/1/", method: "DELETE" }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("resolves a 200 with an empty body", async () => {
+    setStoredTokens({ access: validToken(), refresh: "r" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 200 })),
+    );
+
+    await expect(apiJson<void>({ pathOrUrl: "/things/1/" })).resolves.toBeUndefined();
+  });
+
+  it("still parses a normal JSON body", async () => {
+    setStoredTokens({ access: validToken(), refresh: "r" });
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: 7 })));
+
+    await expect(apiJson<{ id: number }>({ pathOrUrl: "/things/7/" })).resolves.toEqual({
+      id: 7,
+    });
+  });
+
+  it("still reports a real failure", async () => {
+    setStoredTokens({ access: validToken(), refresh: "r" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ detail: "Not found." }, 404)),
+    );
+
+    await expect(
+      apiJson<void>({ pathOrUrl: "/customers/999/", method: "DELETE" }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+});

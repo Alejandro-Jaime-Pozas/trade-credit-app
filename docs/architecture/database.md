@@ -76,6 +76,46 @@ Postgres DB accessed via Django/Python ORM
   - created_by FK User
   - unique_together: (label, content_type, object_id) — enforces one value per label per object
   - labelable models (all expose a `label_values` GenericRelation): CreditCase, Customer, UploadDocument
+- FileType (one kind of document the app recognizes, e.g. "bank_statement" — DB mirror of core/file_type_catalog.py)
+  - key (ie. bank_statement; IMMUTABLE — it is the value stored in UploadDocument.file_type_name)
+  - label_en, label_es (display names; these are what gets renamed, never the key)
+  - category (financial | legal | other — decides how recent a document must be to count)
+  - months_required (null = one document is enough regardless of period)
+  - is_active
+  - organization FK null (NULL = app-provided/global, visible to every org; set = that org's own type)
+  - created_at
+  - created_by FK User null
+  - unique_together: (organization, key)
+  - PLUS a partial unique index on (key) WHERE organization IS NULL — the constraint above cannot
+    cover the global rows, because Postgres treats two NULLs as distinct values
+- RequirementTemplate (an organization's reusable list of documents to ask for on a credit case)
+  - name (ie. Default)
+  - is_default (the template applied automatically to new credit cases)
+  - organization FK
+  - created_at, updated_at
+  - created_by FK User null
+  - unique_together: (organization, name)
+  - PLUS a partial unique index on (organization) WHERE is_default — one default per org
+- RequirementTemplateItem (one document type listed in a template)
+  - template FK RequirementTemplate
+  - file_type FK FileType (PROTECT)
+  - is_required (False = shown as optional, never blocks completion)
+  - months_required null (overrides FileType.months_required for this template)
+  - order
+  - unique_together: (template, file_type)
+- CreditCaseRequirement (one document a SPECIFIC credit case needs — a per-case snapshot)
+  - credit_case FK CreditCase (related_name='requirements')
+  - file_type FK FileType (PROTECT)
+  - is_required
+  - source (template | manual — 'manual' rows are per-case additions a re-sync never touches)
+  - source_template FK RequirementTemplate null (which template it was copied from)
+  - months_required null
+  - created_at
+  - synced_at null (when a template re-sync last added/changed this row)
+  - created_by FK User null
+  - unique_together: (credit_case, file_type)
+  - NOTE: deliberately a COPY of the template rather than a FK to it, so editing a template later
+    cannot rewrite what an already-reviewed credit case was required to provide
 
 ## v2 New Models
 

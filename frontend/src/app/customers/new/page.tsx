@@ -19,7 +19,7 @@ export default function NewCustomerPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const organizationUrl = useMemo(() => user?.organizations?.[0] ?? null, [user]);
+  const organizationUrl = useMemo(() => user?.organizations?.[0]?.url ?? null, [user]);
 
   const [customerName, setCustomerName] = useState("");
   const [rfc, setRfc] = useState("");

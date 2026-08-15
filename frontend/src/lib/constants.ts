@@ -1,16 +1,18 @@
-/** Human-readable labels for upload file_type_name values. */
-export const FILE_TYPE_NAME_LABELS: Record<string, string> = {
-  cashflow_statement: "Cashflow statement",
-  bank_statement: "Bank statement",
-  balance_sheet: "Balance sheet",
-  income_statement: "Income statement",
-  constancia_de_situacion_fiscal: "Constancia de situación fiscal",
-  unknown: "Unknown",
-};
+// Labels for file_type_name values are NOT kept here. They come from the backend's
+// file type catalog via `GET /file-types/` — see `fileTypeLabel()` in lib/fileTypes.ts.
+// A hardcoded map here would silently go stale every time a document type is added,
+// rendering raw keys like "acta_constitutiva" instead of readable names.
 
 export const REQUESTED_TERM_DAYS_OPTIONS = [15, 30, 45, 60, 90] as const;
 
 export type RequestedTermDays = (typeof REQUESTED_TERM_DAYS_OPTIONS)[number];
+
+/** The reviewer's final decision on a case. Set by hand from the detail page. */
+export const CREDIT_CASE_VERDICT_LABELS: Record<string, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+};
 
 export const CREDIT_CASE_STATUS_LABELS: Record<string, string> = {
   missing_documents: "Missing documents",

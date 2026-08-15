@@ -1,3 +1,5 @@
+import { parseAmount } from "./money";
+
 /**
  * Pure helpers backing the per-column sort + filter controls on the credit
  * cases table (see `src/components/TableColumnHeader.tsx` and
@@ -188,12 +190,11 @@ export const AMOUNT_BUCKETS: ReadonlyArray<{ value: string; label: string }> = [
   { value: NO_VALUE, label: "No amount" },
 ];
 
-/** Parses a DRF decimal string into a number, or null when absent/unparseable. */
-export function parseAmount(amount: string | number | null | undefined): number | null {
-  if (amount === null || amount === undefined || amount === "") return null;
-  const n = typeof amount === "number" ? amount : Number(amount);
-  return Number.isNaN(n) ? null : n;
-}
+/**
+ * Parses a DRF decimal string into a number, or null when absent/unparseable.
+ * Re-exported from lib/money so there is one definition of what an amount is.
+ */
+export { parseAmount };
 
 /**
  * True when `amount` matches ANY selected bucket (union), so picking

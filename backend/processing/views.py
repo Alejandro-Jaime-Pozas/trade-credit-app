@@ -1,3 +1,4 @@
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import (
@@ -81,6 +82,19 @@ class CreditCaseViewSet(
               user has opted out of the default for it.
         """
         credit_case = self.get_object()  # already organization-scoped by the mixin
+
+        # Same rule as editing requirements one at a time: once a case has been submitted
+        # for approval its requirement list is the reviewer's evidence and is frozen.
+        if credit_case.submitted_at is not None:
+            return Response(
+                {
+                    'detail': (
+                        'This credit case has been submitted for approval, so its '
+                        'required documents can no longer be changed.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         serializer = SetCreditCaseRequirementsSerializer(
             data=request.data,

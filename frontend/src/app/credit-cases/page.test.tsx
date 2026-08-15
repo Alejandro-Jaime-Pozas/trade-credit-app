@@ -42,6 +42,12 @@ const CUSTOMERS: Record<string, Customer> = {
   "http://api/customers/2/": { id: 2, name: "Beta SA" } as Customer,
 };
 
+// `customer` on a CreditCase is a hyperlink relation field ({"url": ..., "display": ...}),
+// not a bare URL string -- see core/serializer_utils.py's NamedHyperlinkedRelatedField.
+function customerRef(url: string): { url: string; display: string } {
+  return { url, display: CUSTOMERS[url]?.name ?? url };
+}
+
 /** Days back from today, as an ISO string — keeps date tests independent of the clock. */
 function daysAgoIso(days: number): string {
   const d = new Date();
@@ -67,7 +73,7 @@ function makeCases(): CreditCase[] {
       requested_term_days: 30,
       created_at: daysAgoIso(0),
       updated_at: daysAgoIso(0),
-      customer: "http://api/customers/1/",
+      customer: customerRef("http://api/customers/1/"),
     } as unknown as CreditCase,
     {
       url: "http://api/credit-cases/2/",
@@ -79,7 +85,7 @@ function makeCases(): CreditCase[] {
       requested_term_days: 60,
       created_at: daysAgoIso(3),
       updated_at: daysAgoIso(3),
-      customer: "http://api/customers/2/",
+      customer: customerRef("http://api/customers/2/"),
     } as unknown as CreditCase,
     {
       url: "http://api/credit-cases/3/",
@@ -91,7 +97,7 @@ function makeCases(): CreditCase[] {
       requested_term_days: null,
       created_at: daysAgoIso(45),
       updated_at: daysAgoIso(45),
-      customer: "http://api/customers/1/",
+      customer: customerRef("http://api/customers/1/"),
     } as unknown as CreditCase,
   ];
 }
@@ -345,7 +351,8 @@ describe("filtering", () => {
     const statuses = await openFilter(user, "Status");
     const options = within(statuses).getAllByRole("option");
     expect(options).toHaveLength(1);
-    expect(options[0]).toHaveTextContent("complete");
+    // Shown by its readable label, not the raw `complete` key.
+    expect(options[0]).toHaveTextContent("Complete");
   });
 
   it("clears every column with Clear all filters", async () => {

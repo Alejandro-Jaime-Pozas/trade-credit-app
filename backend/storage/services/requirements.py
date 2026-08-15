@@ -91,14 +91,18 @@ def diff_template_against_case(template, credit_case):
     }
     requirements = list(credit_case.requirements.select_related('file_type'))
 
-    # Any existing row blocks an add, whatever its source: a manual row for the same
-    # file type already covers that requirement, and unique(credit_case, file_type)
-    # would reject a second one regardless.
+    # Any existing row blocks an add, whatever its source or state:
+    #   - a manual row for the same file type already covers that requirement, and
+    #     unique(credit_case, file_type) would reject a second one anyway;
+    #   - an EXCLUDED row means a user deliberately dropped that document from this
+    #     case, and a re-sync must not quietly put it back. That is the whole point of
+    #     keeping excluded rows instead of deleting them.
     present_file_type_ids = {req.file_type_id for req in requirements}
 
     template_sourced = [
         req for req in requirements
         if req.source == CreditCaseRequirement.Source.TEMPLATE
+        and not req.is_excluded
     ]
 
     adds = [

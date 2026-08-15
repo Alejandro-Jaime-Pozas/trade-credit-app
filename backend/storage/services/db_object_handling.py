@@ -12,6 +12,7 @@ from processing.services.credit_case import (
     check_aggregate_satisfied_month_intervals,
     check_all_files_required_dates_complete,
 )
+from processing.services.credit_case_status import handle_requirements_progress
 from processing.loan_term_calculations.constants import CREDIT_SCORE_VERDICT
 from core.str_utils import pretty_print
 from storage.models import UploadDocument
@@ -63,6 +64,13 @@ def handle_upload_document_created(doc):
 
     # If the doc is a CSF, auto-fill the customer's rfc/legal_name from the extracted data
     promote_csf_fields_to_customer(doc)
+
+    # Now that the doc has a file_type_name it can satisfy a requirement, so re-check
+    # whether this case has everything it needs. Runs after classification on purpose:
+    # an unclassified upload counts toward nothing.
+    if credit_case:
+        credit_case.refresh_from_db()
+        handle_requirements_progress(credit_case)
 
     # TODO LATER =====================================
     # # TODO later: If file_type_name is Const de Situacion Fiscal, run credit process

@@ -24,6 +24,7 @@
 
 import React, { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { clampColumnWidth } from "@/lib/columnWidths";
 import {
   searchOptions,
   type FilterOption,
@@ -60,6 +61,18 @@ type TableColumnHeaderProps = {
   onToggleValue?: (value: string) => void;
   /** Clear every selection for this column. */
   onClearColumn?: () => void;
+  /** Current width in px, or undefined to let the column size itself. */
+  width?: number;
+  /**
+   * Share of the table this column takes when the user hasn't resized it, as a
+   * percentage. Without one the browser hands ALL the slack in a wide window to a single
+   * column instead of spreading it, which is what made the ID column balloon.
+   */
+  defaultWidthPercent?: number;
+  /** Called continuously while the user drags this column's resize handle. */
+  onResize?: (width: number) => void;
+  /** Called once when the drag ends, so the caller can persist the new width. */
+  onResizeEnd?: () => void;
 };
 
 /** Maps the sort state onto the glyph and the label read by screen readers. */
@@ -107,9 +120,14 @@ export function TableColumnHeader({
   selected = [],
   onToggleValue,
   onClearColumn,
+  width,
+  defaultWidthPercent,
+  onResize,
+  onResizeEnd,
 }: TableColumnHeaderProps) {
   /** A column without an option list gets a sort button only. */
   const filterable = options !== undefined;
+  const cellRef = useRef<HTMLTableCellElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -341,8 +359,70 @@ export function TableColumnHeader({
     </div>
   );
 
+  /**
+   * Drag the column edge to resize.
+   *
+   * Tracked on `document` rather than the handle, so the pointer can leave the thin
+   * handle mid-drag (which it always does) without the resize stopping. The starting
+   * width comes from the rendered cell, so the first drag on a never-resized column
+   * continues from where it actually is rather than jumping.
+   */
+  function handleResizeStart(e: React.PointerEvent<HTMLDivElement>) {
+    if (!onResize) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startWidth = width ?? cellRef.current?.getBoundingClientRect().width ?? 0;
+
+    const onPointerMove = (move: PointerEvent) => {
+      onResize(clampColumnWidth(startWidth + (move.clientX - startX)));
+    };
+    const onPointerUp = () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      onResizeEnd?.();
+    };
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+  }
+
+  /** Keyboard resizing, so this isn't a mouse-only feature. */
+  function handleResizeKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!onResize) return;
+    const step = e.shiftKey ? 40 : 10;
+    const current = width ?? cellRef.current?.getBoundingClientRect().width ?? 0;
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      onResize(clampColumnWidth(current - step));
+      onResizeEnd?.();
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      onResize(clampColumnWidth(current + step));
+      onResizeEnd?.();
+    }
+  }
+
   return (
-    <th className="px-4 py-3" aria-sort={ariaSort} scope="col">
+    <th
+      ref={cellRef}
+      className="relative px-4 py-3"
+      aria-sort={ariaSort}
+      scope="col"
+      // A width the user dragged wins outright. Otherwise the percentage lets every
+      // column share the extra space in a wide window. The table stays `auto` layout,
+      // so these are proportions rather than hard limits — a column still refuses to
+      // squash below its content on a narrow screen, and the table scrolls instead.
+      style={
+        width
+          ? { width, minWidth: width }
+          : defaultWidthPercent
+            ? { width: `${defaultWidthPercent}%` }
+            : undefined
+      }
+    >
       <div className="flex items-center gap-1">
         <span>{label}</span>
 
@@ -387,6 +467,27 @@ export function TableColumnHeader({
         </button>
         )}
       </div>
+
+      {onResize && (
+        // Sits on the column's right edge. `separator` with an orientation and value is
+        // the ARIA pattern for a resize grip, and it is focusable so the width can be
+        // changed with the arrow keys too.
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${label} column`}
+          tabIndex={0}
+          onPointerDown={handleResizeStart}
+          onKeyDown={handleResizeKeyDown}
+          onDoubleClick={() => {
+            // Double-click clears this column's stored width, letting the table size it
+            // again — the way back from a drag that went wrong.
+            onResize(0);
+            onResizeEnd?.();
+          }}
+          className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none hover:bg-zinc-300 focus:bg-zinc-400 focus:outline-none"
+        />
+      )}
 
       {open && typeof document !== "undefined"
         ? createPortal(panel, document.body)

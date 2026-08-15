@@ -44,6 +44,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/credit-case-requirements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The documents one specific credit case needs.
+         *
+         *     Used for per-case deviations - the extra document needed for one particular
+         *     customer, or dropping one that doesn't apply. Anything created here is marked
+         *     `source='manual'` and is never altered by a later template re-sync.
+         */
+        get: operations["credit_case_requirements_list"];
+        put?: never;
+        /**
+         * @description The documents one specific credit case needs.
+         *
+         *     Used for per-case deviations - the extra document needed for one particular
+         *     customer, or dropping one that doesn't apply. Anything created here is marked
+         *     `source='manual'` and is never altered by a later template re-sync.
+         */
+        post: operations["credit_case_requirements_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credit-case-requirements/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The documents one specific credit case needs.
+         *
+         *     Used for per-case deviations - the extra document needed for one particular
+         *     customer, or dropping one that doesn't apply. Anything created here is marked
+         *     `source='manual'` and is never altered by a later template re-sync.
+         */
+        get: operations["credit_case_requirements_retrieve"];
+        /**
+         * @description The documents one specific credit case needs.
+         *
+         *     Used for per-case deviations - the extra document needed for one particular
+         *     customer, or dropping one that doesn't apply. Anything created here is marked
+         *     `source='manual'` and is never altered by a later template re-sync.
+         */
+        put: operations["credit_case_requirements_update"];
+        post?: never;
+        /**
+         * @description The documents one specific credit case needs.
+         *
+         *     Used for per-case deviations - the extra document needed for one particular
+         *     customer, or dropping one that doesn't apply. Anything created here is marked
+         *     `source='manual'` and is never altered by a later template re-sync.
+         */
+        delete: operations["credit_case_requirements_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description The documents one specific credit case needs.
+         *
+         *     Used for per-case deviations - the extra document needed for one particular
+         *     customer, or dropping one that doesn't apply. Anything created here is marked
+         *     `source='manual'` and is never altered by a later template re-sync.
+         */
+        patch: operations["credit_case_requirements_partial_update"];
+        trace?: never;
+    };
     "/api/v1/credit-cases/": {
         parameters: {
             query?: never;
@@ -52,16 +126,48 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["credit_cases_list"];
         put?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         post: operations["credit_cases_create"];
         delete?: never;
@@ -78,32 +184,131 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["credit_cases_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         put: operations["credit_cases_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         delete: operations["credit_cases_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         patch: operations["credit_cases_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/credit-cases/{id}/set-requirements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Set exactly which documents this credit case requires.
+         *
+         *     Exists because the credit case is created BEFORE the user picks its documents in
+         *     the create-case flow, so the client has to reconcile an already-seeded case
+         *     against the user's choice. Doing that from the browser would be a series of
+         *     deletes and posts with no transaction around them, leaving a half-configured case
+         *     whenever one call failed.
+         *
+         *     Two mutually exclusive bodies, matching the two things the UI lets a user click:
+         *
+         *       {"requirement_template": <id>}  - "use my organization's default". Rows are
+         *           copied from the template and stay linked to it, so this case is still
+         *           picked up by that template's later impact/apply re-syncs.
+         *
+         *       {"file_type_ids": [<id>, ...]}  - "pick documents for this customer". Rows are
+         *           written as manual, so a later re-sync deliberately skips this case: the
+         *           user has opted out of the default for it.
+         */
+        post: operations["credit_cases_set_requirements_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/customer-contacts/": {
@@ -114,16 +319,48 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["customer_contacts_list"];
         put?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         post: operations["customer_contacts_create"];
         delete?: never;
@@ -140,30 +377,94 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["customer_contacts_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         put: operations["customer_contacts_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         delete: operations["customer_contacts_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         patch: operations["customer_contacts_partial_update"];
         trace?: never;
@@ -176,16 +477,48 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["customers_list"];
         put?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         post: operations["customers_create"];
         delete?: never;
@@ -202,30 +535,94 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["customers_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         put: operations["customers_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         delete: operations["customers_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         patch: operations["customers_partial_update"];
         trace?: never;
@@ -238,9 +635,25 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["document_data_extracts_list"];
         put?: never;
@@ -259,11 +672,73 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["document_data_extracts_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-types/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The kinds of documents that can be required, for building requirement templates.
+         *
+         *     Read-only: app-provided types are seeded from core/file_type_catalog.py by
+         *     `manage.py sync_file_types`. Organization-created types are planned but not built
+         *     (see docs/versions/v2.md).
+         */
+        get: operations["file_types_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-types/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The kinds of documents that can be required, for building requirement templates.
+         *
+         *     Read-only: app-provided types are seeded from core/file_type_catalog.py by
+         *     `manage.py sync_file_types`. Organization-created types are planned but not built
+         *     (see docs/versions/v2.md).
+         */
+        get: operations["file_types_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -425,16 +900,48 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["organizations_list"];
         put?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         post: operations["organizations_create"];
         delete?: never;
@@ -451,32 +958,219 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["organizations_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         put: operations["organizations_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         delete: operations["organizations_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         patch: operations["organizations_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/requirement-templates/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description An organization's reusable lists of documents to require on a credit case.
+         *
+         *     A new credit case is seeded from the organization's default template. Editing a
+         *     template afterwards does not touch existing cases on its own — use `impact` to see
+         *     what would change and `apply` to push it onto chosen open cases.
+         */
+        get: operations["requirement_templates_list"];
+        put?: never;
+        /**
+         * @description An organization's reusable lists of documents to require on a credit case.
+         *
+         *     A new credit case is seeded from the organization's default template. Editing a
+         *     template afterwards does not touch existing cases on its own — use `impact` to see
+         *     what would change and `apply` to push it onto chosen open cases.
+         */
+        post: operations["requirement_templates_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requirement-templates/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description An organization's reusable lists of documents to require on a credit case.
+         *
+         *     A new credit case is seeded from the organization's default template. Editing a
+         *     template afterwards does not touch existing cases on its own — use `impact` to see
+         *     what would change and `apply` to push it onto chosen open cases.
+         */
+        get: operations["requirement_templates_retrieve"];
+        /**
+         * @description An organization's reusable lists of documents to require on a credit case.
+         *
+         *     A new credit case is seeded from the organization's default template. Editing a
+         *     template afterwards does not touch existing cases on its own — use `impact` to see
+         *     what would change and `apply` to push it onto chosen open cases.
+         */
+        put: operations["requirement_templates_update"];
+        post?: never;
+        /**
+         * @description An organization's reusable lists of documents to require on a credit case.
+         *
+         *     A new credit case is seeded from the organization's default template. Editing a
+         *     template afterwards does not touch existing cases on its own — use `impact` to see
+         *     what would change and `apply` to push it onto chosen open cases.
+         */
+        delete: operations["requirement_templates_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description An organization's reusable lists of documents to require on a credit case.
+         *
+         *     A new credit case is seeded from the organization's default template. Editing a
+         *     template afterwards does not touch existing cases on its own — use `impact` to see
+         *     what would change and `apply` to push it onto chosen open cases.
+         */
+        patch: operations["requirement_templates_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/requirement-templates/{id}/apply/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Re-apply this template to the credit cases named in `credit_case_ids`.
+         *
+         *     Deliberately explicit rather than "all open cases": the user picks after seeing
+         *     the impact report. Requirements they added by hand are preserved, and a case's
+         *     status is never changed - it simply reports any new document as missing.
+         */
+        post: operations["requirement_templates_apply_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requirement-templates/{id}/impact/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Show what re-applying this template would do to each open credit case.
+         *
+         *     Only cases seeded from this template and not yet submitted are considered — a
+         *     submitted case's requirement list is the evidence its reviewer worked from.
+         *
+         *     The diff is computed fresh against each case's current rows rather than from a
+         *     record of what the user just edited, so this is safe to call any time and
+         *     returns an empty list once everything is in sync.
+         */
+        get: operations["requirement_templates_impact_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/schema/": {
@@ -509,9 +1203,25 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["upload_documents_list"];
         put?: never;
@@ -534,30 +1244,94 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["upload_documents_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         put: operations["upload_documents_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         delete: operations["upload_documents_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         patch: operations["upload_documents_partial_update"];
         trace?: never;
@@ -570,16 +1344,48 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["users_list"];
         put?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         post: operations["users_create"];
         delete?: never;
@@ -596,30 +1402,94 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         get: operations["users_retrieve"];
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         put: operations["users_update"];
         post?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         delete: operations["users_destroy"];
         options?: never;
         head?: never;
         /**
-         * @description Template to scope other model views to the user's (active) organization.
+         * @description Scope every user action on a view to the user's organization(s).
          *
-         *     Queryset must be customized as a lookup to ensure accurate relationship lookup.
+         *     Two halves, because Django and DRF enforce them in different places:
+         *
+         *     - READS  — `organization_lookup` filters the queryset, so a user only ever sees
+         *       their own organization's rows.
+         *     - WRITES — `organization_scoped_fields` narrows the ForeignKey fields the user is
+         *       allowed to point AT. Without this, DRF builds every FK field with an unfiltered
+         *       `Model.objects.all()`, so a user could POST a link to another organization's row
+         *       and attach their record to another tenant's data.
+         *
+         *     Example on a viewset:
+         *
+         *         organization_lookup = 'customer__organization'
+         *         organization_scoped_fields = {'customer': 'organization'}
+         *
+         *     `organization_lookup` is the ORM path from THIS view's model to Organization;
+         *     each value in `organization_scoped_fields` is the path from THAT FIELD's model
+         *     to Organization.
          */
         patch: operations["users_partial_update"];
         trace?: never;
@@ -630,6 +1500,17 @@ export interface components {
     schemas: {
         /** @enum {unknown} */
         BlankEnum: "";
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         CreditCase: {
             /** Format: uri */
             readonly url: string;
@@ -651,7 +1532,7 @@ export interface components {
              *     * `approved` - Approved
              *     * `rejected` - Rejected
              */
-            readonly verdict: components["schemas"]["VerdictEnum"];
+            verdict?: components["schemas"]["VerdictEnum"] | components["schemas"]["BlankEnum"];
             /**
              * Format: decimal
              * @description Requested credit line amount.
@@ -687,22 +1568,90 @@ export interface components {
              * @description Final verdict timestamp after human review.
              */
             readonly verdict_at: string | null;
-            /** Format: uri */
-            assigned_to?: string | null;
-            /** Format: uri */
-            customer: string;
-            /** Format: uri */
-            readonly organization: string;
+            assigned_to?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            customer: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            readonly organization: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
             readonly required_file_type_names: string[];
+            readonly optional_file_type_names: string[];
+            readonly requirements_complete: boolean;
+            /**
+             * Format: date-time
+             * @description When every required document for this case had been uploaded and classified. Stamped once, the first time it happens, as a record of when the file requirements were satisfied. Whether the case is complete RIGHT NOW is answered by the requirements_complete property, which is always derived from the current documents.
+             */
+            readonly requirements_completed_at: string | null;
+            requirement_template?: number | null;
             readonly custom_fields: {
                 [key: string]: string;
             };
+        };
+        /**
+         * @description One document a specific credit case needs.
+         *
+         *     Requirements created through this endpoint are always `source='manual'` — they are
+         *     the per-case additions a user makes for one particular customer, and a later template
+         *     re-sync will leave them untouched. Template-sourced rows are created by seeding, not
+         *     here.
+         */
+        CreditCaseRequirement: {
+            /** Format: uri */
+            readonly url: string;
+            readonly id: number;
+            /** @description The credit case that needs this document. */
+            credit_case: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            file_type: number;
+            readonly file_type_key: string;
+            readonly label_en: string;
+            /** @default true */
+            is_required: boolean;
+            /** @description Overrides FileType.months_required for this case only. */
+            months_required?: number | null;
+            /**
+             * @description Whether this came from a template (re-syncable) or was added by hand for this case (never overwritten by a re-sync).
+             *
+             *     * `template` - Template
+             *     * `manual` - Manual
+             */
+            readonly source: components["schemas"]["SourceEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /**
+             * Format: date-time
+             * @description When this row was last added or changed by a template re-sync. Null means it has not been touched since the case was created.
+             */
+            readonly synced_at: string | null;
         };
         /**
          * @description * `MXN` - MXN
          * @enum {string}
          */
         CurrencyEnum: "MXN";
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         Customer: {
             /** Format: uri */
             readonly url: string;
@@ -728,21 +1677,38 @@ export interface components {
             readonly created_at: string;
             /** Format: date-time */
             readonly updated_at: string;
-            /**
-             * Format: uri
-             * @description User's Organization that created this customer record.
-             */
-            readonly organization: string;
-            /**
-             * Format: uri
-             * @description User that created this customer record.
-             */
-            readonly created_by: string | null;
-            readonly customer_contacts: string[];
+            /** @description User's Organization that created this customer record. */
+            readonly organization: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            /** @description User that created this customer record. */
+            readonly created_by: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            readonly customer_contacts: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            }[];
             readonly custom_fields: {
                 [key: string]: string;
             };
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         CustomerContact: {
             /** Format: uri */
             readonly url: string;
@@ -764,22 +1730,36 @@ export interface components {
             readonly created_at: string;
             /** Format: date-time */
             readonly updated_at: string;
-            /**
-             * Format: uri
-             * @description User that created this customer record.
-             */
-            readonly created_by: string | null;
-            /**
-             * Format: uri
-             * @description The customer this contact belongs to.
-             */
-            customer: string;
-            /**
-             * Format: uri
-             * @description User's Organization that created this customer contact record.
-             */
-            readonly organization: string | null;
+            /** @description User that created this customer record. */
+            readonly created_by: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            /** @description The customer this contact belongs to. */
+            customer: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            /** @description User's Organization that created this customer contact record. */
+            readonly organization: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         DocumentDataExtract: {
             /** Format: uri */
             readonly url: string;
@@ -799,19 +1779,38 @@ export interface components {
             readonly model_version: (components["schemas"]["ModelVersionEnum"] | components["schemas"]["NullEnum"]) | null;
             /** Format: date-time */
             readonly created_at: string;
-            /** Format: uri */
-            readonly upload_document: string;
+            readonly upload_document: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
         };
         /**
-         * @description * `bank_statement` - Bank Statement
-         *     * `cashflow_statement` - Cashflow Statement
-         *     * `unknown` - Unknown
-         *     * `income_statement` - Income Statement
-         *     * `balance_sheet` - Balance Sheet
-         *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
-         * @enum {string}
+         * @description A kind of document the app can recognize, e.g. "bank_statement".
+         *
+         *     Read-only: the app-provided types come from core/file_type_catalog.py via
+         *     `manage.py sync_file_types`. Letting organizations create their own is planned
+         *     (see docs/versions/v2.md) but not implemented.
          */
-        FileTypeNameEnum: "bank_statement" | "cashflow_statement" | "unknown" | "income_statement" | "balance_sheet" | "constancia_de_situacion_fiscal";
+        FileType: {
+            /** Format: uri */
+            readonly url: string;
+            readonly id: number;
+            /** @description Stable identifier matching UploadDocument.file_type_name, e.g. "bank_statement". Never change this after creation — documents are already stored under it. Rename label_en/label_es instead. */
+            key: string;
+            /** @description Display name in English, e.g. "Bank statement". */
+            label_en: string;
+            /** @description Display name in Spanish, e.g. "Estado de cuenta bancario". */
+            label_es: string;
+            /** @description One of core.file_type_catalog.FileTypeCategory: financial, legal or other. Decides how recent a document must be to still count. */
+            category: string;
+            /** @description How many distinct months this document must cover to satisfy a requirement (e.g. 12 monthly bank statements). Null means one document is enough regardless of period. */
+            months_required?: number | null;
+            /** @description Whether this type can still be added to new templates. Existing documents keep resolving either way — a type is never deleted, because documents already reference its key. */
+            is_active?: boolean;
+            /** @description True for app-provided types, which every organization can use. */
+            readonly is_global: boolean;
+        };
         /**
          * @description A Label is a custom field *definition* the user creates, e.g. "sucursal" for
          *     CreditCase. `content_type` picks which single model it applies to, by model
@@ -826,8 +1825,11 @@ export interface components {
             name: string;
             /** Python model class name */
             content_type: string;
-            /** Format: uri */
-            readonly organization: string;
+            readonly organization: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
             /** Format: date-time */
             readonly created_at: string;
         };
@@ -843,11 +1845,12 @@ export interface components {
             /** Format: uri */
             readonly url: string;
             readonly id: number;
-            /**
-             * Format: uri
-             * @description The custom field definition this value belongs to.
-             */
-            label: string;
+            /** @description The custom field definition this value belongs to. */
+            label: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
             /** Python model class name */
             readonly content_type: string;
             /**
@@ -869,13 +1872,28 @@ export interface components {
         ModelVersionEnum: "gpt-5-nano";
         /** @enum {unknown} */
         NullEnum: null;
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         Organization: {
             /** Format: uri */
             readonly url: string;
             readonly id: number;
             name: string;
             email_domain: string;
-            readonly users: string[];
+            readonly users: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            }[];
         };
         PaginatedCreditCaseList: {
             /** @example 123 */
@@ -891,6 +1909,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["CreditCase"][];
+        };
+        PaginatedCreditCaseRequirementList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["CreditCaseRequirement"][];
         };
         PaginatedCustomerContactList: {
             /** @example 123 */
@@ -937,6 +1970,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["DocumentDataExtract"][];
         };
+        PaginatedFileTypeList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["FileType"][];
+        };
         PaginatedLabelList: {
             /** @example 123 */
             count: number;
@@ -982,6 +2030,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Organization"][];
         };
+        PaginatedRequirementTemplateList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["RequirementTemplate"][];
+        };
         PaginatedUploadDocumentList: {
             /** @example 123 */
             count: number;
@@ -1012,6 +2075,17 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["User"][];
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         PatchedCreditCase: {
             /** Format: uri */
             readonly url?: string;
@@ -1033,7 +2107,7 @@ export interface components {
              *     * `approved` - Approved
              *     * `rejected` - Rejected
              */
-            readonly verdict?: components["schemas"]["VerdictEnum"];
+            verdict?: components["schemas"]["VerdictEnum"] | components["schemas"]["BlankEnum"];
             /**
              * Format: decimal
              * @description Requested credit line amount.
@@ -1069,17 +2143,85 @@ export interface components {
              * @description Final verdict timestamp after human review.
              */
             readonly verdict_at?: string | null;
-            /** Format: uri */
-            assigned_to?: string | null;
-            /** Format: uri */
-            customer?: string;
-            /** Format: uri */
-            readonly organization?: string;
+            assigned_to?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            customer?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            readonly organization?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
             readonly required_file_type_names?: string[];
+            readonly optional_file_type_names?: string[];
+            readonly requirements_complete?: boolean;
+            /**
+             * Format: date-time
+             * @description When every required document for this case had been uploaded and classified. Stamped once, the first time it happens, as a record of when the file requirements were satisfied. Whether the case is complete RIGHT NOW is answered by the requirements_complete property, which is always derived from the current documents.
+             */
+            readonly requirements_completed_at?: string | null;
+            requirement_template?: number | null;
             readonly custom_fields?: {
                 [key: string]: string;
             };
         };
+        /**
+         * @description One document a specific credit case needs.
+         *
+         *     Requirements created through this endpoint are always `source='manual'` — they are
+         *     the per-case additions a user makes for one particular customer, and a later template
+         *     re-sync will leave them untouched. Template-sourced rows are created by seeding, not
+         *     here.
+         */
+        PatchedCreditCaseRequirement: {
+            /** Format: uri */
+            readonly url?: string;
+            readonly id?: number;
+            /** @description The credit case that needs this document. */
+            credit_case?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            file_type?: number;
+            readonly file_type_key?: string;
+            readonly label_en?: string;
+            /** @default true */
+            is_required: boolean;
+            /** @description Overrides FileType.months_required for this case only. */
+            months_required?: number | null;
+            /**
+             * @description Whether this came from a template (re-syncable) or was added by hand for this case (never overwritten by a re-sync).
+             *
+             *     * `template` - Template
+             *     * `manual` - Manual
+             */
+            readonly source?: components["schemas"]["SourceEnum"];
+            /** Format: date-time */
+            readonly created_at?: string;
+            /**
+             * Format: date-time
+             * @description When this row was last added or changed by a template re-sync. Null means it has not been touched since the case was created.
+             */
+            readonly synced_at?: string | null;
+        };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         PatchedCustomer: {
             /** Format: uri */
             readonly url?: string;
@@ -1105,21 +2247,38 @@ export interface components {
             readonly created_at?: string;
             /** Format: date-time */
             readonly updated_at?: string;
-            /**
-             * Format: uri
-             * @description User's Organization that created this customer record.
-             */
-            readonly organization?: string;
-            /**
-             * Format: uri
-             * @description User that created this customer record.
-             */
-            readonly created_by?: string | null;
-            readonly customer_contacts?: string[];
+            /** @description User's Organization that created this customer record. */
+            readonly organization?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            /** @description User that created this customer record. */
+            readonly created_by?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            readonly customer_contacts?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            }[];
             readonly custom_fields?: {
                 [key: string]: string;
             };
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         PatchedCustomerContact: {
             /** Format: uri */
             readonly url?: string;
@@ -1141,21 +2300,24 @@ export interface components {
             readonly created_at?: string;
             /** Format: date-time */
             readonly updated_at?: string;
-            /**
-             * Format: uri
-             * @description User that created this customer record.
-             */
-            readonly created_by?: string | null;
-            /**
-             * Format: uri
-             * @description The customer this contact belongs to.
-             */
-            customer?: string;
-            /**
-             * Format: uri
-             * @description User's Organization that created this customer contact record.
-             */
-            readonly organization?: string | null;
+            /** @description User that created this customer record. */
+            readonly created_by?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            /** @description The customer this contact belongs to. */
+            customer?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            /** @description User's Organization that created this customer contact record. */
+            readonly organization?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
         };
         /**
          * @description A Label is a custom field *definition* the user creates, e.g. "sucursal" for
@@ -1171,8 +2333,11 @@ export interface components {
             name?: string;
             /** Python model class name */
             content_type?: string;
-            /** Format: uri */
-            readonly organization?: string;
+            readonly organization?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
             /** Format: date-time */
             readonly created_at?: string;
         };
@@ -1188,11 +2353,12 @@ export interface components {
             /** Format: uri */
             readonly url?: string;
             readonly id?: number;
-            /**
-             * Format: uri
-             * @description The custom field definition this value belongs to.
-             */
-            label?: string;
+            /** @description The custom field definition this value belongs to. */
+            label?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
             /** Python model class name */
             readonly content_type?: string;
             /**
@@ -1207,14 +2373,69 @@ export interface components {
             /** Format: date-time */
             readonly updated_at?: string;
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         PatchedOrganization: {
             /** Format: uri */
             readonly url?: string;
             readonly id?: number;
             name?: string;
             email_domain?: string;
-            readonly users?: string[];
+            readonly users?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            }[];
         };
+        /**
+         * @description An organization's reusable list of documents to ask for on a credit case.
+         *
+         *     `items` is writable and behaves as a full replacement: whatever list is sent becomes
+         *     the template's contents. That matches how the UI edits a template (as one list the
+         *     user rearranges) and keeps the client from having to diff line-by-line.
+         *
+         *     Editing a template does NOT change existing credit cases. Use the `impact` and
+         *     `apply` actions on this viewset to review and push changes onto open cases.
+         */
+        PatchedRequirementTemplate: {
+            /** Format: uri */
+            readonly url?: string;
+            readonly id?: number;
+            /** @description What the user calls this template, e.g. "Default" or "Clientes grandes". */
+            name?: string;
+            /** @description Whether new credit cases in this organization use this template automatically. At most one per organization. */
+            is_default?: boolean;
+            readonly organization?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            items?: components["schemas"]["RequirementTemplateItem"][];
+            /** Format: date-time */
+            readonly created_at?: string;
+            /** Format: date-time */
+            readonly updated_at?: string;
+        };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         PatchedUploadDocument: {
             /** Format: uri */
             readonly url?: string;
@@ -1230,35 +2451,39 @@ export interface components {
             file?: string;
             /** @description friendly file name for readability. */
             readonly friendly_file_name?: string | null;
-            /**
-             * @description file type name given the choices list.
-             *
-             *     * `bank_statement` - Bank Statement
-             *     * `cashflow_statement` - Cashflow Statement
-             *     * `unknown` - Unknown
-             *     * `income_statement` - Income Statement
-             *     * `balance_sheet` - Balance Sheet
-             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
-             */
-            readonly file_type_name?: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** @description The kind of document this is, as a file type key (e.g. "bank_statement"). Set by the GPT classification step after upload, not by the user. Deliberately has no `choices`: valid keys live in the storage.FileType table (seeded from core/file_type_catalog.py) so organizations can eventually define their own types, which a static enum could never list. */
+            file_type_name?: string | null;
             /** @description mime type of the file. */
             readonly mimetype?: string | null;
             /** @description Useful JSON data that gpt extracts from files. */
             readonly extracted_data?: unknown;
-            /**
-             * Format: uri
-             * @description the credit case the file belongs to.
-             */
-            credit_case?: string | null;
-            /**
-             * Format: uri
-             * @description the customer the file belongs to.
-             */
-            customer?: string | null;
+            /** @description the credit case the file belongs to. */
+            credit_case?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            /** @description the customer the file belongs to. */
+            customer?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
             readonly custom_fields?: {
                 [key: string]: string;
             };
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         PatchedUser: {
             /** Format: uri */
             readonly url?: string;
@@ -1285,7 +2510,11 @@ export interface components {
              * @description Designates whether this user should be treated as active. Unselect this instead of deleting accounts.
              */
             readonly is_active?: boolean;
-            readonly organizations?: string[];
+            readonly organizations?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            }[];
         };
         /**
          * @description * `15` - 15 days
@@ -1296,6 +2525,60 @@ export interface components {
          * @enum {integer}
          */
         RequestedTermDaysEnum: 15 | 30 | 45 | 60 | 90;
+        /**
+         * @description An organization's reusable list of documents to ask for on a credit case.
+         *
+         *     `items` is writable and behaves as a full replacement: whatever list is sent becomes
+         *     the template's contents. That matches how the UI edits a template (as one list the
+         *     user rearranges) and keeps the client from having to diff line-by-line.
+         *
+         *     Editing a template does NOT change existing credit cases. Use the `impact` and
+         *     `apply` actions on this viewset to review and push changes onto open cases.
+         */
+        RequirementTemplate: {
+            /** Format: uri */
+            readonly url: string;
+            readonly id: number;
+            /** @description What the user calls this template, e.g. "Default" or "Clientes grandes". */
+            name: string;
+            /** @description Whether new credit cases in this organization use this template automatically. At most one per organization. */
+            is_default?: boolean;
+            readonly organization: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            };
+            items: components["schemas"]["RequirementTemplateItem"][];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /**
+         * @description One document type listed in a requirement template.
+         *
+         *     Written as part of its parent template's payload (see RequirementTemplateSerializer),
+         *     not through its own endpoint, so a template and its lines are always saved together.
+         */
+        RequirementTemplateItem: {
+            readonly id: number;
+            /** @description The kind of document being asked for. */
+            file_type: number;
+            readonly file_type_key: string;
+            readonly label_en: string;
+            /** @description True means a credit case is incomplete without it. False means it is shown as a nice-to-have and never blocks completion. */
+            is_required?: boolean;
+            /** @description Overrides FileType.months_required for this template only. Null means use the file type's own value. */
+            months_required?: number | null;
+            /** @description Display order within the template. */
+            order?: number;
+        };
+        /**
+         * @description * `template` - Template
+         *     * `manual` - Manual
+         * @enum {string}
+         */
+        SourceEnum: "template" | "manual";
         /**
          * @description * `missing_documents` - Missing Documents
          *     * `pending_ai_verdict` - Pending AI Verdict
@@ -1321,6 +2604,17 @@ export interface components {
          * @enum {string}
          */
         TypeEnum: "fisica" | "moral";
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         UploadDocument: {
             /** Format: uri */
             readonly url: string;
@@ -1336,35 +2630,39 @@ export interface components {
             file: string;
             /** @description friendly file name for readability. */
             readonly friendly_file_name: string | null;
-            /**
-             * @description file type name given the choices list.
-             *
-             *     * `bank_statement` - Bank Statement
-             *     * `cashflow_statement` - Cashflow Statement
-             *     * `unknown` - Unknown
-             *     * `income_statement` - Income Statement
-             *     * `balance_sheet` - Balance Sheet
-             *     * `constancia_de_situacion_fiscal` - Constancia De Situacion Fiscal
-             */
-            readonly file_type_name: (components["schemas"]["FileTypeNameEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** @description The kind of document this is, as a file type key (e.g. "bank_statement"). Set by the GPT classification step after upload, not by the user. Deliberately has no `choices`: valid keys live in the storage.FileType table (seeded from core/file_type_catalog.py) so organizations can eventually define their own types, which a static enum could never list. */
+            file_type_name?: string | null;
             /** @description mime type of the file. */
             readonly mimetype: string | null;
             /** @description Useful JSON data that gpt extracts from files. */
             readonly extracted_data: unknown;
-            /**
-             * Format: uri
-             * @description the credit case the file belongs to.
-             */
-            credit_case?: string | null;
-            /**
-             * Format: uri
-             * @description the customer the file belongs to.
-             */
-            customer?: string | null;
+            /** @description the credit case the file belongs to. */
+            credit_case?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
+            /** @description the customer the file belongs to. */
+            customer?: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            } | null;
             readonly custom_fields: {
                 [key: string]: string;
             };
         };
+        /**
+         * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
+         *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
+         *     above instead of the plain `HyperlinkedRelatedField`. Every serializer in this app that
+         *     links to OTHER objects should subclass this instead of `serializers.HyperlinkedModelSerializer`.
+         *
+         *     Only relation fields are affected — a resource's OWN identity `url` field (e.g. a
+         *     CreditCase's own `url`) is built separately by DRF (`serializer_url_field`) and is
+         *     untouched by this, by design: that field is how the browsable API/frontend already
+         *     identifies "this specific record", not a link to something else.
+         */
         User: {
             /** Format: uri */
             readonly url: string;
@@ -1391,7 +2689,11 @@ export interface components {
              * @description Designates whether this user should be treated as active. Unselect this instead of deleting accounts.
              */
             readonly is_active: boolean;
-            readonly organizations: string[];
+            readonly organizations: {
+                /** Format: uri */
+                url: string;
+                display: string;
+            }[];
         };
         /**
          * @description * `pending` - Pending
@@ -1455,6 +2757,152 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenRefresh"];
+                };
+            };
+        };
+    };
+    credit_case_requirements_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCreditCaseRequirementList"];
+                };
+            };
+        };
+    };
+    credit_case_requirements_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditCaseRequirement"];
+                "application/x-www-form-urlencoded": components["schemas"]["CreditCaseRequirement"];
+                "multipart/form-data": components["schemas"]["CreditCaseRequirement"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditCaseRequirement"];
+                };
+            };
+        };
+    };
+    credit_case_requirements_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this credit case requirement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditCaseRequirement"];
+                };
+            };
+        };
+    };
+    credit_case_requirements_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this credit case requirement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditCaseRequirement"];
+                "application/x-www-form-urlencoded": components["schemas"]["CreditCaseRequirement"];
+                "multipart/form-data": components["schemas"]["CreditCaseRequirement"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditCaseRequirement"];
+                };
+            };
+        };
+    };
+    credit_case_requirements_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this credit case requirement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    credit_case_requirements_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this credit case requirement. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCreditCaseRequirement"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCreditCaseRequirement"];
+                "multipart/form-data": components["schemas"]["PatchedCreditCaseRequirement"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditCaseRequirement"];
                 };
             };
         };
@@ -1592,6 +3040,34 @@ export interface operations {
                 "application/json": components["schemas"]["PatchedCreditCase"];
                 "application/x-www-form-urlencoded": components["schemas"]["PatchedCreditCase"];
                 "multipart/form-data": components["schemas"]["PatchedCreditCase"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditCase"];
+                };
+            };
+        };
+    };
+    credit_cases_set_requirements_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this credit case. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreditCase"];
+                "application/x-www-form-urlencoded": components["schemas"]["CreditCase"];
+                "multipart/form-data": components["schemas"]["CreditCase"];
             };
         };
         responses: {
@@ -1937,6 +3413,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDataExtract"];
+                };
+            };
+        };
+    };
+    file_types_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedFileTypeList"];
+                };
+            };
+        };
+    };
+    file_types_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this file type. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileType"];
                 };
             };
         };
@@ -2397,6 +3917,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Organization"];
+                };
+            };
+        };
+    };
+    requirement_templates_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedRequirementTemplateList"];
+                };
+            };
+        };
+    };
+    requirement_templates_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementTemplate"];
+                "application/x-www-form-urlencoded": components["schemas"]["RequirementTemplate"];
+                "multipart/form-data": components["schemas"]["RequirementTemplate"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
+                };
+            };
+        };
+    };
+    requirement_templates_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
+                };
+            };
+        };
+    };
+    requirement_templates_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementTemplate"];
+                "application/x-www-form-urlencoded": components["schemas"]["RequirementTemplate"];
+                "multipart/form-data": components["schemas"]["RequirementTemplate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
+                };
+            };
+        };
+    };
+    requirement_templates_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    requirement_templates_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedRequirementTemplate"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedRequirementTemplate"];
+                "multipart/form-data": components["schemas"]["PatchedRequirementTemplate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
+                };
+            };
+        };
+    };
+    requirement_templates_apply_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementTemplate"];
+                "application/x-www-form-urlencoded": components["schemas"]["RequirementTemplate"];
+                "multipart/form-data": components["schemas"]["RequirementTemplate"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
+                };
+            };
+        };
+    };
+    requirement_templates_impact_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
                 };
             };
         };

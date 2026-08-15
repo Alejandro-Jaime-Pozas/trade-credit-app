@@ -32,10 +32,16 @@ export function AppShell(props: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // The header, content and footer bands all share the same width rules so they stay
+  // aligned. There is deliberately no max-width: the layout used to be capped at 72rem,
+  // which left a wide window mostly empty while the credit cases table scrolled
+  // sideways inside it. It now uses whatever width the window offers, and still narrows
+  // normally on small screens — the padding just grows at wider breakpoints so text
+  // isn't flush against the edge.
   return (
     <div className="min-h-full flex flex-col bg-zinc-50">
       <header className="border-b bg-white">
-        <div className="mx-auto w-full max-w-6xl px-4 py-3 flex items-center justify-between gap-4">
+        <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link href="/credit-cases" className="font-semibold tracking-tight">
               Trade Credit App
@@ -44,6 +50,7 @@ export function AppShell(props: { children: React.ReactNode }) {
               <NavLink href="/credit-cases" label="Credit Cases" />
               {/* <NavLink href="/credit-cases/new" label="New case" /> */}
               <NavLink href="/customers" label="Customers" />
+              <NavLink href="/requirements" label="Requirements" />
             </nav>
           </div>
 
@@ -88,10 +95,10 @@ export function AppShell(props: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-6xl px-4 py-8">{props.children}</div>
+        <div className="w-full px-4 py-8 sm:px-6 lg:px-8">{props.children}</div>
       </main>
       <footer className="border-t bg-white">
-        <div className="mx-auto w-full max-w-6xl px-4 py-4 text-xs text-zinc-500">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-8 text-xs text-zinc-500">
           Dev mode. API base:{" "}
           <span className="font-mono">{process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"}</span>
         </div>

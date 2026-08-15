@@ -493,7 +493,8 @@ def test_file_types_list_shows_globals_but_not_another_orgs_custom_types():
 
     res = client.get(reverse('filetype-list'))
 
-    keys = {row['key'] for row in (res.data.get('results') or res.data)}
+    listed = res.data['results'] if 'results' in res.data else res.data
+    keys = {row['key'] for row in listed}
     assert 'bank_statement' in keys  # global, shared by everyone
     assert 'carta_de_poder' not in keys  # another organization's own
 
@@ -733,3 +734,254 @@ def test_set_requirements_rejects_another_organizations_credit_case():
 
     assert res.status_code == status.HTTP_404_NOT_FOUND
     assert foreign_case.requirements.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# Editing one case's requirements during its active life
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_removing_a_template_requirement_sticks_through_a_resync():
+    """
+    The headline guarantee of sticky removals: a document deliberately dropped from ONE
+    case must not come back the next time the organization's template is applied.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    template = make_template(org, ['bank_statement', 'balance_sheet'])
+    customer = make_customer(org)
+
+    created = client.post(
+        reverse('creditcase-list'),
+        data={'customer': reverse('customer-detail', args=[customer.id])},
+    )
+    credit_case = CreditCase.objects.get(id=created.data['id'])
+    balance_sheet_req = credit_case.requirements.get(file_type__key='balance_sheet')
+
+    res = client.delete(
+        reverse('creditcaserequirement-detail', args=[balance_sheet_req.id]),
+    )
+    assert res.status_code == status.HTTP_204_NO_CONTENT
+    assert credit_case.required_file_type_names == {'bank_statement'}
+
+    # The row is kept, flagged excluded — that is what blocks the re-add.
+    balance_sheet_req.refresh_from_db()
+    assert balance_sheet_req.is_excluded is True
+
+    # Now edit the template and push it onto this case.
+    RequirementTemplateItem.objects.create(
+        template=template, file_type=global_file_type('income_statement'),
+    )
+    client.post(
+        reverse('requirementtemplate-apply', args=[template.id]),
+        data={'credit_case_ids': [credit_case.id]},
+        format='json',
+    )
+
+    # The new document arrived; the dropped one did NOT come back.
+    assert credit_case.required_file_type_names == {'bank_statement', 'income_statement'}
+
+
+@pytest.mark.django_db
+def test_excluded_requirement_is_hidden_from_the_api_list():
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    make_template(org, ['bank_statement'])
+    customer = make_customer(org)
+
+    created = client.post(
+        reverse('creditcase-list'),
+        data={'customer': reverse('customer-detail', args=[customer.id])},
+    )
+    credit_case = CreditCase.objects.get(id=created.data['id'])
+    requirement = credit_case.requirements.get(file_type__key='bank_statement')
+    client.delete(reverse('creditcaserequirement-detail', args=[requirement.id]))
+
+    res = client.get(reverse('creditcaserequirement-list'))
+    rows = res.data['results'] if 'results' in res.data else res.data
+    assert [r for r in rows if r['id'] == requirement.id] == []
+
+
+@pytest.mark.django_db
+def test_re_adding_an_excluded_requirement_turns_it_back_on():
+    """
+    Adding back something previously dropped must not collide with the excluded row that
+    unique(credit_case, file_type) still holds.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    make_template(org, ['bank_statement'])
+    customer = make_customer(org)
+
+    created = client.post(
+        reverse('creditcase-list'),
+        data={'customer': reverse('customer-detail', args=[customer.id])},
+    )
+    credit_case = CreditCase.objects.get(id=created.data['id'])
+    requirement = credit_case.requirements.get(file_type__key='bank_statement')
+    client.delete(reverse('creditcaserequirement-detail', args=[requirement.id]))
+
+    res = client.post(
+        reverse('creditcaserequirement-list'),
+        data={
+            'credit_case': reverse('creditcase-detail', args=[credit_case.id]),
+            'file_type': global_file_type('bank_statement').id,
+        },
+    )
+
+    assert res.status_code == status.HTTP_201_CREATED
+    assert credit_case.requirements.filter(file_type__key='bank_statement').count() == 1
+    assert credit_case.required_file_type_names == {'bank_statement'}
+
+
+@pytest.mark.django_db
+def test_adding_a_requirement_pulls_a_waiting_case_back_to_missing_documents():
+    """
+    A user saying "this case needs more" is a direct decision about that case, so it
+    should stop waiting for a verdict it isn't ready for.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    customer = make_customer(org)
+
+    credit_case = make_credit_case(customer, status='pending_final_verdict')
+    CreditCaseRequirement.objects.create(
+        credit_case=credit_case, file_type=global_file_type('bank_statement'),
+    )
+    UploadDocument.objects.create(
+        credit_case=credit_case, file='x.pdf', file_type_name='bank_statement',
+    )
+    assert credit_case.requirements_complete is True
+
+    client.post(
+        reverse('creditcaserequirement-list'),
+        data={
+            'credit_case': reverse('creditcase-detail', args=[credit_case.id]),
+            'file_type': global_file_type('income_statement').id,
+        },
+    )
+
+    credit_case.refresh_from_db()
+    assert credit_case.requirements_complete is False
+    assert credit_case.status == 'missing_documents'
+
+
+@pytest.mark.django_db
+def test_removing_the_blocking_requirement_advances_the_case():
+    """The mirror image: dropping the only outstanding document completes the case."""
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    customer = make_customer(org)
+
+    credit_case = make_credit_case(customer)
+    CreditCaseRequirement.objects.create(
+        credit_case=credit_case, file_type=global_file_type('bank_statement'),
+    )
+    blocking = CreditCaseRequirement.objects.create(
+        credit_case=credit_case, file_type=global_file_type('income_statement'),
+    )
+    UploadDocument.objects.create(
+        credit_case=credit_case, file='x.pdf', file_type_name='bank_statement',
+    )
+    assert credit_case.status == 'missing_documents'
+
+    client.delete(reverse('creditcaserequirement-detail', args=[blocking.id]))
+
+    credit_case.refresh_from_db()
+    assert credit_case.requirements_complete is True
+    assert credit_case.status == 'pending_final_verdict'
+
+
+@pytest.mark.django_db
+def test_template_resync_still_never_regresses_status():
+    """
+    Manual edits may pull a case backwards; a bulk template re-sync must not. Otherwise
+    editing one template could yank a pile of cases out of a reviewer's queue at once.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    customer = make_customer(org)
+    template = make_template(org, ['bank_statement'])
+
+    credit_case = make_credit_case(customer, status='pending_final_verdict')
+    CreditCaseRequirement.objects.create(
+        credit_case=credit_case,
+        file_type=global_file_type('bank_statement'),
+        source=CreditCaseRequirement.Source.TEMPLATE,
+        source_template=template,
+    )
+    RequirementTemplateItem.objects.create(
+        template=template, file_type=global_file_type('income_statement'),
+    )
+
+    client.post(
+        reverse('requirementtemplate-apply', args=[template.id]),
+        data={'credit_case_ids': [credit_case.id]},
+        format='json',
+    )
+
+    credit_case.refresh_from_db()
+    assert credit_case.requirements_complete is False  # the new doc is missing
+    assert credit_case.status == 'pending_final_verdict'  # but the queue is untouched
+
+
+@pytest.mark.django_db
+def test_submitted_case_rejects_adding_a_requirement():
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    credit_case = make_credit_case(make_customer(org), submitted_at=timezone.now())
+
+    res = client.post(
+        reverse('creditcaserequirement-list'),
+        data={
+            'credit_case': reverse('creditcase-detail', args=[credit_case.id]),
+            'file_type': global_file_type('bank_statement').id,
+        },
+    )
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert credit_case.requirements.count() == 0
+
+
+@pytest.mark.django_db
+def test_submitted_case_rejects_removing_a_requirement():
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    credit_case = make_credit_case(make_customer(org))
+    requirement = CreditCaseRequirement.objects.create(
+        credit_case=credit_case, file_type=global_file_type('bank_statement'),
+    )
+    # Submitted after the requirement existed, which is the realistic ordering.
+    credit_case.submitted_at = timezone.now()
+    credit_case.save(update_fields=['submitted_at'])
+
+    res = client.delete(reverse('creditcaserequirement-detail', args=[requirement.id]))
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    requirement.refresh_from_db()
+    assert requirement.is_excluded is False
+
+
+@pytest.mark.django_db
+def test_submitted_case_rejects_bulk_set_requirements():
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    credit_case = make_credit_case(make_customer(org), submitted_at=timezone.now())
+
+    res = client.post(
+        reverse('creditcase-set-requirements', args=[credit_case.id]),
+        data={'file_type_ids': [global_file_type('bank_statement').id]},
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert credit_case.requirements.count() == 0

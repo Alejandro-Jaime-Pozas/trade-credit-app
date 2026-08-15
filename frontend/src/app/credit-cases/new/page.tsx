@@ -9,9 +9,26 @@ import { apiJson, ApiError, drfListAll } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { createCreditCaseForExistingCustomer } from "@/lib/creditCase";
 import { REQUESTED_TERM_DAYS_OPTIONS } from "@/lib/constants";
-import type { Customer } from "@/lib/types";
+import { FileTypeChooser, type FileTypeChooserSelection } from "@/components/FileTypeChooser";
+import { ImpactWarning } from "@/components/ImpactWarning";
+import { MoneyInput } from "@/components/MoneyInput";
+import {
+  applyTemplateToCases,
+  createDefaultTemplate,
+  getDefaultTemplate,
+  getTemplateImpact,
+  listFileTypes,
+  setCreditCaseRequirements,
+  templateFileTypeIds,
+  updateTemplateItems,
+  type TemplateImpactEntry,
+} from "@/lib/fileTypes";
+import type { CreditCase, Customer, FileType, RequirementTemplate } from "@/lib/types";
 
-type Phase = "customer" | "creditcase";
+// The wizard ends on "requirements": the credit case is created first, then the user
+// says which documents it needs. An organization that has never set a default template
+// is prompted to create one here, which is the app's onboarding moment for requirements.
+type Phase = "customer" | "creditcase" | "requirements";
 
 // A row in the customer search dropdown: either an existing customer or the
 // trailing "create new customer" action.
@@ -23,7 +40,7 @@ export default function NewCreditCasePage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const organizationUrl = useMemo(() => user?.organizations?.[0] ?? null, [user]);
+  const organizationUrl = useMemo(() => user?.organizations?.[0]?.url ?? null, [user]);
 
   // ── Customer search ──────────────────────────────────────────────
   const [allCustomers, setAllCustomers] = useState<Customer[] | null>(null);
@@ -59,6 +76,17 @@ export default function NewCreditCasePage() {
   const [requestedTermDays, setRequestedTermDays] = useState("30");
   const [submittingCreditCase, setSubmittingCreditCase] = useState(false);
 
+  // ── Step 3: document requirements ────────────────────────────────
+  const [createdCreditCase, setCreatedCreditCase] = useState<CreditCase | null>(null);
+  const [fileTypes, setFileTypes] = useState<FileType[] | null>(null);
+  const [defaultTemplate, setDefaultTemplate] = useState<RequirementTemplate | null>(null);
+  const [submittingRequirements, setSubmittingRequirements] = useState(false);
+  // Populated only when REPLACING an existing default would change other open cases.
+  const [impact, setImpact] = useState<TemplateImpactEntry[] | null>(null);
+  const [applyingImpact, setApplyingImpact] = useState(false);
+  // What the default contained before this save, so Cancel can put it back.
+  const [previousDefaultIds, setPreviousDefaultIds] = useState<number[] | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
   // Load all customers once for search
@@ -82,15 +110,37 @@ export default function NewCreditCasePage() {
       .slice(0, 8);
   }, [allCustomers, search]);
 
-  // Flat, keyboard-navigable list backing the dropdown: matching customers
-  // plus a trailing "create new" row. Empty while customers are still loading.
+  // The newest customers, shown the moment the search field is focused so the user can
+  // pick one without having to guess at a name first — the common case right after
+  // creating a customer is starting a case for that same customer.
+  const recentCustomers = useMemo(() => {
+    if (!allCustomers) return [];
+    return [...allCustomers]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+      )
+      .slice(0, 8);
+  }, [allCustomers]);
+
+  // Flat, keyboard-navigable list backing the dropdown. Empty while customers load.
+  //
+  // With no search text it is the recent list, with no "create new" row — there is no
+  // name yet to create anything under. Once the user types, it becomes the matches plus
+  // that trailing create row.
   const dropdownOptions = useMemo<CustomerDropdownOption[]>(() => {
-    if (allCustomers === null || !search.trim()) return [];
+    if (allCustomers === null) return [];
+    if (!search.trim()) {
+      return recentCustomers.map((c) => ({ kind: "customer" as const, customer: c }));
+    }
     return [
       ...filteredCustomers.map((c) => ({ kind: "customer" as const, customer: c })),
       { kind: "create" as const },
     ];
-  }, [allCustomers, search, filteredCustomers]);
+  }, [allCustomers, search, filteredCustomers, recentCustomers]);
+
+  /** Whether the dropdown is currently showing the recent list rather than matches. */
+  const showingRecent = !search.trim();
 
   // ── Handlers ─────────────────────────────────────────────────────
 
@@ -184,17 +234,165 @@ export default function NewCreditCasePage() {
     setSubmittingCreditCase(true);
     setError(null);
     try {
-      await createCreditCaseForExistingCustomer({
+      const creditCase = await createCreditCaseForExistingCustomer({
         customerUrl: linkedCustomer.url,
         requestedAmount: requestedAmount.trim() || undefined,
         currency,
         requestedTermDays: Number(requestedTermDays),
       });
-      router.push("/credit-cases");
+
+      // Move on to choosing documents rather than leaving for the list. The case now
+      // exists either way, so abandoning this step still leaves valid data behind.
+      const [catalog, template] = await Promise.all([
+        listFileTypes(),
+        getDefaultTemplate(),
+      ]);
+      setCreatedCreditCase(creditCase);
+      setFileTypes(catalog);
+      setDefaultTemplate(template);
+      setPhase("requirements");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create credit case");
     } finally {
       setSubmittingCreditCase(false);
+    }
+  }
+
+  /**
+   * The wizard's last step lands the user ON the credit case they just made.
+   *
+   * Deliberately not an intermediate "done — now click through" screen: the case exists
+   * and is configured, so making the user press one more button to reach it was a step
+   * that carried no decision.
+   */
+  function goToCreditCase() {
+    if (createdCreditCase) router.push(`/credit-cases/${createdCreditCase.id}`);
+  }
+
+  async function handleApplyImpact() {
+    if (!defaultTemplate || !impact) return;
+    setApplyingImpact(true);
+    setError(null);
+    try {
+      await applyTemplateToCases({
+        template: defaultTemplate,
+        creditCaseIds: impact.map((entry) => entry.credit_case_id),
+      });
+      setImpact(null);
+      setPreviousDefaultIds(null);
+      goToCreditCase();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update credit cases");
+    } finally {
+      setApplyingImpact(false);
+    }
+  }
+
+  /** Accept the new default, but leave the other open cases on their old list. */
+  function handleKeepOpenCases() {
+    setImpact(null);
+    setPreviousDefaultIds(null);
+    goToCreditCase();
+  }
+
+  /**
+   * Back out of replacing the default: put it back to what it was.
+   *
+   * The credit case itself keeps the documents that were chosen for it — only the
+   * organization-wide default is undone, which is the thing the user is being asked
+   * about here.
+   */
+  async function handleCancelImpact() {
+    if (defaultTemplate && previousDefaultIds !== null) {
+      setApplyingImpact(true);
+      setError(null);
+      try {
+        const reverted = await updateTemplateItems({
+          template: defaultTemplate,
+          fileTypeIds: previousDefaultIds,
+        });
+        setDefaultTemplate(reverted);
+      } catch (err) {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Failed to undo the change to your default requirements",
+        );
+        setApplyingImpact(false);
+        return;
+      }
+      setApplyingImpact(false);
+    }
+    setImpact(null);
+    setPreviousDefaultIds(null);
+    goToCreditCase();
+  }
+
+  /**
+   * Apply the user's document choice to the credit case just created.
+   *
+   * Whenever the user picks documents by hand they are asked whether that selection
+   * should become their organization's default going forward — either creating their
+   * first default, or replacing the one they already had. Saying yes writes the template
+   * and then seeds the case FROM it, so the case stays linked to the template and later
+   * edits to it can still be offered to this case. Saying no writes the documents to
+   * this case alone and leaves the default untouched.
+   */
+  async function handleSubmitRequirements(selection: FileTypeChooserSelection) {
+    if (!createdCreditCase) return;
+    setSubmittingRequirements(true);
+    setError(null);
+    try {
+      if (selection.mode === "default" && defaultTemplate) {
+        await setCreditCaseRequirements({
+          creditCase: createdCreditCase,
+          requirementTemplateId: defaultTemplate.id,
+        });
+        goToCreditCase();
+      } else if (selection.mode === "fileTypes" && selection.saveAsDefault) {
+        // Captured before the write so Cancel in the impact dialog can put it back.
+        const idsBeforeSave = templateFileTypeIds(defaultTemplate);
+        // Replace the existing default, or create the first one.
+        const template = defaultTemplate
+          ? await updateTemplateItems({
+              template: defaultTemplate,
+              fileTypeIds: selection.fileTypeIds,
+            })
+          : await createDefaultTemplate({ fileTypeIds: selection.fileTypeIds });
+
+        await setCreditCaseRequirements({
+          creditCase: createdCreditCase,
+          requirementTemplateId: template.id,
+        });
+
+        const replacedExisting = Boolean(defaultTemplate);
+        setDefaultTemplate(template);
+
+        // Replacing an existing default can leave OTHER cases in progress out of step
+        // with it, so offer the same choice the Requirements page does. Not asked when
+        // creating the first default — no earlier case could have been seeded from it.
+        // This case itself was just re-seeded above, so it is already in sync and won't
+        // appear in the list.
+        const entries = replacedExisting ? await getTemplateImpact(template) : [];
+        if (entries.length > 0) {
+          // Hold here until the user answers; whatever they choose, the redirect
+          // happens once the dialog closes.
+          setPreviousDefaultIds(idsBeforeSave);
+          setImpact(entries);
+        } else {
+          goToCreditCase();
+        }
+      } else if (selection.mode === "fileTypes") {
+        await setCreditCaseRequirements({
+          creditCase: createdCreditCase,
+          fileTypeIds: selection.fileTypeIds,
+        });
+        goToCreditCase();
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save requirements");
+    } finally {
+      setSubmittingRequirements(false);
     }
   }
 
@@ -289,7 +487,7 @@ export default function NewCreditCasePage() {
                     }
                   />
 
-                  {showDropdown && search.trim().length > 0 && (
+                  {showDropdown && (
                     <div
                       id="new-credit-case-customer-listbox"
                       role="listbox"
@@ -299,8 +497,17 @@ export default function NewCreditCasePage() {
                         <div className="px-4 py-3 text-sm text-zinc-500">
                           Loading customers…
                         </div>
+                      ) : showingRecent && dropdownOptions.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-zinc-500">
+                          No customers yet — type a name to create one.
+                        </div>
                       ) : (
                         <>
+                          {showingRecent && (
+                            <div className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                              Recent customers
+                            </div>
+                          )}
                           {dropdownOptions.map((option, index) => {
                             const active = index === activeIndex;
                             const optionId = `new-credit-case-customer-option-${index}`;
@@ -543,12 +750,10 @@ export default function NewCreditCasePage() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <label className="block">
                     <div className="text-sm font-medium">Requested amount</div>
-                    <input
+                    <MoneyInput
                       value={requestedAmount}
-                      onChange={(e) => setRequestedAmount(e.target.value)}
+                      onChange={setRequestedAmount}
                       className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                      placeholder="0.00"
-                      inputMode="decimal"
                     />
                   </label>
                   <label className="block">
@@ -596,7 +801,86 @@ export default function NewCreditCasePage() {
             </section>
           )}
 
+          {/* ── Step 3: Required documents ────────────────────────── */}
+          {phase === "requirements" && createdCreditCase && fileTypes && (
+            <section className="rounded-lg border bg-white p-6">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+                  3
+                </span>
+                <h2 className="text-base font-semibold">
+                  {defaultTemplate
+                    ? "Choose required files for this credit case (or default template)"
+                    : "Choose the required files for every new credit case"}
+                </h2>
+              </div>
+
+              <p className="mt-2 text-sm text-zinc-600">
+                {defaultTemplate
+                  ? "Take your organization's default list, or pick the documents this customer needs."
+                  : "Choose the documents this credit case needs. You'll be asked whether to keep them as your default for future cases."}
+              </p>
+
+              {error && (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  {error}
+                </div>
+              )}
+
+              <>
+                  <div className="mt-6">
+                    <FileTypeChooser
+                      fileTypes={fileTypes}
+                      defaultOption={
+                        defaultTemplate
+                          ? {
+                              // Show what the default actually contains on hover, so the
+                              // user isn't accepting an unseen list.
+                              fileTypes: fileTypes.filter((f) =>
+                                templateFileTypeIds(defaultTemplate).includes(f.id),
+                              ),
+                              preselected: true,
+                            }
+                          : undefined
+                      }
+                      // Asked whenever documents are picked by hand — either to set the
+                      // first default, or to replace the existing one. Only skipped when
+                      // the user took the default as-is, where there is nothing to decide.
+                      saveAsDefaultQuestion={
+                        defaultTemplate
+                          ? "Do you want to make these your NEW default required files for future credit cases? (No keeps your current default.)"
+                          : "Do you want to save your chosen files as your default required files for this and future credit cases?"
+                      }
+                      submitLabel="Submit"
+                      submitting={submittingRequirements}
+                      onSubmit={(selection) => void handleSubmitRequirements(selection)}
+                    />
+                  </div>
+
+                  <div className="mt-6 border-t pt-4">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/credit-cases/${createdCreditCase.id}`)}
+                      className="text-sm text-zinc-600 underline hover:text-zinc-900"
+                    >
+                      Skip for now
+                    </button>
+                  </div>
+                </>
+            </section>
+          )}
+
         </div>
+
+        {impact && (
+          <ImpactWarning
+            entries={impact}
+            busy={applyingImpact}
+            onApply={() => void handleApplyImpact()}
+            onKeep={handleKeepOpenCases}
+            onCancel={() => void handleCancelImpact()}
+          />
+        )}
       </RequireAuth>
     </AppShell>
   );

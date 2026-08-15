@@ -2,7 +2,7 @@ import logging
 
 from django.db import transaction
 from django.db.models import Q
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import (
@@ -37,6 +37,7 @@ from .services.requirements import (
     file_types_with_uploads,
     open_cases_for_template,
 )
+from processing.services.credit_case_status import handle_manual_requirement_change
 from .services.db_object_handling import handle_upload_document_created
 
 logger = logging.getLogger(__name__)
@@ -356,10 +357,29 @@ class CreditCaseRequirementViewSet(
     `source='manual'` and is never altered by a later template re-sync.
     """
 
-    queryset = CreditCaseRequirement.objects.all().select_related('file_type', 'credit_case')
+    # Excluded rows are bookkeeping (a record of a document turned off), not
+    # requirements, so they never appear in the API's list of what a case needs.
+    queryset = (
+        CreditCaseRequirement.objects
+        .filter(is_excluded=False)
+        .select_related('file_type', 'credit_case')
+    )
     serializer_class = CreditCaseRequirementSerializer
     organization_lookup = 'credit_case__customer__organization'
     organization_scoped_fields = {'credit_case': 'customer__organization'}
+
+    def _reject_if_submitted(self, credit_case):
+        """
+        Refuse to change what a case requires once it has been submitted for approval.
+
+        At that point the requirement list is the evidence the reviewer is working from;
+        editing it afterwards would rewrite the basis of a decision in progress.
+        """
+        if credit_case.submitted_at is not None:
+            raise serializers.ValidationError(
+                'This credit case has been submitted for approval, so its required '
+                'documents can no longer be changed.'
+            )
 
     def get_serializer(self, *args, **kwargs):
         """
@@ -385,7 +405,51 @@ class CreditCaseRequirementViewSet(
         return serializer
 
     def perform_create(self, serializer):
-        serializer.save(
-            source=CreditCaseRequirement.Source.MANUAL,
-            created_by=self.request.user,
-        )
+        credit_case = serializer.validated_data['credit_case']
+        self._reject_if_submitted(credit_case)
+
+        file_type = serializer.validated_data['file_type']
+
+        # Re-adding something previously dropped from this case: the row still exists,
+        # marked excluded, so turn it back on rather than colliding with
+        # unique(credit_case, file_type).
+        existing = CreditCaseRequirement.objects.filter(
+            credit_case=credit_case, file_type=file_type,
+        ).first()
+        if existing is not None:
+            existing.is_excluded = False
+            existing.is_required = serializer.validated_data.get('is_required', True)
+            existing.save(update_fields=['is_excluded', 'is_required'])
+            serializer.instance = existing
+        else:
+            serializer.save(
+                source=CreditCaseRequirement.Source.MANUAL,
+                created_by=self.request.user,
+            )
+
+        handle_manual_requirement_change(credit_case)
+
+    def perform_update(self, serializer):
+        self._reject_if_submitted(serializer.instance.credit_case)
+        serializer.save()
+        handle_manual_requirement_change(serializer.instance.credit_case)
+
+    def perform_destroy(self, instance):
+        """
+        Drop a document from this one case.
+
+        A row that came from the organization's template is EXCLUDED rather than deleted,
+        so the removal sticks: the next template re-sync sees the file type is already
+        accounted for and will not quietly put it back. A row the user added by hand has
+        nothing that would resurrect it, so it is simply deleted.
+        """
+        credit_case = instance.credit_case
+        self._reject_if_submitted(credit_case)
+
+        if instance.source == CreditCaseRequirement.Source.TEMPLATE:
+            instance.is_excluded = True
+            instance.save(update_fields=['is_excluded'])
+        else:
+            instance.delete()
+
+        handle_manual_requirement_change(credit_case)

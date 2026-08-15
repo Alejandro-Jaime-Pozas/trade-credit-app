@@ -14,6 +14,7 @@ from core.constants import (
     UPLOAD_DOCUMENT_BASENAME,
     CREDIT_CASE_ID,
 )
+from core.serializer_utils import NamedHyperlinkedModelSerializer, NamedHyperlinkedRelatedField
 from processing.models import CreditCase
 
 from .models import (
@@ -28,7 +29,7 @@ from .models import (
 )
 
 
-class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
+class UploadDocumentSerializer(NamedHyperlinkedModelSerializer):
     # # TODO later with frontend ready uncomment this below to allow multi file uploads
     # files = serializers.ListField(
     #     child=serializers.FileField(),
@@ -66,15 +67,64 @@ class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
             'mimetype',
             # 'file',  # TODO later uncomment when frontend ready to upload multi files
             'friendly_file_name',
-            'file_type_name',
+            # 'file_type_name' is writable on purpose: GPT classification can get a
+            # document wrong, and a mislabelled file silently fails to satisfy the
+            # requirement it should. The user must be able to correct it. On create it
+            # is still effectively read-only, because classification runs after save and
+            # overwrites whatever was sent (see UploadDocumentViewSet.create).
             'extracted_data',
         ]
 
+    def validate_file_type_name(self, value):
+        """
+        Only allow correcting a document to a type this organization actually has.
+
+        Free text here would be worse than a wrong GPT label: requirements are matched on
+        this exact key, so a typo produces a document that can never satisfy anything.
+        `unknown` stays allowed — it is the classifier's own "no idea" bucket and a valid
+        thing for a user to fall back to.
+        """
+        if not value or value == 'unknown':
+            return value
+
+        # The document's own organization isn't known until validate() has run, so accept
+        # any key in the catalog the requesting user can see (global + their own orgs).
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        file_types = FileType.objects.all()
+        if user is not None and user.is_authenticated and not user.is_superuser:
+            file_types = file_types.filter(
+                django_models.Q(organization__isnull=True)
+                | django_models.Q(organization__in=user.organizations.all())
+            )
+
+        if not file_types.filter(key=value).exists():
+            raise serializers.ValidationError(
+                f'"{value}" is not a known file type for your organization.'
+            )
+
+        return value
+
     def validate(self, attrs):
+        # On a PATCH the payload usually carries only the field being changed, so these
+        # links have to be read from the row being edited when they aren't being sent.
+        # Reading them from `attrs` alone would reject every partial update — including
+        # the file_type_name correction above — as "missing customer/credit_case".
+        instance = self.instance
+
+        def resolve(field):
+            if field in attrs:
+                return attrs[field]
+            return getattr(instance, field, None) if instance else None
+
+        customer = resolve('customer')
+        credit_case = resolve('credit_case')
+
         # A doc must be linked to at least one of credit_case / customer (both
         # are optional FKs, so nothing else enforces this) — see
         # UploadDocument.save()'s TODO and handle_upload_document_created().
-        if not attrs.get('credit_case') and not attrs.get('customer'):
+        if not credit_case and not customer:
             raise serializers.ValidationError(
                 'You must provide a credit_case and/or a customer field.'
             )
@@ -84,9 +134,8 @@ class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
         # credit case in org B, leaving one row visible from two tenants (the
         # organization_scoped_fields check on UploadDocumentViewSet only guarantees
         # each FK *individually* belongs to one of the user's orgs, not that they
-        # belong to the SAME one).
-        customer = attrs.get('customer')
-        credit_case = attrs.get('credit_case')
+        # belong to the SAME one). Uses the resolved values above, so changing only one
+        # of the two on a PATCH is still checked against the other.
         if customer and credit_case and credit_case.customer_id != customer.id:
             raise serializers.ValidationError(
                 'credit_case and customer must belong to the same customer record.'
@@ -122,8 +171,8 @@ class UploadDocumentSerializer(serializers.HyperlinkedModelSerializer):
         return created_docs
 
 
-class DocumentDataExtractSerializer(serializers.HyperlinkedModelSerializer):
-    upload_document = serializers.HyperlinkedRelatedField(
+class DocumentDataExtractSerializer(NamedHyperlinkedModelSerializer):
+    upload_document = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{UPLOAD_DOCUMENT_BASENAME}-detail',
     )
@@ -147,7 +196,7 @@ class DocumentDataExtractSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class LabelSerializer(serializers.HyperlinkedModelSerializer):
+class LabelSerializer(NamedHyperlinkedModelSerializer):
     """
     A Label is a custom field *definition* the user creates, e.g. "sucursal" for
     CreditCase. `content_type` picks which single model it applies to, by model
@@ -161,9 +210,11 @@ class LabelSerializer(serializers.HyperlinkedModelSerializer):
         # (CreditCase, Customer, UploadDocument) can be chosen.
         queryset=ContentType.objects.filter(model__in=LABELABLE_MODEL_ORG_LOOKUPS),
     )
-    organization = serializers.HyperlinkedRelatedField(
+    organization = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{ORGANIZATION_BASENAME}-detail',
+        # Organization's own __str__ shows its email domain, not its name.
+        display_source='name',
     )
 
     class Meta:
@@ -182,7 +233,7 @@ class LabelSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class LabelValueSerializer(serializers.HyperlinkedModelSerializer):
+class LabelValueSerializer(NamedHyperlinkedModelSerializer):
     """
     The value of a Label (custom field) for one specific object, e.g.
     label="sucursal", object_id=<some CreditCase id>, value="MTY Norte".
@@ -215,6 +266,11 @@ class LabelValueSerializer(serializers.HyperlinkedModelSerializer):
             'created_at',
             'updated_at',
         ]
+        # Label's own __str__ is a debug-style string ("name=X, content_type=Y") — the
+        # label's `name` alone reads much better as the display text for the link.
+        extra_kwargs = {
+            'label': {'display_source': 'name'},
+        }
 
     # By default a HyperlinkedModelSerializer's auto-generated FK field for `label`
     # allows/lists EVERY organization's labels (`Label.objects.all()`), not just the
@@ -260,7 +316,7 @@ class LabelValueSerializer(serializers.HyperlinkedModelSerializer):
         return attrs
 
 
-class FileTypeSerializer(serializers.HyperlinkedModelSerializer):
+class FileTypeSerializer(NamedHyperlinkedModelSerializer):
     """
     A kind of document the app can recognize, e.g. "bank_statement".
 
@@ -314,7 +370,7 @@ class RequirementTemplateItemSerializer(serializers.ModelSerializer):
         ]
 
 
-class RequirementTemplateSerializer(serializers.HyperlinkedModelSerializer):
+class RequirementTemplateSerializer(NamedHyperlinkedModelSerializer):
     """
     An organization's reusable list of documents to ask for on a credit case.
 
@@ -327,9 +383,11 @@ class RequirementTemplateSerializer(serializers.HyperlinkedModelSerializer):
     """
 
     items = RequirementTemplateItemSerializer(many=True)
-    organization = serializers.HyperlinkedRelatedField(
+    organization = NamedHyperlinkedRelatedField(
         read_only=True,
         view_name=f'{ORGANIZATION_BASENAME}-detail',
+        # Organization's own __str__ shows its email domain, not its name.
+        display_source='name',
     )
 
     class Meta:
@@ -415,7 +473,7 @@ class RequirementTemplateSerializer(serializers.HyperlinkedModelSerializer):
         return instance
 
 
-class CreditCaseRequirementSerializer(serializers.HyperlinkedModelSerializer):
+class CreditCaseRequirementSerializer(NamedHyperlinkedModelSerializer):
     """
     One document a specific credit case needs.
 
@@ -428,6 +486,12 @@ class CreditCaseRequirementSerializer(serializers.HyperlinkedModelSerializer):
     # Selected by id rather than by hyperlink, matching how a template's items are
     # written and how the frontend gets them from /file-types/.
     file_type = serializers.PrimaryKeyRelatedField(queryset=FileType.objects.all())
+    # Declared explicitly with default=True. DRF's BooleanField treats a field that is
+    # simply ABSENT from form-encoded input as False, so a client adding a document
+    # without mentioning is_required would silently get an OPTIONAL requirement — one
+    # that never blocks the case from completing. Adding a document should mean it is
+    # required unless the client says otherwise.
+    is_required = serializers.BooleanField(default=True)
     file_type_key = serializers.CharField(source='file_type.key', read_only=True)
     label_en = serializers.CharField(source='file_type.label_en', read_only=True)
 
@@ -451,6 +515,12 @@ class CreditCaseRequirementSerializer(serializers.HyperlinkedModelSerializer):
             'created_at',
             'synced_at',
         ]
+        # DRF would otherwise auto-add a UniqueTogetherValidator for
+        # unique(credit_case, file_type) and reject the request before the view runs.
+        # That collision is legitimate here: a document previously dropped from this case
+        # still has a row, flagged excluded, and re-adding it must turn that row back on
+        # rather than fail. CreditCaseRequirementViewSet.perform_create handles it.
+        validators = []
 
     def validate(self, attrs):
         """

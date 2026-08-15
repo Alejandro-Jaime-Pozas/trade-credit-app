@@ -8,11 +8,12 @@
  * the search, search again, tick another, and still have both selected.
  */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { TableColumnHeader } from "./TableColumnHeader";
 import { toggleValue, type FilterOption } from "@/lib/tableControls";
+import { MIN_COLUMN_WIDTH } from "@/lib/columnWidths";
 
 const OPTIONS: FilterOption[] = [
   { value: "Acme Corp", label: "Acme Corp", count: 3 },
@@ -320,5 +321,164 @@ describe("TableColumnHeader filter dropdown", () => {
     await user.click(screen.getByRole("button", { name: "Filter by Customer" }));
     await user.type(screen.getByRole("combobox"), "zzzz");
     expect(screen.getByText("No matching values.")).toBeInTheDocument();
+  });
+});
+
+describe("column resizing", () => {
+  function renderResizable(width?: number) {
+    const onResize = vi.fn();
+    const onResizeEnd = vi.fn();
+    const noop = () => {};
+    render(
+      <table>
+        <thead>
+          <tr>
+            <TableColumnHeader
+              columnId="customer"
+              label="Customer"
+              sortDirection={null}
+              onToggleSort={noop}
+              width={width}
+              onResize={onResize}
+              onResizeEnd={onResizeEnd}
+            />
+          </tr>
+        </thead>
+      </table>,
+    );
+    return { onResize, onResizeEnd };
+  }
+
+  function grip() {
+    return screen.getByRole("separator", { name: "Resize Customer column" });
+  }
+
+  it("offers no resize handle when the caller doesn't support it", () => {
+    const noop = () => {};
+    render(
+      <table>
+        <thead>
+          <tr>
+            <TableColumnHeader
+              columnId="customer"
+              label="Customer"
+              sortDirection={null}
+              onToggleSort={noop}
+            />
+          </tr>
+        </thead>
+      </table>,
+    );
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+  });
+
+  it("applies the width it is given", () => {
+    renderResizable(240);
+    expect(screen.getByRole("columnheader")).toHaveStyle({ width: "240px" });
+  });
+
+  it("reports new widths while dragging, and once more when the drag ends", () => {
+    const { onResize, onResizeEnd } = renderResizable(200);
+
+    fireEvent.pointerDown(grip(), { clientX: 500 });
+    fireEvent.pointerMove(document, { clientX: 560 });
+    expect(onResize).toHaveBeenLastCalledWith(260);
+
+    fireEvent.pointerMove(document, { clientX: 540 });
+    expect(onResize).toHaveBeenLastCalledWith(240);
+
+    // Persisting happens once on release, not on every pixel of the drag.
+    expect(onResizeEnd).not.toHaveBeenCalled();
+    fireEvent.pointerUp(document);
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops tracking the pointer once the drag is released", () => {
+    const { onResize } = renderResizable(200);
+
+    fireEvent.pointerDown(grip(), { clientX: 500 });
+    fireEvent.pointerUp(document);
+    const callsAtRelease = onResize.mock.calls.length;
+
+    fireEvent.pointerMove(document, { clientX: 900 });
+    expect(onResize).toHaveBeenCalledTimes(callsAtRelease);
+  });
+
+  it("never lets a drag shrink a column below the minimum", () => {
+    const { onResize } = renderResizable(200);
+
+    fireEvent.pointerDown(grip(), { clientX: 500 });
+    fireEvent.pointerMove(document, { clientX: 0 });
+
+    expect(onResize).toHaveBeenLastCalledWith(MIN_COLUMN_WIDTH);
+  });
+
+  it("resizes with the arrow keys, so it isn't mouse-only", async () => {
+    const user = userEvent.setup();
+    const { onResize, onResizeEnd } = renderResizable(200);
+
+    grip().focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onResize).toHaveBeenLastCalledWith(210);
+
+    await user.keyboard("{ArrowLeft}");
+    expect(onResize).toHaveBeenLastCalledWith(190);
+
+    // Shift takes bigger steps for crossing a wide column quickly.
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(onResize).toHaveBeenLastCalledWith(240);
+
+    expect(onResizeEnd).toHaveBeenCalledTimes(3);
+  });
+
+  it("double-click clears the width, letting the table size the column again", () => {
+    const { onResize, onResizeEnd } = renderResizable(400);
+
+    fireEvent.doubleClick(grip());
+
+    // 0 is the caller's signal to forget this column's stored width.
+    expect(onResize).toHaveBeenCalledWith(0);
+    expect(onResizeEnd).toHaveBeenCalled();
+  });
+});
+
+describe("proportional default widths", () => {
+  function renderWithPercent(props: {
+    width?: number;
+    defaultWidthPercent?: number;
+  }) {
+    const noop = () => {};
+    render(
+      <table>
+        <thead>
+          <tr>
+            <TableColumnHeader
+              columnId="customer"
+              label="Customer"
+              sortDirection={null}
+              onToggleSort={noop}
+              onResize={noop}
+              {...props}
+            />
+          </tr>
+        </thead>
+      </table>,
+    );
+    return screen.getByRole("columnheader");
+  }
+
+  it("takes its share of the table when the user hasn't resized it", () => {
+    // Without this the browser hands all the slack in a wide window to one column,
+    // which is what made the ID column balloon while the rest stayed put.
+    expect(renderWithPercent({ defaultWidthPercent: 22 })).toHaveStyle({ width: "22%" });
+  });
+
+  it("prefers a width the user dragged over the default share", () => {
+    const cell = renderWithPercent({ width: 300, defaultWidthPercent: 22 });
+    expect(cell).toHaveStyle({ width: "300px", minWidth: "300px" });
+  });
+
+  it("sets no width at all when neither is given", () => {
+    expect(renderWithPercent({}).style.width).toBe("");
   });
 });

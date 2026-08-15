@@ -17,13 +17,19 @@ vi.mock("./api", () => ({
   drfListAll: vi.fn(),
 }));
 
+// `customer` is a hyperlink relation field: {"url": ..., "display": ...},
+// not a bare URL string -- see core/serializer_utils.py's NamedHyperlinkedRelatedField.
+function customerRef(url: string): { url: string; display: string } {
+  return { url, display: "Test Customer" };
+}
+
 // Minimal fixture builder -- only the fields creditCase.ts actually reads
 // are filled in; the rest are cast away since the real CreditCase type has
 // many fields irrelevant to this logic.
 function makeCreditCase(overrides: Partial<CreditCase> = {}): CreditCase {
   return {
     url: "http://test-api/api/v1/credit-cases/1/",
-    customer: "http://test-api/api/v1/customers/1/",
+    customer: customerRef("http://test-api/api/v1/customers/1/"),
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
     // Cast through `unknown`: this fixture only fills in the fields
@@ -41,9 +47,9 @@ describe("listCreditCasesForCustomer", () => {
     const customerUrl = "http://test-api/api/v1/customers/1/";
     const otherCustomerUrl = "http://test-api/api/v1/customers/2/";
     vi.mocked(drfListAll).mockResolvedValue([
-      makeCreditCase({ url: ".../1/", customer: customerUrl, created_at: "2026-01-01T00:00:00Z" }),
-      makeCreditCase({ url: ".../2/", customer: otherCustomerUrl, created_at: "2026-02-01T00:00:00Z" }),
-      makeCreditCase({ url: ".../3/", customer: customerUrl, created_at: "2026-03-01T00:00:00Z" }),
+      makeCreditCase({ url: ".../1/", customer: customerRef(customerUrl), created_at: "2026-01-01T00:00:00Z" }),
+      makeCreditCase({ url: ".../2/", customer: customerRef(otherCustomerUrl), created_at: "2026-02-01T00:00:00Z" }),
+      makeCreditCase({ url: ".../3/", customer: customerRef(customerUrl), created_at: "2026-03-01T00:00:00Z" }),
     ]);
 
     const result = await listCreditCasesForCustomer(customerUrl);
@@ -55,7 +61,7 @@ describe("listCreditCasesForCustomer", () => {
 describe("getOrCreateCreditCaseForNewCustomer", () => {
   it("PATCHes the existing auto-created case when one already exists", async () => {
     const customerUrl = "http://test-api/api/v1/customers/1/";
-    const existing = makeCreditCase({ customer: customerUrl });
+    const existing = makeCreditCase({ customer: customerRef(customerUrl) });
     vi.mocked(drfListAll).mockResolvedValue([existing]);
     vi.mocked(apiJson).mockResolvedValue({ ...existing, currency: "MXN" });
 
@@ -69,7 +75,7 @@ describe("getOrCreateCreditCaseForNewCustomer", () => {
   it("POSTs a new case when none exists yet", async () => {
     const customerUrl = "http://test-api/api/v1/customers/1/";
     vi.mocked(drfListAll).mockResolvedValue([]);
-    vi.mocked(apiJson).mockResolvedValue(makeCreditCase({ customer: customerUrl }));
+    vi.mocked(apiJson).mockResolvedValue(makeCreditCase({ customer: customerRef(customerUrl) }));
 
     await getOrCreateCreditCaseForNewCustomer({ customerUrl, currency: "MXN" });
 
@@ -80,7 +86,7 @@ describe("getOrCreateCreditCaseForNewCustomer", () => {
 
   it("skips the PATCH call entirely when no fields were provided", async () => {
     const customerUrl = "http://test-api/api/v1/customers/1/";
-    const existing = makeCreditCase({ customer: customerUrl });
+    const existing = makeCreditCase({ customer: customerRef(customerUrl) });
     vi.mocked(drfListAll).mockResolvedValue([existing]);
 
     const result = await getOrCreateCreditCaseForNewCustomer({ customerUrl });
@@ -95,7 +101,7 @@ describe("getOrCreateCreditCaseForNewCustomer", () => {
 describe("createCreditCaseForExistingCustomer", () => {
   it("always POSTs a new case, even if one already exists", async () => {
     const customerUrl = "http://test-api/api/v1/customers/1/";
-    vi.mocked(apiJson).mockResolvedValue(makeCreditCase({ customer: customerUrl }));
+    vi.mocked(apiJson).mockResolvedValue(makeCreditCase({ customer: customerRef(customerUrl) }));
 
     await createCreditCaseForExistingCustomer({ customerUrl });
 

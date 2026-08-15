@@ -531,6 +531,14 @@ class CreditCaseRequirement(models.Model):
         help_text='The template this was copied from, so a later edit of that template '
                     'knows which cases it can offer to update.',
     )
+    is_excluded = models.BooleanField(
+        default=False,
+        help_text='True when a user deliberately dropped this document from this one '
+                    'case. The row is kept rather than deleted so the removal STICKS: a '
+                    'later template re-sync sees the file type is already accounted for '
+                    'and will not silently put it back. An excluded row is not a '
+                    'requirement — it is a record of one being turned off.',
+    )
     months_required = models.PositiveSmallIntegerField(
         null=True,
         blank=True,

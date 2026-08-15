@@ -1,6 +1,11 @@
 /**
  * Shared display formatters for dates and money amounts.
+ *
+ * `formatMoney` is deliberately not called directly from pages — render money through
+ * the `<Money>` component instead, so every amount in the app is formatted the same way.
+ * See `lib/money.ts`.
  */
+import { MONEY_DECIMALS, MONEY_LOCALE } from "./money";
 
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -26,11 +31,11 @@ export function formatMoney(
 
   if (currency) {
     try {
-      return new Intl.NumberFormat("es-MX", {
+      return new Intl.NumberFormat(MONEY_LOCALE, {
         style: "currency",
         currency,
         currencyDisplay: "code",
-        minimumFractionDigits: 2,
+        minimumFractionDigits: MONEY_DECIMALS,
       }).format(value);
     } catch {
       // Intl throws on an unrecognized/malformed currency code (e.g. bad
@@ -38,8 +43,8 @@ export function formatMoney(
     }
   }
 
-  const grouped = new Intl.NumberFormat("es-MX", {
-    minimumFractionDigits: 2,
+  const grouped = new Intl.NumberFormat(MONEY_LOCALE, {
+    minimumFractionDigits: MONEY_DECIMALS,
   }).format(value);
   return currency ? `${currency} ${grouped}` : grouped;
 }

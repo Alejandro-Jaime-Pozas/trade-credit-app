@@ -13,8 +13,13 @@ document classification/extraction. Everything runs via Docker Compose.
 
 ## 1. Create the `.env` file
 
-Create a `.env` file in the repo root (it is git-ignored — never commit it).
-Docker Compose loads it for the `backend` and `postgres-db` services.
+Copy `.env.example` to `.env` in the repo root (it is git-ignored — never
+commit it) and fill in the values. Docker Compose loads it for the `backend`
+and `postgres-db` services.
+
+```bash
+cp .env.example .env
+```
 
 ```env
 # DJANGO
@@ -38,10 +43,14 @@ the backend outside Docker.
 ## 2. Launch the app
 
 ```bash
-docker compose up
+make up
+# or: docker compose up
 ```
 
-This builds and starts three services and runs DB migrations automatically:
+`make up` runs in the foreground (Ctrl+C stops it) and cleans up containers
+afterward; plain `docker compose up` works the same way but skips that
+cleanup step. This builds and starts three services and runs DB migrations
+automatically:
 
 | Service       | URL                              | Notes                          |
 | ------------- | -------------------------------- | ------------------------------ |
@@ -67,25 +76,34 @@ Run migrations manually (normally automatic on `up`):
 docker compose exec backend python manage.py migrate
 ```
 
-Run backend tests (pytest):
+### Makefile shortcuts
+
+The Makefile wraps the common Docker Compose commands below. Test targets run
+in a one-off container that tears itself down afterward (including the
+`postgres-db` dependency for the backend suite), so they don't require the
+app to already be running.
+
+| Command          | What it does                                                            |
+| ---------------- | ------------------------------------------------------------------------ |
+| `make up`        | Start all services in the foreground; cleans up on Ctrl+C                |
+| `make down`      | Stop all services                                                        |
+| `make down-v`    | Stop all services and remove named volumes (Postgres data, node_modules) |
+| `make build`     | Rebuild all images, pruning orphaned containers                          |
+| `make build-nc`  | Rebuild all images from scratch, no cache                                |
+| `make cli`       | Drop into a shell inside the `backend` container                        |
+| `make pytest`    | Run the backend test suite                                               |
+| `make vitest`    | Run the frontend test suite                                              |
+| `make typecheck` | Typecheck the frontend (`tsc --noEmit`, no build output)                 |
+| `make lint`      | Lint the frontend                                                        |
+| `make test`      | `pytest` + `vitest`                                                      |
+| `make ci`        | Everything CI gates on: `test` + `typecheck` + `lint`                    |
+
+Equivalent one-off `docker compose` invocations, if you'd rather not use the
+Makefile:
 
 ```bash
-docker compose exec backend pytest
-```
-
-Run frontend tests (Vitest):
-
-```bash
-docker compose exec frontend npm test
-```
-
-Or, to run either suite as a one-off container that tears itself down afterward
-(including the `postgres-db` dependency for the backend suite):
-
-```bash
-make pytest   # backend
-make vitest   # frontend
-make test     # both
+docker compose exec backend pytest        # backend tests (needs the app running)
+docker compose exec frontend npm test     # frontend tests (needs the app running)
 ```
 
 ## API type sync (frontend types)
@@ -107,9 +125,15 @@ To regenerate once, on demand:
 
 ## Project layout
 
-- `/backend` — Django source (apps: `identity`, `customers`, `processing`,
-  `storage`, `integrations`, `core`) and migrations.
+- `/backend` — Django source and migrations.
+  - `app/` — the Django project module (settings, urls, asgi/wsgi) — not a
+    Django app itself.
+  - `identity`, `customers`, `processing`, `storage`, `integrations` — the
+    Django apps implementing the domain.
+  - `core` — shared, cross-app code: the `OrganizationScopedMixin` used to
+    enforce multi-tenant scoping, the file-type catalog, validators, and
+    other utilities with no single owning app.
 - `/frontend` — Next.js (App Router) source.
-- `/docs` — architecture, decisions, and version specs.
-- `/ai` — agent contracts and workflow blueprints.
+- `/docs` — architecture, decisions, bug fixes, and version specs.
+- `/ai` — agent contracts, execution context, and workflow blueprints.
 - `/logs` — prompt/plan/implementation logs.

@@ -98,6 +98,70 @@ def test_create_credit_case_respects_explicit_assigned_to():
 
 
 @pytest.mark.django_db
+def test_reviewer_can_record_a_verdict_and_it_is_timestamped():
+    """
+    `verdict` used to be read-only, so the detail page could show a decision but never
+    record one. It is writable now, and the serializer stamps `verdict_at` itself.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    credit_case = CreditCase.objects.create(customer=customer)
+    assert credit_case.verdict_at is None
+
+    res = client.patch(
+        reverse('creditcase-detail', args=[credit_case.id]),
+        data={'verdict': 'approved'},
+    )
+
+    assert res.status_code == status.HTTP_200_OK
+    credit_case.refresh_from_db()
+    assert credit_case.verdict == 'approved'
+    assert credit_case.verdict_at is not None
+
+
+@pytest.mark.django_db
+def test_moving_a_verdict_back_to_pending_clears_the_timestamp():
+    """There is no longer a decision for `verdict_at` to be the time of."""
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    credit_case = CreditCase.objects.create(customer=customer)
+
+    detail_url = reverse('creditcase-detail', args=[credit_case.id])
+    client.patch(detail_url, data={'verdict': 'rejected'})
+    credit_case.refresh_from_db()
+    assert credit_case.verdict_at is not None
+
+    res = client.patch(detail_url, data={'verdict': 'pending'})
+
+    assert res.status_code == status.HTTP_200_OK
+    credit_case.refresh_from_db()
+    assert credit_case.verdict == 'pending'
+    assert credit_case.verdict_at is None
+
+
+@pytest.mark.django_db
+def test_saving_without_changing_the_verdict_keeps_the_original_timestamp():
+    """Editing an unrelated field must not look like a fresh decision."""
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    credit_case = CreditCase.objects.create(customer=customer)
+
+    detail_url = reverse('creditcase-detail', args=[credit_case.id])
+    client.patch(detail_url, data={'verdict': 'approved'})
+    credit_case.refresh_from_db()
+    decided_at = credit_case.verdict_at
+
+    res = client.patch(detail_url, data={'verdict': 'approved', 'requested_amount': '5000.00'})
+
+    assert res.status_code == status.HTTP_200_OK
+    credit_case.refresh_from_db()
+    assert credit_case.verdict_at == decided_at
+
+
+@pytest.mark.django_db
 def test_create_credit_case_rejects_another_organizations_customer():
     org = make_org('Acme', 'acme.com')
     other_org = make_org('Other', 'other.com')

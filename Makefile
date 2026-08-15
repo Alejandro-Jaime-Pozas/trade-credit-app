@@ -1,4 +1,4 @@
-.PHONY: test ci pytest vitest typecheck lint up down down-v cli build build-nc
+.PHONY: test ci pytest vitest typecheck lint up down down-v cli build build-nc makemigrations
 
 # Run both test suites (backend pytest + frontend vitest).
 test: pytest vitest
@@ -40,6 +40,11 @@ down-v:
 # Drop into a shell inside the backend container
 cli:
 	docker compose run --rm backend sh
+
+# Generate Django migrations from model changes, inside a one-off backend
+# container (tears down after, including the postgres-db dependency).
+makemigrations:
+	docker compose run --rm backend python manage.py makemigrations
 
 # Rebuild all images: prune any orphaned containers.
 build:

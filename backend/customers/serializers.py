@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from core.constants import CUSTOMER_CONTACT_BASENAME
+from core.serializer_utils import NamedHyperlinkedModelSerializer, NamedHyperlinkedRelatedField
 
 from .models import (
     Customer,
@@ -8,9 +9,9 @@ from .models import (
 )
 
 
-class CustomerSerializer(serializers.HyperlinkedModelSerializer):
+class CustomerSerializer(NamedHyperlinkedModelSerializer):
 
-    customer_contacts = serializers.HyperlinkedRelatedField(
+    customer_contacts = NamedHyperlinkedRelatedField(
         many=True,
         read_only=True,
         view_name=f'{CUSTOMER_CONTACT_BASENAME}-detail',
@@ -51,9 +52,14 @@ class CustomerSerializer(serializers.HyperlinkedModelSerializer):
             'created_by',
             'customer_contacts',
         ]
+        # Organization's own __str__ shows its email domain, not its name — 'name' reads
+        # better as the display text for a hyperlinked organization reference.
+        extra_kwargs = {
+            'organization': {'display_source': 'name'},
+        }
 
 
-class CustomerContactSerializer(serializers.HyperlinkedModelSerializer):
+class CustomerContactSerializer(NamedHyperlinkedModelSerializer):
     class Meta:
         model = CustomerContact
         fields = [
@@ -79,6 +85,9 @@ class CustomerContactSerializer(serializers.HyperlinkedModelSerializer):
             # 'customer',
             'organization',  # derived from customer.organization in validate() below, never client-set
         ]
+        extra_kwargs = {
+            'organization': {'display_source': 'name'},
+        }
 
     def validate(self, attrs):
         """
