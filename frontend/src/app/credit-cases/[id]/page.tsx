@@ -11,7 +11,7 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DocumentList } from "@/components/DocumentList";
+import { DocumentList, documentDisplayName } from "@/components/DocumentList";
 import { FileUploadField } from "@/components/FileUploadField";
 import { MoneyInput } from "@/components/MoneyInput";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -23,6 +23,7 @@ import {
   REQUESTED_TERM_DAYS_OPTIONS,
 } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { useTransientMessage } from "@/lib/useTransientMessage";
 import {
   addCreditCaseRequirement,
   fileTypeLabel,
@@ -67,8 +68,9 @@ export default function CreditCaseDetailPage() {
 
   const [saving, setSaving] = useState(false);
   // Success confirmation for the Save button. Previously a save gave no feedback at all
-  // beyond the spinner stopping, so there was no way to tell it had worked.
-  const [saved, setSaved] = useState<string | null>(null);
+  // beyond the spinner stopping, so there was no way to tell it had worked. Transient:
+  // it takes itself down after a few seconds rather than lingering indefinitely.
+  const { message: saved, show: showSaved, clear: clearSaved } = useTransientMessage();
   const [deleting, setDeleting] = useState(false);
   // Deletes and removals are irreversible, so each waits on an explicit confirmation.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -77,6 +79,11 @@ export default function CreditCaseDetailPage() {
   const [refreshingUploads, setRefreshingUploads] = useState(false);
   // Url of the document whose file type is being corrected, so only its badge spins.
   const [savingFileTypeUrl, setSavingFileTypeUrl] = useState<string | null>(null);
+  // Url of the document being renamed, so only that row shows a spinner.
+  const [renamingUrl, setRenamingUrl] = useState<string | null>(null);
+  // Deleting a document can un-satisfy a requirement, so it waits on a confirmation.
+  const [documentToDelete, setDocumentToDelete] = useState<UploadDocument | null>(null);
+  const [deletingDocument, setDeletingDocument] = useState(false);
 
   const loadUploads = useCallback(async (creditCaseUrl: string) => {
     const allUploads = await drfListAll<UploadDocument>({
@@ -248,7 +255,7 @@ export default function CreditCaseDetailPage() {
     setStatus(saved.status);
     setVerdict(saved.verdict);
     setAssignedTo(saved.assignedTo);
-    setSaved(null);
+    clearSaved();
     setError(null);
   }
 
@@ -324,6 +331,52 @@ export default function CreditCaseDetailPage() {
     );
 
     await reloadCaseAndUploads(creditCase);
+  }
+
+  /**
+   * Give a document a name a reviewer will recognize.
+   *
+   * Only the display label changes — the stored file and its original name are untouched
+   * — so nothing about the requirement checklist can move here, and the case does not
+   * need re-reading.
+   */
+  async function handleRenameDocument(doc: UploadDocument, friendlyName: string | null) {
+    setRenamingUrl(doc.url);
+    setError(null);
+    try {
+      const updated = await apiJson<UploadDocument>({
+        pathOrUrl: doc.url,
+        method: "PATCH",
+        body: { friendly_file_name: friendlyName },
+      });
+      setUploads((prev) => (prev ?? []).map((u) => (u.url === updated.url ? updated : u)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to rename document");
+    } finally {
+      setRenamingUrl(null);
+    }
+  }
+
+  /**
+   * Delete a document from this case.
+   *
+   * Re-reads the case afterwards: the backend recomputes the case's status on delete, so
+   * removing the file that satisfied the last requirement pulls the case back to
+   * "missing documents" — which the user should see happen.
+   */
+  async function handleDeleteDocument(doc: UploadDocument) {
+    if (!creditCase) return;
+    setDeletingDocument(true);
+    setError(null);
+    try {
+      await apiJson<void>({ pathOrUrl: doc.url, method: "DELETE" });
+      setDocumentToDelete(null);
+      await reloadCaseAndUploads(creditCase);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete document");
+    } finally {
+      setDeletingDocument(false);
+    }
   }
 
   /**
@@ -410,6 +463,18 @@ export default function CreditCaseDetailPage() {
             if (requirementToRemove) void handleRemoveRequirement(requirementToRemove);
           }}
           onCancel={() => setRequirementToRemove(null)}
+        />
+
+        <ConfirmDialog
+          open={documentToDelete !== null}
+          title="Delete this document?"
+          name={documentToDelete ? documentDisplayName(documentToDelete) : undefined}
+          description="If this file was satisfying a required document, this case goes back to missing it."
+          busy={deletingDocument}
+          onConfirm={() => {
+            if (documentToDelete) void handleDeleteDocument(documentToDelete);
+          }}
+          onCancel={() => setDocumentToDelete(null)}
         />
 
         {error ? (
@@ -570,7 +635,7 @@ export default function CreditCaseDetailPage() {
                   if (!creditCase) return;
                   setSaving(true);
                   setError(null);
-                  setSaved(null);
+                  clearSaved();
                   try {
                     const updated = await apiJson<CreditCase>({
                       pathOrUrl: creditCase.url,
@@ -586,7 +651,7 @@ export default function CreditCaseDetailPage() {
                       },
                     });
                     applyCase(updated);
-                    setSaved("Saved.");
+                    showSaved("Saved.");
                   } catch (err) {
                     setError(err instanceof ApiError ? err.message : "Save failed");
                   } finally {
@@ -797,7 +862,10 @@ export default function CreditCaseDetailPage() {
                 documents={uploads}
                 fileTypes={fileTypes}
                 savingUrl={savingFileTypeUrl}
+                renamingUrl={renamingUrl}
                 onChangeFileType={(doc, key) => void handleChangeFileType(doc, key)}
+                onRename={(doc, name) => void handleRenameDocument(doc, name)}
+                onDelete={setDocumentToDelete}
               />
             </div>
           </section>

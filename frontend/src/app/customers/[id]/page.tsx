@@ -13,13 +13,14 @@ import { AiNotice } from "@/components/AiNotice";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CreditCaseTable } from "@/components/CreditCaseTable";
-import { DocumentList } from "@/components/DocumentList";
+import { DocumentList, documentDisplayName } from "@/components/DocumentList";
 import { FileUploadField } from "@/components/FileUploadField";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiForm, apiJson, ApiError, drfListAll, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { listFileTypes } from "@/lib/fileTypes";
 import { formatDate } from "@/lib/format";
+import { useTransientMessage } from "@/lib/useTransientMessage";
 import type {
   CreditCase,
   Customer,
@@ -43,6 +44,11 @@ export default function CustomerDetailPage() {
   // The document catalog, so uploads show readable type names and can be re-labelled.
   const [fileTypes, setFileTypes] = useState<FileType[] | null>(null);
   const [savingFileTypeUrl, setSavingFileTypeUrl] = useState<string | null>(null);
+  // Url of the document being renamed, so only that row shows a spinner.
+  const [renamingUrl, setRenamingUrl] = useState<string | null>(null);
+  // Deleting a document is irreversible, so it waits on an explicit confirmation.
+  const [documentToDelete, setDocumentToDelete] = useState<UploadDocument | null>(null);
+  const [deletingDocument, setDeletingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [editingName, setEditingName] = useState("");
@@ -102,7 +108,9 @@ export default function CustomerDetailPage() {
 
   const [saving, setSaving] = useState(false);
   // Success confirmation for the Save button — a save previously gave no feedback at all.
-  const [saved, setSaved] = useState<string | null>(null);
+  // Transient: it takes itself down after a few seconds, so the page never sits there
+  // claiming a save that happened minutes ago.
+  const { message: saved, show: showSaved, clear: clearSaved } = useTransientMessage();
   const [deleting, setDeleting] = useState(false);
   // Deletes are irreversible, so each waits on an explicit confirmation.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -137,7 +145,7 @@ export default function CustomerDetailPage() {
     setEditingRfc(saved.rfc);
     setEditingStreet(saved.street);
     setEditingZip(saved.zip);
-    setSaved(null);
+    clearSaved();
     setError(null);
   }
 
@@ -230,6 +238,44 @@ export default function CustomerDetailPage() {
     }
   }
 
+  /**
+   * Give a document a name a reviewer will recognize.
+   *
+   * Only the display label changes: the stored file and the name it arrived with are
+   * left exactly as they were.
+   */
+  async function handleRenameDocument(doc: UploadDocument, friendlyName: string | null) {
+    setRenamingUrl(doc.url);
+    setError(null);
+    try {
+      const updated = await apiJson<UploadDocument>({
+        pathOrUrl: doc.url,
+        method: "PATCH",
+        body: { friendly_file_name: friendlyName },
+      });
+      setUploads((prev) => (prev ?? []).map((u) => (u.url === updated.url ? updated : u)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to rename document");
+    } finally {
+      setRenamingUrl(null);
+    }
+  }
+
+  /** Delete a document uploaded against this customer. */
+  async function handleDeleteDocument(doc: UploadDocument) {
+    setDeletingDocument(true);
+    setError(null);
+    try {
+      await apiJson<void>({ pathOrUrl: doc.url, method: "DELETE" });
+      setUploads((prev) => (prev ?? []).filter((u) => u.url !== doc.url));
+      setDocumentToDelete(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete document");
+    } finally {
+      setDeletingDocument(false);
+    }
+  }
+
   /** Correct a document GPT labelled wrongly. */
   async function handleChangeFileType(doc: UploadDocument, key: string) {
     setSavingFileTypeUrl(doc.url);
@@ -307,6 +353,18 @@ export default function CustomerDetailPage() {
           onCancel={() => setContactToDelete(null)}
         />
 
+        <ConfirmDialog
+          open={documentToDelete !== null}
+          title="Delete this document?"
+          name={documentToDelete ? documentDisplayName(documentToDelete) : undefined}
+          description="The uploaded file is removed from this customer."
+          busy={deletingDocument}
+          onConfirm={() => {
+            if (documentToDelete) void handleDeleteDocument(documentToDelete);
+          }}
+          onCancel={() => setDocumentToDelete(null)}
+        />
+
         {error ? (
           <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
@@ -378,7 +436,7 @@ export default function CustomerDetailPage() {
                   if (!customer) return;
                   setSaving(true);
                   setError(null);
-                  setSaved(null);
+                  clearSaved();
                   try {
                     const updated = await apiJson<Customer>({
                       pathOrUrl: customer.url,
@@ -393,7 +451,7 @@ export default function CustomerDetailPage() {
                       },
                     });
                     setCustomer(updated);
-                    setSaved("Saved.");
+                    showSaved("Saved.");
                   } catch (err) {
                     setError(err instanceof ApiError ? err.message : "Save failed");
                   } finally {
@@ -438,7 +496,10 @@ export default function CustomerDetailPage() {
                 documents={uploads}
                 fileTypes={fileTypes}
                 savingUrl={savingFileTypeUrl}
+                renamingUrl={renamingUrl}
                 onChangeFileType={(doc, key) => void handleChangeFileType(doc, key)}
+                onRename={(doc, name) => void handleRenameDocument(doc, name)}
+                onDelete={setDocumentToDelete}
               />
             </div>
           </section>

@@ -71,6 +71,140 @@ describe("DocumentList", () => {
       screen.queryByRole("button", { name: "Change file type" }),
     ).not.toBeInTheDocument();
   });
+
+  it("offers no rename or delete control unless the page handles them", () => {
+    render(<DocumentList documents={[oldest]} fileTypes={FILE_TYPES} />);
+
+    expect(screen.queryByRole("button", { name: /^Rename/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Delete/ })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Uploads arrive named whatever the customer's scanner called them, so a user-supplied
+ * name has to win wherever the document is shown — while the file's real name stays
+ * visible, since that is what identifies the actual file.
+ */
+describe("renaming a document", () => {
+  const doc = makeDoc({ id: 1, original_title: "scan_0012.pdf" });
+
+  function renderWithRename(onRename = vi.fn(), document = doc) {
+    render(
+      <DocumentList documents={[document]} fileTypes={FILE_TYPES} onRename={onRename} />,
+    );
+    return onRename;
+  }
+
+  it("shows the friendly name instead of the original file name", () => {
+    render(
+      <DocumentList
+        documents={[makeDoc({ id: 1, original_title: "scan_0012.pdf", friendly_file_name: "Acta constitutiva" })]}
+        fileTypes={FILE_TYPES}
+      />,
+    );
+
+    expect(screen.getByText("Acta constitutiva")).toBeInTheDocument();
+    // The real file name is still on screen — the user has to be able to tell which
+    // file this is, not just what someone chose to call it.
+    expect(screen.getByText(/scan_0012\.pdf/)).toBeInTheDocument();
+  });
+
+  it("saves a new name", async () => {
+    const user = userEvent.setup();
+    const onRename = renderWithRename();
+
+    await user.click(screen.getByRole("button", { name: "Rename scan_0012.pdf" }));
+    const input = screen.getByRole("textbox", { name: "Rename scan_0012.pdf" });
+    await user.clear(input);
+    await user.type(input, "Bank statement - March");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onRename).toHaveBeenCalledWith(doc, "Bank statement - March");
+  });
+
+  it("seeds the box with the current name so a small edit is easy", async () => {
+    const user = userEvent.setup();
+    const named = makeDoc({ id: 2, original_title: "scan.pdf", friendly_file_name: "Acta" });
+    renderWithRename(vi.fn(), named);
+
+    await user.click(screen.getByRole("button", { name: "Rename Acta" }));
+
+    expect(screen.getByRole("textbox", { name: "Rename Acta" })).toHaveValue("Acta");
+  });
+
+  it("saves on Enter", async () => {
+    const user = userEvent.setup();
+    const onRename = renderWithRename();
+
+    await user.click(screen.getByRole("button", { name: "Rename scan_0012.pdf" }));
+    await user.clear(screen.getByRole("textbox", { name: "Rename scan_0012.pdf" }));
+    await user.type(screen.getByRole("textbox", { name: "Rename scan_0012.pdf" }), "Renamed{Enter}");
+
+    expect(onRename).toHaveBeenCalledWith(doc, "Renamed");
+  });
+
+  it("clears the name back to null when the box is emptied", async () => {
+    const user = userEvent.setup();
+    const named = makeDoc({ id: 3, original_title: "scan.pdf", friendly_file_name: "Acta" });
+    const onRename = renderWithRename(vi.fn(), named);
+
+    await user.click(screen.getByRole("button", { name: "Rename Acta" }));
+    await user.clear(screen.getByRole("textbox", { name: "Rename Acta" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // null, not "" — the document goes back to showing its original file name.
+    expect(onRename).toHaveBeenCalledWith(named, null);
+  });
+
+  it("does nothing when the name is submitted unchanged", async () => {
+    const user = userEvent.setup();
+    const onRename = renderWithRename();
+
+    await user.click(screen.getByRole("button", { name: "Rename scan_0012.pdf" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onRename).not.toHaveBeenCalled();
+  });
+
+  it("abandons the edit on Cancel", async () => {
+    const user = userEvent.setup();
+    const onRename = renderWithRename();
+
+    await user.click(screen.getByRole("button", { name: "Rename scan_0012.pdf" }));
+    await user.type(screen.getByRole("textbox", { name: "Rename scan_0012.pdf" }), "typed");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onRename).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("abandons the edit on Escape", async () => {
+    const user = userEvent.setup();
+    const onRename = renderWithRename();
+
+    await user.click(screen.getByRole("button", { name: "Rename scan_0012.pdf" }));
+    await user.keyboard("{Escape}");
+
+    expect(onRename).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("deleting a document", () => {
+  const doc = makeDoc({ id: 1, original_title: "scan_0012.pdf" });
+
+  it("asks the page rather than deleting on its own", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+    render(
+      <DocumentList documents={[doc]} fileTypes={FILE_TYPES} onDelete={onDelete} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Delete scan_0012.pdf" }));
+
+    // The page owns the confirmation dialog — this component only raises the request.
+    expect(onDelete).toHaveBeenCalledWith(doc);
+  });
 });
 
 describe("correcting a misclassified document", () => {

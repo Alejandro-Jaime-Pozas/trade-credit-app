@@ -30,6 +30,7 @@ import {
   updateTemplateItems,
   type TemplateImpactEntry,
 } from "@/lib/fileTypes";
+import { useTransientMessage } from "@/lib/useTransientMessage";
 import type { FileType, RequirementTemplate } from "@/lib/types";
 
 export default function RequirementsPage() {
@@ -38,7 +39,9 @@ export default function RequirementsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  // Confirmation that the default was written. Transient — it is only meaningful for a
+  // few seconds after the click that caused it.
+  const { message: saved, show: showSaved, clear: clearSaved } = useTransientMessage();
 
   // Populated only when a save would change existing open cases.
   const [impact, setImpact] = useState<TemplateImpactEntry[] | null>(null);
@@ -94,7 +97,7 @@ export default function RequirementsPage() {
 
     setSaving(true);
     setError(null);
-    setSaved(null);
+    clearSaved();
     const idsBeforeSave = templateFileTypeIds(template);
     try {
       const updated = template
@@ -105,7 +108,7 @@ export default function RequirementsPage() {
         : await createDefaultTemplate({ fileTypeIds: selection.fileTypeIds });
 
       setTemplate(updated);
-      setSaved("Default requirements saved.");
+      showSaved("Default requirements saved.");
 
       // Ask what this would do to open cases. Empty means everything is already in
       // sync, so there is nothing to prompt about.
@@ -134,7 +137,7 @@ export default function RequirementsPage() {
       setImpact(null);
       setPreviousFileTypeIds(null);
       setChooserResetKey((k) => k + 1);
-      setSaved("Default requirements saved and applied to open credit cases.");
+      showSaved("Default requirements saved and applied to open credit cases.");
     } catch (err) {
       logError("requirements:apply", err);
       setError(err instanceof ApiError ? err.message : "Failed to update credit cases");
@@ -148,7 +151,7 @@ export default function RequirementsPage() {
     setImpact(null);
     setPreviousFileTypeIds(null);
     setChooserResetKey((k) => k + 1);
-    setSaved("Default requirements saved. Open credit cases were left as they are.");
+    showSaved("Default requirements saved. Open credit cases were left as they are.");
   }
 
   /**
@@ -173,7 +176,7 @@ export default function RequirementsPage() {
       setTemplate(reverted);
       setImpact(null);
       setPreviousFileTypeIds(null);
-      setSaved(null);
+      clearSaved();
     } catch (err) {
       logError("requirements:cancel", err);
       setError(

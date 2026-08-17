@@ -23,6 +23,7 @@ import {
   updateTemplateItems,
   type TemplateImpactEntry,
 } from "@/lib/fileTypes";
+import { useTransientMessage } from "@/lib/useTransientMessage";
 import type { CreditCase, Customer, FileType, RequirementTemplate } from "@/lib/types";
 
 // The wizard ends on "requirements": the credit case is created first, then the user
@@ -67,7 +68,13 @@ export default function NewCreditCasePage() {
   const [nombreDelMunicipio, setNombreDelMunicipio] = useState("");
   const [nombreDeLaEntidadFederativa, setNombreDeLaEntidadFederativa] = useState("");
   const [submittingCustomer, setSubmittingCustomer] = useState(false);
-  const [customerSuccess, setCustomerSuccess] = useState<string | null>(null);
+  // "Customer created." confirmation, shown at the top of step 2. Transient: by the time
+  // the user is filling in the credit case it is just noise.
+  const {
+    message: customerSuccess,
+    show: showCustomerSuccess,
+    clear: clearCustomerSuccess,
+  } = useTransientMessage();
 
   // ── Credit case fields ───────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("customer");
@@ -220,7 +227,7 @@ export default function NewCreditCasePage() {
         },
       });
       setLinkedCustomer(customer);
-      setCustomerSuccess(`Customer "${customer.name}" created successfully.`);
+      showCustomerSuccess(`Customer "${customer.name}" created successfully.`);
       setPhase("creditcase");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create customer");
@@ -442,7 +449,7 @@ export default function NewCreditCasePage() {
                     setPhase("customer");
                     setSearch("");
                     setCreateMode(false);
-                    setCustomerSuccess(null);
+                    clearCustomerSuccess();
                     setError(null);
                   }}
                   className="text-xs text-zinc-600 underline hover:text-zinc-900"

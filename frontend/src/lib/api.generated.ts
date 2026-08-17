@@ -1226,8 +1226,16 @@ export interface paths {
         get: operations["upload_documents_list"];
         put?: never;
         /**
-         * @description Trigger gpt process if this was the last UploadDocument required
-         *     in account application process.
+         * @description Save the uploaded document(s) and hand classification to a background worker.
+         *
+         *     The response returns as soon as the rows are saved, with `file_type_name` still
+         *     null — the frontend already renders that as "Pending classification". A worker
+         *     then asks OpenAI what each document is and fills in the rest, which is what makes
+         *     a requirement tick off and can advance the credit case.
+         *
+         *     Classification used to run here, inline. It costs three OpenAI round trips
+         *     (10-30s), and because ATOMIC_REQUESTS wraps the whole request in one transaction,
+         *     a Postgres connection was held open that entire time waiting on a third party.
          */
         post: operations["upload_documents_create"];
         delete?: never;
@@ -2450,7 +2458,7 @@ export interface components {
              */
             file?: string;
             /** @description friendly file name for readability. */
-            readonly friendly_file_name?: string | null;
+            friendly_file_name?: string | null;
             /** @description The kind of document this is, as a file type key (e.g. "bank_statement"). Set by the GPT classification step after upload, not by the user. Deliberately has no `choices`: valid keys live in the storage.FileType table (seeded from core/file_type_catalog.py) so organizations can eventually define their own types, which a static enum could never list. */
             file_type_name?: string | null;
             /** @description mime type of the file. */
@@ -2629,7 +2637,7 @@ export interface components {
              */
             file: string;
             /** @description friendly file name for readability. */
-            readonly friendly_file_name: string | null;
+            friendly_file_name?: string | null;
             /** @description The kind of document this is, as a file type key (e.g. "bank_statement"). Set by the GPT classification step after upload, not by the user. Deliberately has no `choices`: valid keys live in the storage.FileType table (seeded from core/file_type_catalog.py) so organizations can eventually define their own types, which a static enum could never list. */
             file_type_name?: string | null;
             /** @description mime type of the file. */
