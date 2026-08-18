@@ -18,6 +18,7 @@ import React, { useMemo, useState } from "react";
 import { AiNotice } from "./AiNotice";
 import { FileTypeSelect } from "./FileTypeSelect";
 import { Spinner } from "./Spinner";
+import { classificationStatus } from "@/lib/classification";
 import { formatDate } from "@/lib/format";
 import type { FileType, UploadDocument } from "@/lib/types";
 
@@ -126,6 +127,9 @@ export function DocumentList(props: {
           Boolean(doc.original_title) && doc.original_title !== displayName;
         const editing = editingUrl === doc.url;
         const renaming = renamingUrl === doc.url;
+        // "processing" means a Celery worker is still expected to answer with a file
+        // type; "unclassified" means the backend has stopped waiting for it.
+        const classification = classificationStatus(doc);
 
         return (
           <li key={doc.url} className="rounded-md border px-3 py-2 text-sm">
@@ -178,17 +182,32 @@ export function DocumentList(props: {
               </div>
 
               <div className="shrink-0">
-                {onChangeFileType ? (
+                {classification === "processing" ? (
+                  /* The classifier is still working, so there is nothing to correct yet
+                     — and a value set here would be overwritten the moment it answers.
+                     Same spinner the "pending AI verdict" status uses, for the same
+                     reason: work is actively happening rather than waiting on a person. */
+                  <span
+                    role="status"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-500"
+                  >
+                    <Spinner size={10} />
+                    Classifying…
+                  </span>
+                ) : onChangeFileType ? (
                   <FileTypeSelect
                     value={doc.file_type_name}
                     fileTypes={fileTypes}
                     saving={savingUrl === doc.url}
                     describedBy={titleId}
+                    // Nothing is pending any more once the backend has given up, so the
+                    // user is asked to label it rather than told to keep waiting.
+                    emptyLabel="Not classified"
                     onChange={(key) => onChangeFileType(doc, key)}
                   />
                 ) : (
                   <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                    {doc.file_type_name ?? "Pending classification"}
+                    {doc.file_type_name ?? "Not classified"}
                   </span>
                 )}
               </div>

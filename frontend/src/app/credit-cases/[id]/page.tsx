@@ -23,6 +23,7 @@ import {
   REQUESTED_TERM_DAYS_OPTIONS,
 } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { useClassificationPolling } from "@/lib/useClassificationPolling";
 import { useTransientMessage } from "@/lib/useTransientMessage";
 import {
   addCreditCaseRequirement,
@@ -276,9 +277,9 @@ export default function CreditCaseDetailPage() {
   /**
    * Re-read the uploads AND the credit case itself.
    *
-   * The case has to be re-read too: classification runs on the backend after an upload,
-   * and completing the last required document flips `requirements_complete` and can
-   * advance `status`. Refreshing only the uploads would leave those stale on screen.
+   * The case has to be re-read too: classification runs in a background worker after an
+   * upload, and completing the last required document flips `requirements_complete` and
+   * can advance `status`. Refreshing only the uploads would leave those stale on screen.
    */
   async function refreshUploads() {
     if (!creditCase) return;
@@ -308,9 +309,11 @@ export default function CreditCaseDetailPage() {
   /**
    * Upload the chosen files, then re-read the case.
    *
-   * The backend classifies each file before it responds, and finishing the last required
-   * document flips `requirements_complete` and advances `status`. Re-reading here is what
-   * makes that appear without the user reloading the page.
+   * The upload answers as soon as the rows are saved — classification runs afterwards in
+   * a Celery worker — so this re-read shows the new documents immediately, still marked
+   * as being classified. `useClassificationPolling` then brings in each file type as the
+   * worker answers, along with the `requirements_complete` / `status` changes that
+   * finishing the last required document causes.
    */
   async function handleUpload(chosen: File[]) {
     if (!creditCase || !customer) return;
@@ -402,6 +405,20 @@ export default function CreditCaseDetailPage() {
       setSavingFileTypeUrl(null);
     }
   }
+
+  /**
+   * While a Celery worker is still classifying an upload, keep re-reading — the file type
+   * appears on the server seconds after the upload request answered, with nothing to tell
+   * the browser. Re-reads the CASE too (`reloadCaseAndUploads`), because the type is what
+   * satisfies a requirement: the last document landing can flip `requirements_complete`
+   * and advance the status.
+   */
+  useClassificationPolling({
+    documents: uploads,
+    onRefresh: () => {
+      if (creditCase) return reloadCaseAndUploads(creditCase);
+    },
+  });
 
   return (
     <AppShell>

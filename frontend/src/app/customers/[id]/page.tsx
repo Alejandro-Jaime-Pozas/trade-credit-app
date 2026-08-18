@@ -20,6 +20,7 @@ import { apiForm, apiJson, ApiError, drfListAll, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { listFileTypes } from "@/lib/fileTypes";
 import { formatDate } from "@/lib/format";
+import { useClassificationPolling } from "@/lib/useClassificationPolling";
 import { useTransientMessage } from "@/lib/useTransientMessage";
 import type {
   CreditCase,
@@ -180,9 +181,10 @@ export default function CustomerDetailPage() {
   /**
    * Upload the chosen files against this customer.
    *
-   * The backend runs classification and CSF field extraction synchronously before it
-   * responds, so by the time this resolves the customer's rfc/zip/street may already
-   * have been filled in server-side — hence the re-read.
+   * The upload answers as soon as the rows are saved; classification and CSF field
+   * extraction then run in a Celery worker, so the customer's rfc/zip/street are filled
+   * in server-side some seconds later. The re-read below catches anything already done,
+   * and `useClassificationPolling` picks up the rest as the worker finishes.
    */
   async function handleUpload(chosen: File[]) {
     if (!customer) return;
@@ -301,6 +303,16 @@ export default function CustomerDetailPage() {
   const [newContactLast, setNewContactLast] = useState("");
   const [newContactRole, setNewContactRole] = useState("");
   const [creatingContact, setCreatingContact] = useState(false);
+
+  /**
+   * While a Celery worker is still classifying an upload, keep re-reading. Uses the same
+   * reload as a background upload finishing, so a classified CSF also brings across the
+   * RFC/address it filled in on the customer.
+   */
+  useClassificationPolling({
+    documents: uploads,
+    onRefresh: reloadCustomerDocuments,
+  });
 
   return (
     <AppShell>

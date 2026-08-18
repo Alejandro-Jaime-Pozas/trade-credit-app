@@ -26,8 +26,22 @@ export function FileTypeSelect(props: {
   disabled?: boolean;
   /** Names the control for screen readers, e.g. the document's filename. */
   describedBy?: string;
+  /**
+   * What the trigger reads when there is no type yet. Defaults to `fileTypeLabel`'s own
+   * wording; callers override it where "pending" would be untrue — a document the
+   * classifier has given up on is not pending anything.
+   */
+  emptyLabel?: string;
 }) {
-  const { value, fileTypes, onChange, saving = false, disabled = false, describedBy } = props;
+  const {
+    value,
+    fileTypes,
+    onChange,
+    saving = false,
+    disabled = false,
+    describedBy,
+    emptyLabel,
+  } = props;
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -122,7 +136,7 @@ export function FileTypeSelect(props: {
         }}
         className="flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 disabled:opacity-60"
       >
-        {fileTypeLabel(value, fileTypes)}
+        {!value && emptyLabel ? emptyLabel : fileTypeLabel(value, fileTypes)}
         {saving ? <Spinner size={10} /> : <span aria-hidden="true">▾</span>}
       </button>
 

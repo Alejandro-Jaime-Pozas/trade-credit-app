@@ -310,3 +310,100 @@ describe("correcting a misclassified document", () => {
     expect(screen.getByText("No matching types.")).toBeInTheDocument();
   });
 });
+
+/**
+ * Classification runs in a Celery worker after the upload request has already answered,
+ * so a freshly uploaded document has no file type for 10-30 seconds. That gap has to look
+ * like work in progress rather than like a document the app forgot about.
+ */
+describe("a document still being classified", () => {
+  const classifying = makeDoc({
+    id: 1,
+    original_title: "scan.pdf",
+    file_type_name: null,
+    classification_status: "processing",
+  });
+
+  it("shows a spinner instead of a file type", () => {
+    render(
+      <DocumentList
+        documents={[classifying]}
+        fileTypes={FILE_TYPES}
+        onChangeFileType={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Classifying…");
+  });
+
+  it("offers no type control while the worker is still deciding", () => {
+    render(
+      <DocumentList
+        documents={[classifying]}
+        fileTypes={FILE_TYPES}
+        onChangeFileType={vi.fn()}
+      />,
+    );
+
+    // There is nothing to correct yet, and the worker would overwrite a value set here
+    // the moment it answers.
+    expect(
+      screen.queryByRole("button", { name: "Change file type" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("swaps the spinner for the type once the answer arrives", () => {
+    const { rerender } = render(
+      <DocumentList
+        documents={[classifying]}
+        fileTypes={FILE_TYPES}
+        onChangeFileType={vi.fn()}
+      />,
+    );
+
+    // What polling produces: the same document, now with the worker's answer on it.
+    rerender(
+      <DocumentList
+        documents={[
+          makeDoc({
+            id: 1,
+            original_title: "scan.pdf",
+            file_type_name: "bank_statement",
+            classification_status: "classified",
+          }),
+        ]}
+        fileTypes={FILE_TYPES}
+        onChangeFileType={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Change file type" }),
+    ).toHaveTextContent("Bank statement");
+  });
+
+  it("hands the user the control once the backend gives up waiting", () => {
+    render(
+      <DocumentList
+        documents={[
+          makeDoc({
+            id: 2,
+            original_title: "scan.pdf",
+            file_type_name: null,
+            classification_status: "unclassified",
+          }),
+        ]}
+        fileTypes={FILE_TYPES}
+        onChangeFileType={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    // Not "Pending classification" — nothing is pending any more, and saying so would be
+    // a spinner-that-never-stops in words.
+    expect(
+      screen.getByRole("button", { name: "Change file type" }),
+    ).toHaveTextContent("Not classified");
+  });
+});

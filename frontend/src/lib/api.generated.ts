@@ -2461,6 +2461,15 @@ export interface components {
             friendly_file_name?: string | null;
             /** @description The kind of document this is, as a file type key (e.g. "bank_statement"). Set by the GPT classification step after upload, not by the user. Deliberately has no `choices`: valid keys live in the storage.FileType table (seeded from core/file_type_catalog.py) so organizations can eventually define their own types, which a static enum could never list. */
             file_type_name?: string | null;
+            /**
+             * @description One of `classified`, `processing`, `unclassified`.
+             *
+             *     Computed here rather than left to the client: the backend owns how long
+             *     classification is allowed to take (DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS), so it
+             *     should also own the verdict. A frontend guessing at that number would go wrong the
+             *     moment the timeout is tuned. See services/classification_state.py.
+             */
+            readonly classification_status?: string;
             /** @description mime type of the file. */
             readonly mimetype?: string | null;
             /** @description Useful JSON data that gpt extracts from files. */
@@ -2640,6 +2649,15 @@ export interface components {
             friendly_file_name?: string | null;
             /** @description The kind of document this is, as a file type key (e.g. "bank_statement"). Set by the GPT classification step after upload, not by the user. Deliberately has no `choices`: valid keys live in the storage.FileType table (seeded from core/file_type_catalog.py) so organizations can eventually define their own types, which a static enum could never list. */
             file_type_name?: string | null;
+            /**
+             * @description One of `classified`, `processing`, `unclassified`.
+             *
+             *     Computed here rather than left to the client: the backend owns how long
+             *     classification is allowed to take (DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS), so it
+             *     should also own the verdict. A frontend guessing at that number would go wrong the
+             *     moment the timeout is tuned. See services/classification_state.py.
+             */
+            readonly classification_status: string;
             /** @description mime type of the file. */
             readonly mimetype: string | null;
             /** @description Useful JSON data that gpt extracts from files. */
