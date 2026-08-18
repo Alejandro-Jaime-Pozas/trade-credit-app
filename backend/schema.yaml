@@ -2353,8 +2353,16 @@ paths:
     post:
       operationId: upload_documents_create
       description: |-
-        Trigger gpt process if this was the last UploadDocument required
-        in account application process.
+        Save the uploaded document(s) and hand classification to a background worker.
+
+        The response returns as soon as the rows are saved, with `file_type_name` still
+        null — the frontend already renders that as "Pending classification". A worker
+        then asks OpenAI what each document is and fills in the rest, which is what makes
+        a requirement tick off and can advance the credit case.
+
+        Classification used to run here, inline. It costs three OpenAI round trips
+        (10-30s), and because ATOMIC_REQUESTS wraps the whole request in one transaction,
+        a Postgres connection was held open that entire time waiting on a third party.
       tags:
       - upload-documents
       requestBody:

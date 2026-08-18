@@ -11,7 +11,6 @@ from rest_framework.viewsets import (
 )
 
 from core.mixins import OrganizationScopedMixin
-from core.str_utils import pretty_print
 
 from .serializers import (
     CreditCaseRequirementSerializer,
@@ -38,7 +37,7 @@ from .services.requirements import (
     open_cases_for_template,
 )
 from processing.services.credit_case_status import handle_manual_requirement_change
-from .services.db_object_handling import handle_upload_document_created
+from .tasks import process_upload_document
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +76,16 @@ class UploadDocumentViewSet(
     # This create override is required to replace single obj req/res with list of objs
     def create(self, request, *args, **kwargs):
         """
-        Trigger gpt process if this was the last UploadDocument required
-        in account application process.
+        Save the uploaded document(s) and hand classification to a background worker.
+
+        The response returns as soon as the rows are saved, with `file_type_name` still
+        null — the frontend already renders that as "Pending classification". A worker
+        then asks OpenAI what each document is and fills in the rest, which is what makes
+        a requirement tick off and can advance the credit case.
+
+        Classification used to run here, inline. It costs three OpenAI round trips
+        (10-30s), and because ATOMIC_REQUESTS wraps the whole request in one transaction,
+        a Postgres connection was held open that entire time waiting on a third party.
         """
         # self.get_serializer() (not self.serializer_class(...)) is required here so
         # OrganizationScopedMixin.get_serializer() gets a chance to narrow the
@@ -87,18 +94,16 @@ class UploadDocumentViewSet(
         serializer.is_valid(raise_exception=True)
         docs = serializer.save(uploaded_by=request.user)  # list[UploadDocument]
 
-        # Run your side effects TODO later fix handling for new models, this is just temp for now
         for doc in docs:
-            # Run gpt analysis of credit case if all required docs uploaded. The
-            # UploadDocument row is already saved at this point (and the whole
-            # request runs in one atomic transaction — see ATOMIC_REQUESTS), so a
-            # failure here (e.g. an OpenAI outage) must not turn a successful
-            # upload into a 500/rollback: log it and leave the doc un-classified.
-            try:
-                result = handle_upload_document_created(doc)  # TEMP TODO later fix handling for new models
-                pretty_print(result)  # TEMP, this wont work for atomic txs
-            except Exception:
-                logger.exception('handle_upload_document_created failed for doc id=%s', doc.pk)
+            # on_commit, NOT a bare .delay(): under ATOMIC_REQUESTS these rows are not
+            # committed until this request finishes, and a worker is a separate process
+            # on its own database connection. Queue the job immediately and the worker
+            # routinely wins the race, looks up an id that is not visible yet, and finds
+            # nothing — leaving the document silently unclassified. on_commit holds the
+            # message until the transaction has actually committed.
+            transaction.on_commit(
+                lambda doc_id=doc.pk: process_upload_document.delay(doc_id)
+            )
 
         # Return list response
         out = self.get_serializer(docs, many=True)

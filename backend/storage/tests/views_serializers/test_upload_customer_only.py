@@ -47,7 +47,7 @@ def make_uploaded_file():
 
 
 @pytest.mark.django_db
-@patch('storage.views.handle_upload_document_created', return_value={'skipped': True})
+@patch('storage.tasks.handle_upload_document_created', return_value={'skipped': True})
 def test_upload_with_customer_only_succeeds(mock_handler):
     # GPT extraction hits a real external API, so it's mocked here — this test
     # is only exercising the upload endpoint's create()/side-effect wiring.
@@ -87,7 +87,7 @@ def test_upload_with_neither_customer_nor_credit_case_rejected():
 
 
 @pytest.mark.django_db
-@patch('storage.views.handle_upload_document_created', side_effect=RuntimeError('boom'))
+@patch('storage.tasks.handle_upload_document_created', side_effect=RuntimeError('boom'))
 def test_upload_side_effect_failure_does_not_500(mock_handler):
     """
     A failure in the post-save GPT side effect (e.g. an OpenAI outage) must
@@ -111,7 +111,7 @@ def test_upload_side_effect_failure_does_not_500(mock_handler):
 
 
 @pytest.mark.django_db
-@patch('storage.views.handle_upload_document_created', return_value={'skipped': True})
+@patch('storage.tasks.handle_upload_document_created', return_value={'skipped': True})
 def test_upload_with_credit_case_only_still_succeeds(mock_handler):
     """Regression guard: the existing Credit Case detail page flow must keep working."""
     org = make_org()

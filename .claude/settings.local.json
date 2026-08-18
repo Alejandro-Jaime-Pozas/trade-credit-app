@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import django; print\\(django.__version__\\)\")",
+      "Bash(DJANGO_SETTINGS_MODULE=app.settings python -c \"import django; django.setup\\(\\); print\\('ok'\\)\")",
+      "Bash(python -m pytest identity/tests/models/test_company.py -q)",
+      "Bash(docker compose *)"
+    ]
+  }
+}

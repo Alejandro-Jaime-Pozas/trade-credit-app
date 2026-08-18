@@ -14,6 +14,44 @@ services:
     depends_on:
       postgres-db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Runs the same backend image as a Celery worker instead of a web server. Document
+  # classification (3 OpenAI round trips, 10-30s) happens here rather than inside the
+  # upload request, so no HTTP request - and no database transaction - waits on OpenAI.
+  #
+  # Same build context and volume mount as `backend` on purpose: it IS the same codebase,
+  # just running the worker loop, and code edits reload here the same way they do there.
+  celery-worker:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/backend
+    # --concurrency stays low deliberately: each task is bound by OpenAI's rate limits,
+    # not by CPU, so more workers would just collect 429s faster.
+    command: celery -A app worker --loglevel=info --concurrency=4
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Message broker: the queue the django backend container pushes jobs onto and
+  # the celery-worker service pulls them off. Used only as a broker here, not as a cache.
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 2s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
@@ -47,3 +85,4 @@ services:
 volumes:
   postgres-data:
   frontend-node-modules:
+  redis-data:

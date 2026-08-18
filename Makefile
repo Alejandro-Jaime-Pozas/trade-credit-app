@@ -1,4 +1,4 @@
-.PHONY: test ci pytest vitest typecheck lint up down down-v cli build build-nc makemigrations
+.PHONY: test ci pytest vitest typecheck lint up down down-v cli worker-logs build build-nc makemigrations
 
 # Run both test suites (backend pytest + frontend vitest).
 test: pytest vitest
@@ -40,6 +40,12 @@ down-v:
 # Drop into a shell inside the backend container
 cli:
 	docker compose run --rm backend sh
+
+# Follow the Celery worker's log. The worker is what actually classifies uploaded
+# documents (see backend/storage/tasks.py) - `make up` already starts it, this is for
+# watching a job run or diagnosing one that didn't.
+worker-logs:
+	docker compose logs -f celery-worker
 
 # Generate Django migrations from model changes, inside a one-off backend
 # container (tears down after, including the postgres-db dependency).

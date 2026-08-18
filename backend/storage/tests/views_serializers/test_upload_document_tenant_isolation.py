@@ -52,7 +52,7 @@ def make_uploaded_file():
 
 
 @pytest.mark.django_db
-@patch('storage.views.handle_upload_document_created', return_value={'skipped': True})
+@patch('storage.tasks.handle_upload_document_created', return_value={'skipped': True})
 def test_upload_for_own_customer_succeeds_and_sets_uploaded_by(mock_handler):
     org = make_org()
     user = make_user_in_org(org)

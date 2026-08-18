@@ -9,6 +9,11 @@ Document requirements are **not** listed here; that work is done (backend + fron
 
 ---
 
+> **Update 2026-08-15:** the "no retry for failed classification" problem noted under item 4's
+> neighbours is now closed — document classification runs as a Celery task with retries on OpenAI
+> failures (see `docs/architecture/decisions.md` § "Background document processing"). A document is
+> only left unclassified if retries are exhausted, and it stays user-correctable.
+
 ## 1. Logout does not invalidate anything server-side
 
 - `TokenBlacklistView` is **imported** at `backend/app/urls.py:30` but never added to `urlpatterns`.

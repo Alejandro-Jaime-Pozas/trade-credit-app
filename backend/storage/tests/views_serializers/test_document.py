@@ -96,7 +96,7 @@ class TestPrivateUploadDocumentAPI(TestCase):
     # VIEWS
 
     # test create UploadDocument success
-    @patch('storage.views.handle_upload_document_created', autospec=True)
+    @patch('storage.tasks.handle_upload_document_created', autospec=True)
     def test_create_UploadDocument(self, mock_handler):
 
         mock_handler.return_value = {'skipped': True}

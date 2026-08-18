@@ -187,6 +187,49 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Celery — background jobs
+# Slow work (document classification: 3 OpenAI round trips, 10-30s) is pushed onto a
+# Redis queue and run by the separate `celery-worker` container, so no HTTP request and
+# no database transaction ever waits on OpenAI. See app/celery.py.
+#
+# Defaults point at the compose service name, so nothing has to be added to .env for
+# local development.
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/1')
+
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TIMEZONE = TIME_ZONE
+
+# Acknowledge a job only once it has FINISHED, not when it is picked up. A worker killed
+# mid-classification then puts the job back on the queue instead of losing it silently.
+# Safe here because re-running classification just overwrites its own output.
+CELERY_TASK_ACKS_LATE = True
+
+# Take one job at a time. The default (4) lets a worker reserve several jobs up front,
+# which suits short tasks but not these: one worker could sit on four 30-second jobs
+# while another idles.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# How long to wait on a single OpenAI HTTP call before giving up. Without a limit a hung
+# connection pins a worker slot forever; with one it raises APITimeoutError, which the
+# task retries (see storage/tasks.py).
+OPENAI_REQUEST_TIMEOUT_SECONDS = float(os.getenv('OPENAI_REQUEST_TIMEOUT_SECONDS', '120'))
+
+# How long a document may sit unclassified before the app stops calling it "in progress".
+#
+# Classification is three OpenAI round trips (10-30s in practice). The hard ceiling is much
+# higher — each call may take OPENAI_REQUEST_TIMEOUT_SECONDS and the task retries up to
+# three times — but this is not that ceiling on purpose. It is the point past which "the
+# worker is down" is a likelier explanation than "it is still going", and the user is far
+# better served by a file type control they can use than by a spinner that never stops.
+# See storage/services/classification_state.py.
+DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS = float(
+    os.getenv('DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS', '300')
+)
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 STATIC_URL = 'static/'
@@ -232,15 +275,3 @@ LOGGING = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# How long a document may sit unclassified before the app stops calling it "in progress".
-#
-# Classification is three OpenAI round trips (10-30s in practice). The hard ceiling is much
-# higher — each call may take OPENAI_REQUEST_TIMEOUT_SECONDS and the task retries up to
-# three times — but this is not that ceiling on purpose. It is the point past which "the
-# worker is down" is a likelier explanation than "it is still going", and the user is far
-# better served by a file type control they can use than by a spinner that never stops.
-# See storage/services/classification_state.py.
-DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS = float(
-    os.getenv('DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS', '300')
-)

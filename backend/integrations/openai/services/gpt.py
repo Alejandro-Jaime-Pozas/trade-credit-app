@@ -57,7 +57,13 @@ class GPTService:
     # Conncect to OpenAI API via api key
     def __init__(self, credit_case='a'):
         # TODO later create global openai client, since more efficient
-        self.client = OpenAI()  # defaults to system env var OPENAI_API_KEY's value
+        # An explicit timeout matters now that these calls run in a Celery worker: without
+        # one, a hung connection occupies a worker slot indefinitely. With it the call
+        # raises APITimeoutError, which is an openai.APIError subclass and therefore
+        # retried by process_upload_document (see storage/tasks.py).
+        self.client = OpenAI(  # defaults to system env var OPENAI_API_KEY's value
+            timeout=settings.OPENAI_REQUEST_TIMEOUT_SECONDS,
+        )
         self.credit_case = credit_case
 
     # Check if a file is an image, since openai handles images differently from documents

@@ -29,9 +29,13 @@
 
 ### Infrastructure & Background Processing
 
--   Cache & Broker: Redis
--   Async Tasks: Celery
--   Background Scheduling: Celery Beat
+-   Cache & Broker: Redis — implemented, as a Celery broker only (not yet used as a cache).
+-   Async Tasks: Celery — implemented. Document classification (3 OpenAI round trips per file) runs
+    in the `celery-worker` container instead of the upload request. See
+    `backend/storage/tasks.py` and `docs/architecture/decisions.md` § "Background document
+    processing".
+-   Background Scheduling: Celery Beat — not implemented. Nothing needs a schedule yet; task-level
+    retries cover the failure cases that exist today.
 
 ### Authentication & Authorization
 

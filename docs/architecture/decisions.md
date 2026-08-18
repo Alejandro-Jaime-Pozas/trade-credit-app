@@ -138,6 +138,61 @@ A blank name is stored as `NULL`, never `''` (`validate_friendly_file_name`), so
 friendly name" is one state in the database rather than two that every reader would have to
 test for separately.
 
+### Background document processing (Celery + Redis)
+
+Decided 2026-08-15. Document classification used to run inline in the upload request.
+
+**Why it moved.** `handle_upload_document_created` makes three OpenAI round trips per document
+(upload → classify → extract), 10–30s. Because `ATOMIC_REQUESTS = True` wraps every request in one
+database transaction, a Postgres connection was held open — inside a transaction — for that entire
+third-party call. The frontend uploads files in parallel, so ten users with four files each meant
+forty concurrent long-lived connections against a Postgres default of 100. The database was doing
+nothing but waiting on OpenAI.
+
+**`transaction.on_commit` is mandatory here, not stylistic.** Under `ATOMIC_REQUESTS` the new row is
+not committed until the view returns. A bare `.delay()` publishes immediately, and the worker — a
+separate process on its own connection — routinely wins that race, looks up an id that is not yet
+visible, and finds nothing. The document is then silently never classified, intermittently. Queue
+via `transaction.on_commit(...)` so the message is only published after the commit.
+  - the same rollback behaviour is why tests must use pytest-django's
+    `django_capture_on_commit_callbacks(execute=True)` to exercise the task; each test runs in a
+    transaction that is rolled back, so on_commit callbacks never fire on their own and a naive test
+    passes while asserting nothing.
+
+**`ATOMIC_REQUESTS` stays on.** An earlier suggestion to mark the upload view
+`non_atomic_requests` is moot: the request now only performs a database insert, so the transaction
+lasts milliseconds.
+
+**Retries are scoped to `openai.APIError`, not bare `Exception`.** Rate limits, timeouts, connection
+errors and 5xx are all `APIError` subclasses and genuinely succeed on a second attempt. A `TypeError`
+in our own code would fail identically three more times, cost three more API calls, and bury the
+traceback — bugs should fail once and loudly. Backoff with jitter avoids hammering a service that
+just asked us to slow down.
+  - this closes a real hole: previously a rate-limited document kept `file_type_name = null`
+    forever, satisfied no requirement, and silently prevented its credit case from ever reaching
+    `pending_final_verdict`.
+
+**`task_acks_late = True`** — a job is acknowledged only when it finishes, so a worker killed
+mid-classification returns it to the queue rather than losing it. Safe because re-running
+classification overwrites its own output.
+
+**`worker_prefetch_multiplier = 1`** — the default of 4 lets one worker reserve several jobs up
+front, which suits short tasks. These are long and uneven, so one worker could sit on four
+30-second jobs while another idles.
+
+**An explicit OpenAI timeout was added** (`OPENAI_REQUEST_TIMEOUT_SECONDS`, default 120). Without
+one a hung connection pins a worker slot indefinitely; with it the call raises `APITimeoutError`,
+which is retried by the rule above.
+
+**API contract change:** `POST /upload-documents/` now returns 201 with `file_type_name = null`.
+The frontend rendered that as a static "Pending classification" badge that never updated — polling
+and a "Classifying…" state were deferred at the time, and were built on 2026-08-17 (see "The
+backend decides whether a document is still being classified" below).
+
+**Not built:** Celery Beat, any scheduled sweep for stuck documents, Redis as a cache, gunicorn.
+`runserver` remains the dev server.
+
+
 ### The backend decides whether a document is still being classified
 
 Decided 2026-08-17. Completes the Celery move above: uploads answered instantly with no file type,

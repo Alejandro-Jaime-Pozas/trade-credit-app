@@ -131,28 +131,38 @@ def test_rejects_a_file_type_belonging_to_another_organization():
 
 
 @pytest.mark.django_db
-@patch('storage.views.handle_upload_document_created', return_value={'skipped': True})
-def test_file_type_sent_on_create_does_not_bypass_classification(mock_handler):
+@patch('storage.tasks.handle_upload_document_created', return_value={'skipped': True})
+def test_file_type_sent_on_create_does_not_bypass_classification(
+    mock_handler, django_capture_on_commit_callbacks,
+):
     """
     On create the field is still effectively read-only: classification runs after save
     and overwrites whatever the client sent, so a client can't pre-label an upload.
+
+    Classification now runs in a background task queued with `transaction.on_commit`, and
+    pytest-django wraps each test in a transaction it rolls back — so those callbacks
+    never fire on their own. `django_capture_on_commit_callbacks(execute=True)` is what
+    makes them run; without it this test would pass whether or not the task was ever
+    queued.
     """
     org = make_org()
     client = make_client_for(make_user_in_org(org))
     customer = Customer.objects.create(organization=org, name='Acme Customer')
     make_file_type()
 
-    res = client.post(
-        reverse('uploaddocument-list'),
-        data={
-            'file': SimpleUploadedFile('doc.pdf', b'content', content_type='application/pdf'),
-            'customer': reverse('customer-detail', args=[customer.id]),
-            'file_type_name': 'bank_statement',
-        },
-        format='multipart',
-    )
+    with django_capture_on_commit_callbacks(execute=True):
+        res = client.post(
+            reverse('uploaddocument-list'),
+            data={
+                'file': SimpleUploadedFile('doc.pdf', b'content', content_type='application/pdf'),
+                'customer': reverse('customer-detail', args=[customer.id]),
+                'file_type_name': 'bank_statement',
+            },
+            format='multipart',
+        )
 
-    assert res.status_code == status.HTTP_201_CREATED
+        assert res.status_code == status.HTTP_201_CREATED
+
     # The classifier (mocked here) is what decides the type, and it ran.
     assert mock_handler.called
 
