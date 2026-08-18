@@ -155,3 +155,50 @@ def test_file_type_sent_on_create_does_not_bypass_classification(mock_handler):
     assert res.status_code == status.HTTP_201_CREATED
     # The classifier (mocked here) is what decides the type, and it ran.
     assert mock_handler.called
+
+
+@pytest.mark.django_db
+def test_a_document_reports_whether_it_is_still_being_classified():
+    """
+    The API carries the classifier's progress, so the frontend can show a spinner while a
+    Celery worker is working instead of a file type that is simply, silently missing.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    pending = make_document(org, file_type_name=None)
+
+    res = client.get(reverse('uploaddocument-detail', args=[pending.id]))
+
+    assert res.status_code == status.HTTP_200_OK
+    # Just uploaded, no type yet — a worker is plausibly still on it.
+    assert res.data['classification_status'] == 'processing'
+
+
+@pytest.mark.django_db
+def test_a_classified_document_reports_classified():
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    make_file_type()
+    doc = make_document(org, file_type_name='bank_statement')
+
+    res = client.get(reverse('uploaddocument-detail', args=[doc.id]))
+
+    assert res.status_code == status.HTTP_200_OK
+    assert res.data['classification_status'] == 'classified'
+
+
+@pytest.mark.django_db
+def test_correcting_a_type_flips_the_document_to_classified():
+    """A hand-set type ends the wait exactly as the classifier's own answer would."""
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    make_file_type()
+    doc = make_document(org, file_type_name=None)
+
+    res = client.patch(
+        reverse('uploaddocument-detail', args=[doc.id]),
+        data={'file_type_name': 'bank_statement'},
+    )
+
+    assert res.status_code == status.HTTP_200_OK
+    assert res.data['classification_status'] == 'classified'

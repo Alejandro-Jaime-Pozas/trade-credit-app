@@ -4520,9 +4520,9 @@ components:
           pattern: (?:pdf|jpg|jpeg|png|txt|csv|xml|json|docx|xlsx|pptx)$
         friendly_file_name:
           type: string
-          readOnly: true
           nullable: true
           description: friendly file name for readability.
+          maxLength: 512
         file_type_name:
           type: string
           nullable: true
@@ -4532,6 +4532,16 @@ components:
             from core/file_type_catalog.py) so organizations can eventually define
             their own types, which a static enum could never list.'
           maxLength: 50
+        classification_status:
+          type: string
+          description: |-
+            One of `classified`, `processing`, `unclassified`.
+
+            Computed here rather than left to the client: the backend owns how long
+            classification is allowed to take (DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS), so it
+            should also own the verdict. A frontend guessing at that number would go wrong the
+            moment the timeout is tuned. See services/classification_state.py.
+          readOnly: true
         mimetype:
           type: string
           readOnly: true
@@ -4852,9 +4862,9 @@ components:
           pattern: (?:pdf|jpg|jpeg|png|txt|csv|xml|json|docx|xlsx|pptx)$
         friendly_file_name:
           type: string
-          readOnly: true
           nullable: true
           description: friendly file name for readability.
+          maxLength: 512
         file_type_name:
           type: string
           nullable: true
@@ -4864,6 +4874,16 @@ components:
             from core/file_type_catalog.py) so organizations can eventually define
             their own types, which a static enum could never list.'
           maxLength: 50
+        classification_status:
+          type: string
+          description: |-
+            One of `classified`, `processing`, `unclassified`.
+
+            Computed here rather than left to the client: the backend owns how long
+            classification is allowed to take (DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS), so it
+            should also own the verdict. A frontend guessing at that number would go wrong the
+            moment the timeout is tuned. See services/classification_state.py.
+          readOnly: true
         mimetype:
           type: string
           readOnly: true
@@ -4905,10 +4925,10 @@ components:
             type: string
           readOnly: true
       required:
+      - classification_status
       - custom_fields
       - extracted_data
       - file
-      - friendly_file_name
       - id
       - mimetype
       - original_title

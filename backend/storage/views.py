@@ -104,6 +104,30 @@ class UploadDocumentViewSet(
         out = self.get_serializer(docs, many=True)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
+    def perform_destroy(self, instance):
+        """
+        Delete a document and recompute the credit case it was helping to satisfy.
+
+        `requirements_complete` is derived from the documents that exist right now, so
+        removing one can un-satisfy a requirement. Without recomputing, deleting the only
+        bank statement would leave the case sitting in "pending final verdict" — advanced
+        on the strength of a document that is no longer there.
+
+        `handle_manual_requirement_change` is the right helper (rather than the gentler
+        `handle_requirements_progress`) because this is a user deliberately removing
+        something from one specific case, exactly like removing a requirement by hand: it
+        is allowed to pull the case BACK to "missing documents".
+
+        The case is read before the delete simply because the FK is about to go away.
+        Its `requirements_complete` is still accurate afterwards: that property counts
+        documents with a fresh query each time it is read, not from a cached list.
+        """
+        credit_case = instance.credit_case
+        instance.delete()
+
+        if credit_case is not None:
+            handle_manual_requirement_change(credit_case)
+
 
 class DocumentDataExtractViewSet(
     OrganizationScopedMixin,

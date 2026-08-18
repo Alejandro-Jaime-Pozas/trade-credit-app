@@ -231,3 +231,16 @@ LOGGING = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# How long a document may sit unclassified before the app stops calling it "in progress".
+#
+# Classification is three OpenAI round trips (10-30s in practice). The hard ceiling is much
+# higher — each call may take OPENAI_REQUEST_TIMEOUT_SECONDS and the task retries up to
+# three times — but this is not that ceiling on purpose. It is the point past which "the
+# worker is down" is a likelier explanation than "it is still going", and the user is far
+# better served by a file type control they can use than by a spinner that never stops.
+# See storage/services/classification_state.py.
+DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS = float(
+    os.getenv('DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS', '300')
+)

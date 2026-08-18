@@ -89,6 +89,110 @@ JSON Schema directly on its row — no runtime model generation needed.
 `required_file_type_names`, so they never block completion.
 
 
+### Deleting a document recomputes the credit case's status
+
+Decided 2026-08-16. Documents could not be deleted at all before this; adding the ability
+also had to answer what happens to a case that was relying on the deleted file.
+
+`CreditCase.requirements_complete` (`backend/processing/models.py`) is a *property*, not a
+stored column — it counts the case's documents every time it is read. That was a deliberate
+earlier decision so the answer can never disagree with reality. But `CreditCase.status` IS
+stored, and it is what a reviewer's queue is built from. Uploading the last required
+document advances the status; nothing was moving it back.
+
+So `UploadDocumentViewSet.perform_destroy` (`backend/storage/views.py`) calls
+`handle_manual_requirement_change(credit_case)` after the delete:
+
+- **Why that helper and not `handle_requirements_progress`.** The two differ in one
+  important way. `handle_requirements_progress` only ever moves a case FORWARD — it is
+  called after an upload, where dragging a case backwards would be wrong. Deleting is the
+  opposite situation: a user has deliberately removed something from one specific case, so
+  it is allowed to pull the case back to `missing_documents`. That is exactly the rule
+  already written for a user adding or removing a requirement by hand, which is why the
+  same helper is reused rather than a third one being written.
+- **What it avoids.** Without it, deleting the only bank statement leaves the case sitting
+  in `pending_final_verdict` — in a reviewer's queue, presented as ready to judge, with the
+  evidence it was advanced on no longer there.
+- **Cost accepted.** A delete now costs an extra status recalculation. It is a handful of
+  queries against one case, on a rare user action, and runs inside the same transaction
+  (`ATOMIC_REQUESTS = True`), so a failed recompute rolls the delete back with it.
+
+### A document's display name is separate from its file name
+
+Decided 2026-08-16. `UploadDocument.friendly_file_name` existed on the model but was listed
+in the serializer's `read_only_fields`, so nothing could ever set it.
+
+Uploads arrive named whatever produced them — `scan_0012.pdf` — which tells a reviewer
+nothing. The fix is a rename, but there are two things a rename could mean, and only one of
+them is safe:
+
+- **`original_title` stays read-only.** It is the record of what the customer actually sent.
+  Overwriting it would destroy the only link between the row and the file as it arrived.
+- **`friendly_file_name` is writable** and is purely a display label layered on top. The
+  frontend resolves the two with `documentDisplayName()`
+  (`frontend/src/components/DocumentList.tsx`): friendly name if set, original file name
+  otherwise, with the original still shown in the row's metadata line whenever a friendly
+  name is hiding it.
+
+A blank name is stored as `NULL`, never `''` (`validate_friendly_file_name`), so "no
+friendly name" is one state in the database rather than two that every reader would have to
+test for separately.
+
+### The backend decides whether a document is still being classified
+
+Decided 2026-08-17. Completes the Celery move above: uploads answered instantly with no file type,
+and nothing ever told the browser when the worker finished.
+
+Two things were needed — a spinner while the worker is genuinely working, and the file type
+appearing without a manual page reload. Both hinge on one question the frontend cannot answer:
+**is this still running?**
+
+`file_type_name IS NULL` does not answer it. That is equally true of a document queued two seconds
+ago and one whose worker died last week, and a spinner that never stops is worse than no spinner,
+because it lies about what the app is doing.
+
+**Rejected: asking Celery.** A result backend is configured (`CELERY_RESULT_BACKEND`, Redis db 1),
+so the task id could be stored on the row and `AsyncResult(task_id).status` read back. Three
+reasons not to:
+  - Celery answers `PENDING` for a task id it has never heard of, so "queued" and "lost forever"
+    come back identical — exactly the distinction being made.
+  - Task results expire (24 hours by default), after which every older document reports `PENDING`
+    again.
+  - It costs a migration plus one Redis round trip per row in a list response.
+
+**Chosen: derive it from time, on the backend.** `classification_status(doc)`
+(`backend/storage/services/classification_state.py`) returns one of three values, exposed as a
+read-only field on `UploadDocumentSerializer`:
+  - `classified` — the classifier answered. Includes answering `unknown`, which is the classifier
+    saying "I could not tell" — an answer, not the absence of one.
+  - `processing` — no answer yet, and uploaded within `DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS`
+    (default 300). The UI spins.
+  - `unclassified` — no answer, and past that window. The UI stops spinning and hands the user the
+    file type control so they can label it themselves.
+
+The window is deliberately NOT the true worst case (three OpenAI calls, each up to
+`OPENAI_REQUEST_TIMEOUT_SECONDS`, retried three times — over twenty minutes). Past five minutes a
+dead worker is the likelier explanation than a slow one, and a usable control beats an honest but
+useless spinner.
+
+**Why the backend owns this and not the frontend.** The timeout is a backend setting, so the
+verdict belongs there too — a number hardcoded in the frontend would go wrong the moment it is
+tuned. It also has to survive navigation: a client-side countdown restarts on every mount, so a
+document abandoned days ago would look freshly queued each time the page is opened.
+
+**Polling, not push.** `useClassificationPolling` (`frontend/src/lib/useClassificationPolling.ts`)
+re-reads every 4 seconds while at least one document on screen is `processing`, and stops the
+moment none are — an idle page makes no requests at all. WebSockets/SSE were rejected as new
+infrastructure (a socket layer in Django, a second protocol to scope per organization) for a payoff
+of a few seconds' latency on a page the user is already watching. The refresh callback is the
+page's existing full reload, so a finished classification also brings across what it can move: a
+credit case's `requirements_complete` and `status`, and the RFC/address a CSF fills in on a
+customer.
+
+**Not built:** a scheduled sweep that retries documents stuck in `unclassified`. The user can set
+the type by hand, and re-uploading re-queues the job.
+
+
 ## Deployment
 
 ### Hosting platform (not yet implemented)
@@ -123,6 +227,27 @@ revisiting once there's real production load to measure.
 
 
 ## Frontend
+
+### Confirmations expire, errors do not
+
+Decided 2026-08-16. Every success message in the app used to be a plain
+`useState<string | null>` that stayed on screen until some unrelated action happened to
+clear it, so a page could sit there claiming a save that happened minutes earlier.
+
+`useTransientMessage` (`frontend/src/lib/useTransientMessage.ts`) is now the one way to show
+a confirmation: `show(text)` displays it and takes it back down after
+`TRANSIENT_MESSAGE_MS` (4s), restarting the countdown if a second message replaces the
+first, and cancelling the pending timer on unmount so a fired timeout can never set state on
+a page the user has navigated away from.
+
+The asymmetry is the point: **error banners are deliberately left permanent.** An error is
+something the user has to read and act on, and one that disappears before it is read is
+worse than one that lingers. A confirmation is only useful for a few seconds — after that it
+is noise.
+
+The timeout is scheduled inside the `show` callback rather than in a `useEffect` watching the
+message. `eslint-plugin-react-hooks`' `set-state-in-effect` rule rejects effect-driven state
+updates (it has already bitten this repo), and no effect is needed here anyway.
 
 - frontend testing:
   - Vitest + React Testing Library for unit/component tests (per `docs/architecture/architecture.md`'s Testing stack); Playwright/E2E deferred until there's a feature that needs it.

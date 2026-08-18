@@ -17,6 +17,7 @@ from core.constants import (
 from core.serializer_utils import NamedHyperlinkedModelSerializer, NamedHyperlinkedRelatedField
 from processing.models import CreditCase
 
+from .services.classification_state import classification_status
 from .models import (
     CreditCaseRequirement,
     DocumentDataExtract,
@@ -41,8 +42,23 @@ class UploadDocumentSerializer(NamedHyperlinkedModelSerializer):
     # Read-only here — values are set/updated via LabelValueViewSet.
     custom_fields = serializers.SerializerMethodField()
 
+    # Whether the background classifier has answered yet, so the frontend can show a
+    # spinner while it is working instead of a file type that is simply missing.
+    classification_status = serializers.SerializerMethodField()
+
     def get_custom_fields(self, obj) -> dict[str, str]:
         return {lv.label.name: lv.value for lv in obj.label_values.select_related('label').all()}
+
+    def get_classification_status(self, obj) -> str:
+        """
+        One of `classified`, `processing`, `unclassified`.
+
+        Computed here rather than left to the client: the backend owns how long
+        classification is allowed to take (DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS), so it
+        should also own the verdict. A frontend guessing at that number would go wrong the
+        moment the timeout is tuned. See services/classification_state.py.
+        """
+        return classification_status(obj)
 
     class Meta:
         model = UploadDocument
@@ -55,6 +71,7 @@ class UploadDocumentSerializer(NamedHyperlinkedModelSerializer):
             'file',
             'friendly_file_name',
             'file_type_name',
+            'classification_status',
             'mimetype',
             'extracted_data',
             'credit_case',
@@ -62,11 +79,16 @@ class UploadDocumentSerializer(NamedHyperlinkedModelSerializer):
             'custom_fields',
         ]
         read_only_fields = [
+            # The name the customer's own file arrived with. Kept as evidence of what was
+            # actually sent, which is why `friendly_file_name` exists as a separate,
+            # editable display label rather than this being renamed in place.
             'original_title',
             'uploaded_at',
             'mimetype',
             # 'file',  # TODO later uncomment when frontend ready to upload multi files
-            'friendly_file_name',
+            # 'friendly_file_name' is writable on purpose: uploads routinely arrive named
+            # things like "scan_0012.pdf", which tells a reviewer nothing. The user needs
+            # to be able to give a document a name they can recognize later.
             # 'file_type_name' is writable on purpose: GPT classification can get a
             # document wrong, and a mislabelled file silently fails to satisfy the
             # requirement it should. The user must be able to correct it. On create it
@@ -74,6 +96,20 @@ class UploadDocumentSerializer(NamedHyperlinkedModelSerializer):
             # overwrites whatever was sent (see UploadDocumentViewSet.create).
             'extracted_data',
         ]
+
+    def validate_friendly_file_name(self, value):
+        """
+        Tidy the readable name a user gives a document.
+
+        Surrounding whitespace is stripped, and a name that is blank (or only spaces)
+        becomes NULL rather than an empty string, so "no friendly name" is a single state
+        in the database instead of two that the UI would have to test for separately.
+        """
+        if value is None:
+            return None
+
+        cleaned = value.strip()
+        return cleaned or None
 
     def validate_file_type_name(self, value):
         """
