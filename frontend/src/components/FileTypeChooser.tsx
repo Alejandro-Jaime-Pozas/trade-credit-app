@@ -10,6 +10,12 @@
  * an unselected document is drawn flat against the page background, and turns blue once
  * chosen, so "what am I asking this customer for" reads at a glance.
  *
+ * The buttons are grouped under headings and searchable (see `FileTypePicker`). At five
+ * document types one flat row was fine; the catalog is now 22 and growing, and a wall of
+ * unsorted buttons is not something anyone can choose from carefully. "Suggested" fills
+ * in the starting set the catalog recommends, so a first-time setup is a review rather
+ * than 22 separate decisions.
+ *
  * When a default template exists it gets its own button, separated from the individual
  * documents. Only ONE of the two can be in effect at a time, because they mean different
  * things on the backend: accepting the default keeps the case linked to the template (so
@@ -23,6 +29,9 @@
  * gets there in one click, and finds their documents still selected if they switch back.
  */
 import React, { useMemo, useState } from "react";
+import { FileTypePicker } from "./FileTypePicker";
+import { suggestedFileTypeIds } from "@/lib/fileTypeGroups";
+import { fileTypeDisplayLabel } from "@/lib/fileTypes";
 import type { FileType } from "@/lib/types";
 
 export type FileTypeChooserSelection =
@@ -77,6 +86,10 @@ export function FileTypeChooser(props: {
 
   const usingDefault = activeGroup === "default";
 
+  // Which documents the catalog recommends as a starting point (backend-provided, so the
+  // list stays right as the catalog grows).
+  const suggestedIds = useMemo(() => suggestedFileTypeIds(fileTypes), [fileTypes]);
+
   // Only asked during first-time setup, and only once documents are actually chosen.
   const mustAnswerSaveAsDefault =
     Boolean(saveAsDefaultQuestion) && !usingDefault && selectedIds.length > 0;
@@ -103,6 +116,25 @@ export function FileTypeChooser(props: {
         ? current.filter((existing) => existing !== id)
         : [...current, id],
     );
+  }
+
+  /**
+   * The catalog's own starting set, offered as one click.
+   *
+   * Adds to whatever is already ticked rather than replacing it: a user who picked two
+   * documents and then wants the suggested ones as well should not lose their two.
+   */
+  function selectSuggested() {
+    setActiveGroup("fileTypes");
+    setSelectedIds((current) => [
+      ...current,
+      ...suggestedIds.filter((id) => !current.includes(id)),
+    ]);
+  }
+
+  function clearSelection() {
+    setActiveGroup("fileTypes");
+    setSelectedIds([]);
   }
 
   /** Clicking Default always makes it the active choice, in one click. */
@@ -139,8 +171,8 @@ export function FileTypeChooser(props: {
               className={[
                 "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
                 usingDefault
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-zinc-300 bg-transparent text-zinc-900 hover:bg-zinc-50",
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-border-strong bg-transparent text-fg hover:bg-surface-subtle",
                 // Dimmed while documents are the active choice, but still clickable —
                 // one click brings it back.
                 usingDefault ? "" : "opacity-50",
@@ -152,17 +184,17 @@ export function FileTypeChooser(props: {
             {showDefaultInfo && (
               <div
                 role="tooltip"
-                className="absolute left-0 top-full z-10 mt-2 w-64 rounded-md border bg-white p-3 text-xs shadow-lg"
+                className="absolute left-0 top-full z-10 mt-2 w-64 rounded-md border bg-surface p-3 text-xs shadow-lg"
               >
-                <p className="font-medium text-zinc-900">
+                <p className="font-medium text-fg">
                   Your default required documents
                 </p>
                 {defaultOption.fileTypes.length === 0 ? (
-                  <p className="mt-1 text-zinc-600">No documents yet.</p>
+                  <p className="mt-1 text-fg-muted">No documents yet.</p>
                 ) : (
-                  <ul className="mt-1 space-y-0.5 text-zinc-600">
+                  <ul className="mt-1 space-y-0.5 text-fg-muted">
                     {defaultOption.fileTypes.map((fileType) => (
-                      <li key={fileType.id}>{fileType.label_en}</li>
+                      <li key={fileType.id}>{fileTypeDisplayLabel(fileType)}</li>
                     ))}
                   </ul>
                 )}
@@ -170,7 +202,7 @@ export function FileTypeChooser(props: {
             )}
           </div>
 
-          <p className="mt-2 text-xs text-zinc-600">
+          <p className="mt-2 text-xs text-fg-muted">
             Use your organization&apos;s default list. Hover to see what it includes.
           </p>
         </div>
@@ -178,40 +210,49 @@ export function FileTypeChooser(props: {
 
       <div>
         {defaultOption && (
-          <p className="mb-3 text-sm font-medium text-zinc-900">
+          <p className="mb-3 text-sm font-medium text-fg">
             Or choose documents for this credit case
           </p>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          {fileTypes.map((fileType) => {
-            const selected = selectedIds.includes(fileType.id);
-            return (
-              <button
-                key={fileType.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => pickFileType(fileType.id)}
-                className={[
-                  "rounded-md border px-3 py-2 text-sm transition-colors",
-                  selected
-                    ? "border-blue-600 bg-blue-600 text-white"
-                    : "border-zinc-300 bg-transparent text-zinc-900 hover:bg-zinc-50",
-                  // Selections stay visible (still blue) while Default is active, just
-                  // dimmed, so switching back shows the user exactly what they had.
-                  usingDefault ? "opacity-50" : "",
-                ].join(" ")}
-              >
-                {fileType.label_en}
-              </button>
-            );
-          })}
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+          <span className="font-medium text-fg-muted">
+            {selectedIds.length} selected
+          </span>
+          {suggestedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={selectSuggested}
+              className="font-medium text-fg-secondary underline hover:text-fg"
+            >
+              Select suggested ({suggestedIds.length})
+            </button>
+          )}
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="font-medium text-fg-secondary underline hover:text-fg"
+            >
+              Clear all
+            </button>
+          )}
         </div>
+
+        <FileTypePicker
+          fileTypes={fileTypes}
+          selectedIds={selectedIds}
+          onPick={pickFileType}
+          showGroupActions
+          // Selections stay visible (still blue) while Default is active, just dimmed,
+          // so switching back shows the user exactly what they had.
+          dimmed={usingDefault}
+        />
       </div>
 
       {mustAnswerSaveAsDefault && (
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-sm font-medium text-zinc-900">
+        <div className="rounded-md border bg-surface-subtle p-4">
+          <p className="text-sm font-medium text-fg">
             {saveAsDefaultQuestion}
           </p>
           <div className="mt-3 flex gap-2">
@@ -222,8 +263,8 @@ export function FileTypeChooser(props: {
               className={[
                 "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
                 saveAsDefault === true
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100",
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-border-strong bg-surface text-fg hover:bg-surface-muted",
               ].join(" ")}
             >
               Yes
@@ -235,8 +276,8 @@ export function FileTypeChooser(props: {
               className={[
                 "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
                 saveAsDefault === false
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100",
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-border-strong bg-surface text-fg hover:bg-surface-muted",
               ].join(" ")}
             >
               No
@@ -250,10 +291,12 @@ export function FileTypeChooser(props: {
         disabled={!canSubmit}
         onClick={handleSubmit}
         className={[
-          "rounded-md px-4 py-2 text-sm font-medium text-white transition-colors",
+          "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+          // Text colour belongs to each state, not the base: white reads on the solid
+          // green, but on the muted disabled fill it needs the faint foreground token.
           canSubmit
-            ? "bg-green-600 hover:bg-green-700"
-            : "cursor-not-allowed bg-zinc-300",
+            ? "bg-success-solid text-white hover:bg-success-solid-hover"
+            : "cursor-not-allowed bg-surface-strong text-fg-faint",
         ].join(" ")}
       >
         {submitting ? "Saving…" : submitLabel}

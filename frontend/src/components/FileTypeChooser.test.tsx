@@ -336,3 +336,78 @@ describe("FileTypeChooser", () => {
     expect(onSubmit).toHaveBeenCalledWith({ mode: "default" });
   });
 });
+
+/**
+ * With 22 documents in the catalog, "tick the right ones" is no longer a small ask. The
+ * catalog flags a starting set for exactly this reason, and these pin that the shortcut
+ * uses it without ever throwing away what the user already chose.
+ */
+describe("choosing from a long catalog", () => {
+  const SUGGESTED = [
+    { ...fileType(1, "bank_statement", "Bank statement"), is_default_suggestion: true },
+    { ...fileType(2, "balance_sheet", "Balance sheet"), is_default_suggestion: true },
+    fileType(3, "pagare", "Promissory note"),
+  ] as FileType[];
+
+  it("fills in the catalog's suggested documents in one click", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <FileTypeChooser fileTypes={SUGGESTED} submitLabel="Submit" onSubmit={onSubmit} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Select suggested (2)" }));
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      mode: "fileTypes",
+      fileTypeIds: [1, 2],
+      saveAsDefault: false,
+    });
+  });
+
+  it("adds to what the user already picked rather than replacing it", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <FileTypeChooser fileTypes={SUGGESTED} submitLabel="Submit" onSubmit={onSubmit} />,
+    );
+
+    // A document of their own first — it must survive the shortcut.
+    await user.click(screen.getByRole("button", { name: "Promissory note" }));
+    await user.click(screen.getByRole("button", { name: "Select suggested (2)" }));
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      mode: "fileTypes",
+      fileTypeIds: [3, 1, 2],
+      saveAsDefault: false,
+    });
+  });
+
+  it("does not offer the shortcut when the catalog suggests nothing", () => {
+    render(
+      <FileTypeChooser fileTypes={FILE_TYPES} submitLabel="Submit" onSubmit={vi.fn()} />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /^Select suggested/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts what is selected and can clear it", async () => {
+    const user = userEvent.setup();
+    render(
+      <FileTypeChooser fileTypes={FILE_TYPES} submitLabel="Submit" onSubmit={vi.fn()} />,
+    );
+
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Bank statement" }));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+});

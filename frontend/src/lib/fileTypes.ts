@@ -21,6 +21,37 @@ export async function listFileTypes(): Promise<FileType[]> {
 }
 
 /**
+ * Anything the API hands back carrying a document type's names.
+ *
+ * Deliberately structural rather than `FileType`: the same pair of labels rides along on
+ * requirement rows, template items and the template-impact payload, none of which are a
+ * full `FileType`. All this helper needs is the two names.
+ */
+type LabelledFileType = {
+  label_en: string;
+  label_es?: string | null;
+};
+
+/**
+ * The document type's name AS THE USER SHOULD READ IT.
+ *
+ * The app's users are Mexican companies, so that is the Spanish name — "Pagaré", not
+ * "Promissory note". The English name is still stored and still served; it is simply not
+ * what gets printed today.
+ *
+ * Every place that prints a document name goes through here rather than reading
+ * `.label_es` directly. That is the whole point: when the app grows a real language
+ * toggle, the choice of which name to show is ONE `if` in ONE function, instead of a hunt
+ * through every component that happens to render a file type.
+ *
+ * Falls back to the English name if a type somehow has no Spanish one, because a name in
+ * the wrong language beats a blank space where a name should be.
+ */
+export function fileTypeDisplayLabel(fileType: LabelledFileType): string {
+  return fileType.label_es?.trim() || fileType.label_en;
+}
+
+/**
  * The organization's default requirement template, or `null` if they have never set
  * one up.
  *
@@ -98,15 +129,18 @@ export async function setCreditCaseRequirements(args: {
   });
 }
 
+/** How `impact/` names a document type: both labels, same as everywhere else. */
+type ImpactFileType = { id: number; key: string } & LabelledFileType;
+
 /** One credit case a template edit would change, as reported by `impact/`. */
 export type TemplateImpactEntry = {
   credit_case_id: number;
   customer_name: string;
-  adds: { id: number; key: string; label_en: string }[];
-  removes: { id: number; key: string; label_en: string }[];
-  updates: { id: number; key: string; label_en: string }[];
+  adds: ImpactFileType[];
+  removes: ImpactFileType[];
+  updates: ImpactFileType[];
   /** Removals the customer has ALREADY uploaded a document for — worth warning about. */
-  removes_with_uploads: { id: number; key: string; label_en: string }[];
+  removes_with_uploads: ImpactFileType[];
 };
 
 /**
@@ -160,8 +194,14 @@ export function fileTypeLabel(
 ): string {
   if (!key) return "Pending classification";
 
+  // `unknown` is the classifier's "I could not tell" bucket. It is deliberately absent
+  // from /file-types/, so this is the one name the frontend has to know by heart —
+  // without it the fallback below would print the bare key, title-cased and in English,
+  // next to a list of Spanish document names.
+  if (key === "unknown") return "Desconocido";
+
   const match = fileTypes?.find((f) => f.key === key);
-  if (match) return match.label_en;
+  if (match) return fileTypeDisplayLabel(match);
 
   return key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }

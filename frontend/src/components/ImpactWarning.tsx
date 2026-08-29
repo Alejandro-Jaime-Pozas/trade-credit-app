@@ -22,6 +22,7 @@
 import Link from "next/link";
 import React from "react";
 import { Modal } from "./Modal";
+import { fileTypeDisplayLabel } from "@/lib/fileTypes";
 import type { TemplateImpactEntry } from "@/lib/fileTypes";
 
 export function ImpactWarning(props: {
@@ -52,7 +53,7 @@ export function ImpactWarning(props: {
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-60"
           >
             Cancel
           </button>
@@ -60,7 +61,7 @@ export function ImpactWarning(props: {
             type="button"
             onClick={onKeep}
             disabled={busy}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-60"
           >
             Keep them as they are
           </button>
@@ -68,14 +69,14 @@ export function ImpactWarning(props: {
             type="button"
             onClick={onApply}
             disabled={busy}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-60"
           >
             {busy ? "Working…" : "Update these cases"}
           </button>
         </>
       }
     >
-        <p className="mt-2 text-sm text-zinc-600">
+        <p className="mt-2 text-sm text-fg-muted">
           Your default list changed. These {entries.length} open credit case
           {entries.length === 1 ? "" : "s"} still use the old one. Submitted cases are
           never changed.
@@ -92,19 +93,19 @@ export function ImpactWarning(props: {
               </Link>
 
               {entry.adds.length > 0 && (
-                <p className="mt-1 text-green-800">
-                  + {entry.adds.map((f) => f.label_en).join(", ")}
+                <p className="mt-1 text-success">
+                  + {entry.adds.map(fileTypeDisplayLabel).join(", ")}
                 </p>
               )}
               {entry.removes.length > 0 && (
-                <p className="mt-1 text-amber-800">
-                  − {entry.removes.map((f) => f.label_en).join(", ")}
+                <p className="mt-1 text-warning">
+                  − {entry.removes.map(fileTypeDisplayLabel).join(", ")}
                 </p>
               )}
               {entry.removes_with_uploads.length > 0 && (
-                <p className="mt-1 text-red-800">
+                <p className="mt-1 text-danger">
                   Already uploaded, will stop counting:{" "}
-                  {entry.removes_with_uploads.map((f) => f.label_en).join(", ")}
+                  {entry.removes_with_uploads.map(fileTypeDisplayLabel).join(", ")}
                 </p>
               )}
             </li>

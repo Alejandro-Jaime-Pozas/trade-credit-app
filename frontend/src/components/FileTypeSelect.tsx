@@ -13,7 +13,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Spinner } from "./Spinner";
-import { fileTypeLabel } from "@/lib/fileTypes";
+import { fileTypeDisplayLabel, fileTypeLabel } from "@/lib/fileTypes";
 import type { FileType } from "@/lib/types";
 
 export function FileTypeSelect(props: {
@@ -49,16 +49,33 @@ export function FileTypeSelect(props: {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const options = useMemo(() => {
-    const catalog = (fileTypes ?? []).map((f) => ({ key: f.key, label: f.label_en }));
+    const catalog = (fileTypes ?? []).map((f) => ({
+      key: f.key,
+      label: fileTypeDisplayLabel(f),
+      // What the search box matches against. Wider than the visible label on purpose:
+      // the list reads in Spanish, but someone who knows a document by its English name
+      // — or by its key, from a URL or a support thread — must still find it.
+      search: [f.label_es, f.label_en, f.key].filter(Boolean).join(" ").toLowerCase(),
+    }));
     // Sorted by what the user reads, not by the underlying key.
     catalog.sort((a, b) => a.label.localeCompare(b.label, "es-MX", { sensitivity: "base" }));
-    return [...catalog, { key: "unknown", label: "Unknown / unclassified" }];
+    // `unknown` is the classifier's "I could not tell" bucket. It is not served by
+    // /file-types/ (nobody can hand over an "unknown" document), so its name is written
+    // here rather than read from the catalog.
+    return [
+      ...catalog,
+      {
+        key: "unknown",
+        label: "Desconocido / sin clasificar",
+        search: "desconocido sin clasificar unknown unclassified",
+      },
+    ];
   }, [fileTypes]);
 
   const matching = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter((o) => o.search.includes(q));
   }, [options, query]);
 
   // useCallback so these read `buttonRef` only when invoked from an event, never during
@@ -134,14 +151,14 @@ export function FileTypeSelect(props: {
             setActiveIndex(0);
           }
         }}
-        className="flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 disabled:opacity-60"
+        className="flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-secondary hover:bg-surface-strong disabled:opacity-60"
       >
         {!value && emptyLabel ? emptyLabel : fileTypeLabel(value, fileTypes)}
         {saving ? <Spinner size={10} /> : <span aria-hidden="true">▾</span>}
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-64 rounded-md border bg-white shadow-lg">
+        <div className="absolute right-0 z-30 mt-1 w-64 rounded-md border bg-surface shadow-lg">
           <div className="border-b p-2">
             <input
               autoFocus
@@ -171,7 +188,7 @@ export function FileTypeSelect(props: {
             className="max-h-56 overflow-y-auto py-1"
           >
             {matching.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-zinc-500">No matching types.</div>
+              <div className="px-3 py-2 text-sm text-fg-subtle">No matching types.</div>
             ) : (
               matching.map((option, index) => (
                 <button
@@ -187,12 +204,12 @@ export function FileTypeSelect(props: {
                   onClick={() => commit(option.key)}
                   className={[
                     "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm",
-                    index === activeIndex ? "bg-zinc-100" : "hover:bg-zinc-50",
+                    index === activeIndex ? "bg-surface-muted" : "hover:bg-surface-subtle",
                   ].join(" ")}
                 >
                   <span className="truncate">{option.label}</span>
                   {option.key === value && (
-                    <span aria-hidden="true" className="text-zinc-500">
+                    <span aria-hidden="true" className="text-fg-subtle">
                       ✓
                     </span>
                   )}

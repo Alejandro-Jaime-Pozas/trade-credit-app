@@ -1625,6 +1625,7 @@ export interface components {
             file_type: number;
             readonly file_type_key: string;
             readonly label_en: string;
+            readonly label_es: string;
             /** @default true */
             is_required: boolean;
             /** @description Overrides FileType.months_required for this case only. */
@@ -1812,10 +1813,30 @@ export interface components {
             label_es: string;
             /** @description One of core.file_type_catalog.FileTypeCategory: financial, legal or other. Decides how recent a document must be to still count. */
             category: string;
+            /** @description Which heading this type is listed under when a user picks documents, e.g. "financial" or "tax" (see core.file_type_catalog.FileTypeGroup). Display only. Deliberately NOT the same as `category`: that is a recency bucket, which is why a timeless acta constitutiva is category "other" but group "legal". */
+            group?: string;
+            /**
+             * @description The heading this type is listed under, e.g. "Tax / SAT".
+             *
+             *     Sent rather than left to the client so the frontend never keeps its own copy of
+             *     the group list — a hardcoded copy would silently go stale the day a group is
+             *     added to the catalog, which is the same reason file types themselves are served
+             *     rather than hardcoded.
+             */
+            readonly group_label: string;
+            /**
+             * @description Where this type's group sits in the order a person should meet them (financials
+             *     first, odds and ends last). A sort key, so the frontend orders groups the way the
+             *     catalog declares rather than alphabetically — "Credit process" before "Financial"
+             *     would read as nonsense. Unknown groups sort last.
+             */
+            readonly group_order: number;
             /** @description How many distinct months this document must cover to satisfy a requirement (e.g. 12 monthly bank statements). Null means one document is enough regardless of period. */
             months_required?: number | null;
             /** @description Whether this type can still be added to new templates. Existing documents keep resolving either way — a type is never deleted, because documents already reference its key. */
             is_active?: boolean;
+            /** @description Whether this type is pre-ticked when an organization builds its first requirement template. A starting point only — the organization can remove any of them and add any other type. */
+            is_default_suggestion?: boolean;
             /** @description True for app-provided types, which every organization can use. */
             readonly is_global: boolean;
         };
@@ -2200,6 +2221,7 @@ export interface components {
             file_type?: number;
             readonly file_type_key?: string;
             readonly label_en?: string;
+            readonly label_es?: string;
             /** @default true */
             is_required: boolean;
             /** @description Overrides FileType.months_required for this case only. */
@@ -2583,6 +2605,7 @@ export interface components {
             file_type: number;
             readonly file_type_key: string;
             readonly label_en: string;
+            readonly label_es: string;
             /** @description True means a credit case is incomplete without it. False means it is shown as a nice-to-have and never blocks completion. */
             is_required?: boolean;
             /** @description Overrides FileType.months_required for this template only. Null means use the file type's own value. */

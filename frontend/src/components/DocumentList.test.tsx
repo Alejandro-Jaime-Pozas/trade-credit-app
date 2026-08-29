@@ -224,10 +224,10 @@ describe("correcting a misclassified document", () => {
   it("shows the current type on the trigger", () => {
     renderWithChange();
     // `unknown` isn't in the catalog (no customer can hand over an "unknown"
-    // document), so fileTypeLabel title-cases the key itself.
+    // document), so fileTypeLabel knows its Spanish name by heart.
     expect(
       screen.getByRole("button", { name: "Change file type" }),
-    ).toHaveTextContent("Unknown");
+    ).toHaveTextContent("Desconocido");
   });
 
   it("lets the user search the catalog and pick a correction", async () => {
@@ -260,8 +260,10 @@ describe("correcting a misclassified document", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Change file type" }));
+    // Typed in English on purpose: the option reads "Desconocido / sin clasificar", and
+    // the search has to match the English name too.
     await user.type(screen.getByRole("combobox"), "unknown");
-    await user.click(screen.getByRole("option", { name: /Unknown/ }));
+    await user.click(screen.getByRole("option", { name: /Desconocido/ }));
 
     expect(onChangeFileType).toHaveBeenCalledWith(labelled, "unknown");
   });
@@ -271,7 +273,7 @@ describe("correcting a misclassified document", () => {
     const onChangeFileType = renderWithChange();
 
     await user.click(screen.getByRole("button", { name: "Change file type" }));
-    await user.click(screen.getByRole("option", { name: /Unknown/ }));
+    await user.click(screen.getByRole("option", { name: /Desconocido/ }));
 
     expect(onChangeFileType).not.toHaveBeenCalled();
   });

@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DocumentList, documentDisplayName } from "@/components/DocumentList";
+import { FileTypePicker } from "@/components/FileTypePicker";
 import { FileUploadField } from "@/components/FileUploadField";
 import { MoneyInput } from "@/components/MoneyInput";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -161,6 +162,21 @@ export default function CreditCaseDetailPage() {
       satisfied: uploadedTypeNames.has(fileType),
     }));
   }, [creditCase?.optional_file_type_names, uploadedTypeNames, fileTypes]);
+
+  /**
+   * The document types this case does not already ask for.
+   *
+   * Filtered here rather than inside the picker so the picker stays presentational and
+   * both callers keep deciding for themselves what is offerable.
+   */
+  const addableFileTypes = useMemo(() => {
+    if (!fileTypes) return [];
+    const alreadyAsked = new Set([
+      ...requiredFileStatuses.map((r) => r.fileType),
+      ...optionalFileStatuses.map((r) => r.fileType),
+    ]);
+    return fileTypes.filter((fileType) => !alreadyAsked.has(fileType.key));
+  }, [fileTypes, requiredFileStatuses, optionalFileStatuses]);
 
   /**
    * Re-read the case and its requirements after an add/remove.
@@ -428,14 +444,14 @@ export default function CreditCaseDetailPage() {
             <h1 className="text-2xl font-semibold tracking-tight">
               {customer ? `${customer.name} ${creditCase?.id}` : creditCase ? `Credit case #${creditCase.id}` : ""}
             </h1>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               Update request fields, track required documents, and upload files.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/credit-cases"
-              className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+              className="rounded-md border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-subtle"
             >
               Back
             </Link>
@@ -443,7 +459,7 @@ export default function CreditCaseDetailPage() {
               type="button"
               disabled={!creditCase || deleting}
               onClick={() => setConfirmingDelete(true)}
-              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+              className="rounded-md border border-danger-line bg-surface px-3 py-2 text-sm font-medium text-danger hover:bg-danger-surface disabled:opacity-60"
             >
               {deleting ? "Deleting…" : "Delete"}
             </button>
@@ -495,25 +511,25 @@ export default function CreditCaseDetailPage() {
         />
 
         {error ? (
-          <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="mt-6 rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
             {error}
           </div>
         ) : null}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <section className="lg:col-span-2 rounded-lg border bg-white p-6">
+          <section className="lg:col-span-2 rounded-lg border bg-surface p-6">
             <h2 className="text-base font-semibold">Details</h2>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-md border bg-zinc-50 p-3 text-sm">
-                <div className="text-xs uppercase tracking-wide text-zinc-600">
+              <div className="rounded-md border bg-surface-subtle p-3 text-sm">
+                <div className="text-xs uppercase tracking-wide text-fg-muted">
                   Customer
                 </div>
                 <div className="mt-1 font-medium">
                   {customer ? (
                     <Link
                       href={`/customers/${customer.id}`}
-                      className="text-zinc-900 underline"
+                      className="text-fg underline"
                     >
                       {customer.name}
                     </Link>
@@ -523,8 +539,8 @@ export default function CreditCaseDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-md border bg-zinc-50 p-3 text-sm">
-                <div className="text-xs uppercase tracking-wide text-zinc-600">
+              <div className="rounded-md border bg-surface-subtle p-3 text-sm">
+                <div className="text-xs uppercase tracking-wide text-fg-muted">
                   Decided
                 </div>
                 <div className="mt-1 font-medium">
@@ -541,7 +557,7 @@ export default function CreditCaseDetailPage() {
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
                     disabled={!creditCase}
-                    className="mt-1 w-full rounded-md border bg-white py-2 pl-8 pr-3 text-sm disabled:opacity-60"
+                    className="mt-1 w-full rounded-md border bg-surface py-2 pl-8 pr-3 text-sm disabled:opacity-60"
                   >
                     {Object.entries(CREDIT_CASE_STATUS_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>
@@ -562,7 +578,7 @@ export default function CreditCaseDetailPage() {
                   value={verdict}
                   onChange={(e) => setVerdict(e.target.value)}
                   disabled={!creditCase}
-                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm disabled:opacity-60"
+                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
                 >
                   {Object.entries(CREDIT_CASE_VERDICT_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -577,7 +593,7 @@ export default function CreditCaseDetailPage() {
                   value={assignedTo}
                   onChange={(e) => setAssignedTo(e.target.value)}
                   disabled={!creditCase}
-                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm disabled:opacity-60"
+                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
                 >
                   <option value="">Unassigned</option>
                   {(users ?? []).map((u) => (
@@ -605,7 +621,7 @@ export default function CreditCaseDetailPage() {
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                 >
                   <option value="MXN">MXN</option>
                 </select>
@@ -615,7 +631,7 @@ export default function CreditCaseDetailPage() {
                 <select
                   value={requestedTermDays}
                   onChange={(e) => setRequestedTermDays(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                 >
                   {REQUESTED_TERM_DAYS_OPTIONS.map((days) => (
                     <option key={days} value={String(days)}>
@@ -632,7 +648,7 @@ export default function CreditCaseDetailPage() {
               {saved && (
                 <span
                   aria-live="polite"
-                  className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900"
+                  className="rounded-md border border-success-line bg-success-surface px-3 py-2 text-sm text-success"
                 >
                   {saved}
                 </span>
@@ -641,7 +657,7 @@ export default function CreditCaseDetailPage() {
                 type="button"
                 onClick={handleDiscardChanges}
                 disabled={!creditCase || saving || !hasUnsavedChanges}
-                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-60"
               >
                 Discard changes
               </button>
@@ -675,18 +691,18 @@ export default function CreditCaseDetailPage() {
                     setSaving(false);
                   }
                 }}
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
             </div>
 
-            <div className="mt-6 text-xs text-zinc-500">
+            <div className="mt-6 text-xs text-fg-subtle">
               Created: {creditCase ? formatDate(creditCase.created_at) : "—"}
             </div>
           </section>
 
-          <section className="rounded-lg border bg-white p-6">
+          <section className="rounded-lg border bg-surface p-6">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-base font-semibold">Required documents</h2>
 
@@ -699,8 +715,8 @@ export default function CreditCaseDetailPage() {
                     className={[
                       "rounded-full px-2.5 py-1 text-xs font-medium",
                       creditCase?.requirements_complete
-                        ? "bg-green-100 text-green-800"
-                        : "bg-amber-100 text-amber-800",
+                        ? "bg-success-surface-strong text-success"
+                        : "bg-warning-surface-strong text-warning",
                     ].join(" ")}
                   >
                     {creditCase?.requirements_complete
@@ -715,7 +731,7 @@ export default function CreditCaseDetailPage() {
                   <button
                     type="button"
                     onClick={() => setEditingRequirements((on) => !on)}
-                    className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-zinc-50"
+                    className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-surface-subtle"
                   >
                     {editingRequirements ? "Done" : "Edit"}
                   </button>
@@ -723,13 +739,13 @@ export default function CreditCaseDetailPage() {
               </div>
             </div>
 
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               The documents this credit case needs. Upload files below; the backend
               classifies each file after upload and ticks off whatever it matches.
             </p>
 
             {creditCase?.requirements_completed_at && (
-              <p className="mt-2 text-xs text-zinc-500">
+              <p className="mt-2 text-xs text-fg-subtle">
                 Requirements first met {formatDate(creditCase.requirements_completed_at)}
                 {!creditCase.requirements_complete &&
                   " — a document has been required since then"}
@@ -738,7 +754,7 @@ export default function CreditCaseDetailPage() {
 
             {requiredFileStatuses.length === 0 &&
               optionalFileStatuses.length === 0 && (
-                <div className="mt-4 rounded-md border border-dashed p-4 text-sm text-zinc-600">
+                <div className="mt-4 rounded-md border border-dashed p-4 text-sm text-fg-muted">
                   No required documents set for this credit case.{" "}
                   <Link href="/requirements" className="underline">
                     Set up your default requirements
@@ -763,8 +779,8 @@ export default function CreditCaseDetailPage() {
                         <span
                           className={
                             req.satisfied
-                              ? "text-xs font-medium text-green-700"
-                              : "text-xs font-medium text-amber-700"
+                              ? "text-xs font-medium text-success"
+                              : "text-xs font-medium text-warning"
                           }
                         >
                           {req.satisfied ? "Uploaded" : "Missing"}
@@ -775,7 +791,7 @@ export default function CreditCaseDetailPage() {
                             disabled={savingRequirement}
                             onClick={() => setRequirementToRemove(row)}
                             aria-label={`Remove ${req.label}`}
-                            className="rounded-md border border-red-200 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                            className="rounded-md border border-danger-line px-2 py-0.5 text-xs font-medium text-danger hover:bg-danger-surface disabled:opacity-60"
                           >
                             Remove
                           </button>
@@ -789,38 +805,38 @@ export default function CreditCaseDetailPage() {
 
             {editingRequirements && fileTypes && (
               <div className="mt-4 rounded-md border border-dashed p-3">
-                <p className="text-xs font-medium text-zinc-700">
+                <p className="text-xs font-medium text-fg-secondary">
                   Add a document this credit case needs
                 </p>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-fg-subtle">
                   Only affects this case. Removing one your organization&apos;s default
                   asks for will not come back the next time that default changes.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {fileTypes
-                    .filter(
-                      (f) =>
-                        !requiredFileStatuses.some((r) => r.fileType === f.key) &&
-                        !optionalFileStatuses.some((r) => r.fileType === f.key),
-                    )
-                    .map((fileType) => (
-                      <button
-                        key={fileType.id}
-                        type="button"
-                        disabled={savingRequirement}
-                        onClick={() => void handleAddRequirement(fileType.id)}
-                        className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-60"
-                      >
-                        + {fileType.label_en}
-                      </button>
-                    ))}
+                <div className="mt-3">
+                  {/* Same grouped, searchable list the requirement chooser uses, so
+                      finding one document among 22 works the same way everywhere.
+                      No `selectedIds`: a click here is an action (add it now), not a
+                      selection the user builds up. */}
+                  <FileTypePicker
+                    fileTypes={addableFileTypes}
+                    prefix="+"
+                    disabled={savingRequirement}
+                    busy={savingRequirement}
+                    searchLabel="Search documents to add"
+                    emptyMessage={
+                      addableFileTypes.length === 0
+                        ? "This case already asks for every document type."
+                        : "No documents match your search."
+                    }
+                    onPick={(id) => void handleAddRequirement(id)}
+                  />
                 </div>
               </div>
             )}
 
             {optionalFileStatuses.length > 0 && (
               <>
-                <p className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <p className="mt-6 text-xs font-medium uppercase tracking-wide text-fg-subtle">
                   Optional
                 </p>
                 <ul className="mt-2 space-y-2">
@@ -829,8 +845,8 @@ export default function CreditCaseDetailPage() {
                       key={req.fileType}
                       className="flex items-center justify-between rounded-md border border-dashed px-3 py-2 text-sm"
                     >
-                      <span className="text-zinc-700">{req.label}</span>
-                      <span className="text-xs font-medium text-zinc-500">
+                      <span className="text-fg-secondary">{req.label}</span>
+                      <span className="text-xs font-medium text-fg-subtle">
                         {req.satisfied ? "Uploaded" : "Not provided"}
                       </span>
                     </li>
@@ -840,11 +856,11 @@ export default function CreditCaseDetailPage() {
             )}
           </section>
 
-          <section className="lg:col-span-3 rounded-lg border bg-white p-6">
+          <section className="lg:col-span-3 rounded-lg border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-base font-semibold">Upload files</h2>
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 text-sm text-fg-muted">
                   Choosing files uploads them straight away. File type is detected
                   automatically — if one is labelled wrongly, correct it on the document
                   itself below.
@@ -854,7 +870,7 @@ export default function CreditCaseDetailPage() {
                 type="button"
                 disabled={!creditCase || refreshingUploads}
                 onClick={refreshUploads}
-                className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+                className="rounded-md border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-60"
               >
                 {refreshingUploads ? "Refreshing…" : "Refresh"}
               </button>
