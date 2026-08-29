@@ -154,3 +154,81 @@ def test_upload_returns_immediately_and_queues_the_work(django_capture_on_commit
     # One job queued per uploaded document, and it ran once the commit happened.
     assert len(callbacks) == 1
     handler.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Retry timing and failure diagnostics
+# ---------------------------------------------------------------------------
+
+def test_retry_backoff_outlasts_a_short_network_outage():
+    """
+    The retry spacing is the whole point of this setting, so it is asserted rather than
+    left to a comment.
+
+    With a factor of 15 the three retries land at roughly 15s, 30s and 60s — about 105
+    seconds of coverage. Celery's default (a factor of 1) gave ~0s, 1s, 2s, which is how
+    an upload of 11 documents was lost to a two-minute outage: every attempt was spent
+    while the network was still down.
+
+    The upper bound matters too. The window must stay under
+    DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS, or a task could still succeed after the UI
+    has given up waiting and let the user pick the file type by hand — overwriting their
+    choice.
+    """
+    from django.conf import settings
+
+    factor = process_upload_document.retry_backoff
+    retries = process_upload_document.max_retries
+
+    assert factor == 15
+
+    # Celery doubles the factor each time: factor * 2**0, * 2**1, ...
+    worst_case_wait = sum(factor * 2 ** attempt for attempt in range(retries))
+    assert worst_case_wait >= 100, 'retries must outlast a ~2 minute blip'
+    assert worst_case_wait < settings.DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS
+
+
+@pytest.mark.django_db
+def test_connection_failure_logs_its_underlying_cause():
+    """
+    openai.APIConnectionError stringifies to just "Connection error." — it names no host
+    and no errno, and Celery's error logging drops the chained __cause__ where the real
+    reason lives. Without this log line a DNS failure, a refused connection and an
+    expired certificate are indistinguishable in the worker output.
+    """
+    doc = make_doc()
+
+    failure = openai_error(openai.APIConnectionError)
+    failure.__cause__ = ConnectionRefusedError('[Errno 111] Connection refused')
+
+    with patch('storage.tasks.handle_upload_document_created') as handler:
+        handler.side_effect = failure
+        with patch('storage.tasks.logger') as log:
+            with patch.object(process_upload_document, 'retry') as retry:
+                retry.side_effect = RuntimeError('retry called')
+                with pytest.raises(RuntimeError, match='retry called'):
+                    process_upload_document(doc.pk)
+
+    log.warning.assert_called_once()
+    logged = repr(log.warning.call_args)
+    assert 'Connection refused' in logged, 'the underlying cause must reach the log'
+    assert str(doc.pk) in logged, 'the document must be identifiable in the log'
+
+
+@pytest.mark.django_db
+def test_logging_the_cause_does_not_swallow_the_retry():
+    """
+    The handler catches the OpenAI error only to log it. If it failed to re-raise, the
+    task would report success and the document would silently never be classified.
+    """
+    doc = make_doc()
+
+    with patch('storage.tasks.handle_upload_document_created') as handler:
+        handler.side_effect = openai_error(openai.RateLimitError)
+        with patch('storage.tasks.logger'):
+            with patch.object(process_upload_document, 'retry') as retry:
+                retry.side_effect = RuntimeError('retry called')
+                with pytest.raises(RuntimeError, match='retry called'):
+                    process_upload_document(doc.pk)
+
+    retry.assert_called_once()

@@ -26,10 +26,26 @@ logger = logging.getLogger(__name__)
     # identically three more times, cost three more API calls, and bury the real
     # traceback, so those are deliberately left to fail once and loudly.
     autoretry_for=(openai.APIError,),
-    # Wait longer between attempts (~1s, 2s, 4s) rather than hammering a service that
-    # has just asked us to slow down. Jitter spreads retries out when many documents
-    # were rate-limited at the same moment.
-    retry_backoff=True,
+    # Seconds before the FIRST retry; each later one doubles it, so the attempts land at
+    # roughly 15s, 30s and 60s (jitter picks a random point up to each of those).
+    #
+    # This number is deliberately not small. The failure it exists for is not a rate
+    # limit but a short network outage: on 2026-08-21 the worker briefly could not reach
+    # api.openai.com at all, and an upload of 11 documents lost every single one. The
+    # backoff at the time was Celery's default factor of 1 — ~0s, 1s, 2s — so all four
+    # attempts, plus the OpenAI SDK's own internal retries, were spent inside a
+    # 28-second window while the network was still down. Connectivity returned about two
+    # minutes later, by which point every task had already given up.
+    #
+    # 15 spreads the same three retries over ~105 seconds instead, which covers a blip of
+    # that length. It stays under DOCUMENT_CLASSIFICATION_TIMEOUT_SECONDS (300) on
+    # purpose: a document must not still be retrying after the UI has stopped calling it
+    # "in progress" and handed the user the manual file type control, or a late success
+    # would overwrite the type they chose themselves.
+    retry_backoff=15,
+    # Spread the retries out when many documents fail at the same moment — which is the
+    # normal case here, since a network outage or rate limit hits a whole upload batch at
+    # once and would otherwise send all of them back at the same instant.
     retry_jitter=True,
     max_retries=3,
 )
@@ -56,4 +72,25 @@ def process_upload_document(self, upload_document_id):
         )
         return None
 
-    return handle_upload_document_created(doc)
+    try:
+        return handle_upload_document_created(doc)
+    except openai.APIError as exc:
+        # Log WHY the call failed, then re-raise unchanged so the autoretry above still
+        # sees it and the traceback is not swallowed.
+        #
+        # This exists because openai.APIConnectionError stringifies to just "Connection
+        # error." — no host, no errno, nothing separating a DNS failure from a refused
+        # connection from an expired certificate. The real reason lives on __cause__ (the
+        # underlying httpx exception), and Celery's own error logging does not print the
+        # chained cause, so without this it is lost entirely. Diagnosing the outage of
+        # 2026-08-21 meant reading the code and guessing; this line would have answered it.
+        logger.warning(
+            'OpenAI call failed for UploadDocument id=%s: %r (underlying cause: %r); '
+            'retry %s of %s.',
+            upload_document_id,
+            exc,
+            exc.__cause__,
+            self.request.retries,
+            self.max_retries,
+        )
+        raise
