@@ -248,6 +248,218 @@ customer.
 the type by hand, and re-uploading re-queues the job.
 
 
+### The classifier runs on GPT-5 Nano, the cheapest model, and its mistakes are expected
+
+Decided 2026-08-18. Records a cost tradeoff that was already in the code
+(`integrations/openai/constants.py`) but never written down, so that the accuracy it buys
+is not mistaken for a bug in the classification pipeline.
+
+Every OpenAI call the app makes — deciding what type an uploaded document is, and pulling
+structured fields out of it — runs on **`gpt-5-nano`**, set once as `GPT_MODEL_VERSION` and
+used by all three call sites in `integrations/openai/services/gpt.py`.
+
+**WHY nano: money.** It is the cheapest model in the GPT-5 family by a wide margin, and
+this app is API-call-heavy by design — classification costs three round trips per
+uploaded file, and a single credit case can carry a dozen documents. On a bigger model the
+same workload costs multiples of that for a feature no one is paying for yet.
+
+**The cost being accepted, stated plainly: nano is not as smart, and it will get things
+wrong more often than a more advanced model would.** Concretely, and more frequently than
+`gpt-5` would:
+  - **Misclassification** — labelling a document as the wrong file type. The failure that
+    matters, because `file_type_name` is what ticks a requirement off: a mislabelled
+    document silently fails to satisfy the requirement it should, and can leave a credit
+    case sitting in "missing documents" while the document is right there.
+  - **Falling back to `unknown`** — the classifier declining to commit. Visible and honest,
+    and the least harmful of the three.
+  - **Extraction misses** — a field left null or filled with the wrong value (dates, names,
+    amounts). Low-quality phone photos and dense multi-page scans are where this shows up
+    most.
+
+**This is why correctability is built in rather than bolted on.** The design decisions
+around classification already assume the model is fallible:
+  - `file_type_name` is deliberately writable on the API (`storage/serializers.py`), so a
+    user can correct a wrong type; the value is validated against the organization's own
+    file types, so a correction cannot invent one.
+  - A document with no answer eventually reports `unclassified` rather than spinning
+    forever (§ "The backend decides whether a document is still being classified"), which
+    hands the user the same control when the job never landed at all.
+  - `is_legible` on `PresenceOnlyPydantic` gives the model an explicit way to say "I cannot
+    read this" instead of guessing.
+
+**Upgrading is a one-line change.** `GPT_MODEL_VERSION` is the single source of truth —
+switching it to `'gpt-5'` changes every call site at once, with no other code edits. The
+trigger to do it is user complaints about accuracy, or the day a wrong classification costs
+more than the API bill saves; until then, cheap-and-correctable beats
+expensive-and-still-not-perfect. `DocumentDataExtract.model_version` records which model
+produced a given extraction, so the two can be compared on real documents rather than by
+intuition.
+
+### Presence-only file types share one extraction model
+
+Decided 2026-08-17. Introduced while expanding the file type catalog from 5 requirable
+document types to 22.
+
+Every entry in `core/file_type_catalog.py` must name a pydantic model, which is used only
+to generate the JSON Schema that tells OpenAI what to pull out of that kind of document
+(`GPTService.get_pydantic_model_json_schema`). Several of the new types have nothing worth
+pulling out: a pagaré (promissory note), a CURP printout, photographs of the business
+premises. The app only needs to know that a legible document of that kind arrived.
+
+**They share one `PresenceOnlyPydantic`** (`integrations/openai/services/pydantic_models/file_type_models.py`)
+with three fields — `document_date`, `is_legible`, `summary`.
+  - WHY not one bespoke model each: five near-identical schemas is ceremony that has to be
+    kept in sync by hand, for no extra information.
+  - `document_date` earns its place because `create_friendly_file_name`
+    (`storage/services/db_object_handling.py`) needs something to build a readable name
+    from, otherwise these documents show the raw upload filename forever.
+  - `is_legible` is the one genuinely useful judgement GPT can make here — a photo of a
+    shop front or a phone snapshot of an ID can easily be too dark or cropped to use.
+
+**Deliberately NOT reused: `UnknownFileDataPydantic`.** That model is the classifier's
+"I could not tell what this document is" bucket. Pointing a perfectly valid pagaré at it
+would make a successful classification indistinguishable from a failed one, destroying the
+only signal the app has that classification went wrong. `test_file_type_catalog.py` pins
+this: no spec other than `unknown` itself may use that model.
+
+### A file type's `category` is a recency bucket, not a subject grouping
+
+Decided 2026-08-17. Clarifies an existing field whose meaning became load-bearing once the
+catalog grew large enough to have obvious "subject" groupings.
+
+`FileTypeCategory` has three values — `FINANCIAL`, `LEGAL`, `OTHER` — and the only thing
+they control is `MAX_MONTHS_BACK_BY_CATEGORY` in `core/file_type_spec.py`: how many months
+old a document may be and still count toward a requirement (financial 2, legal 3, other
+unlimited).
+
+**So category is assigned by how fast the document goes stale, not by what it is about.**
+An acta constitutiva (articles of incorporation) is unmistakably a legal document, but it
+is category `OTHER`, because a company incorporated in 2003 will never produce one dated
+within the last three months and a `LEGAL` bucket would reject every valid copy. Same for
+`declaracion_anual` — an annual tax return is always older than any recency limit worth
+having.
+
+**A fourth category is not a safe addition.** Two things would break quietly:
+  - `max_months_back()` looks the category up with Python's `dict.get()`, which returns
+    `None` for a missing key rather than raising — and `None` means "no recency limit at
+    all". A typo'd or newly invented category therefore silently disables the check
+    instead of failing loudly.
+  - `processing/services/credit_case.py` reads the `FINANCIAL` and `LEGAL` buckets by name
+    at module import, so a fifth bucket would simply be invisible to it.
+
+`test_file_type_catalog.py` asserts every spec's category is one of the three AND has an
+entry in `MAX_MONTHS_BACK_BY_CATEGORY`, so this cannot regress unnoticed.
+
+COST: the catalog's human-readable groupings (Tax/SAT, Legal, Credit, Collateral) now
+disagree with the `category` field. Those groupings live as comments in the catalog and as
+section headings in `docs/architecture/file_type_catalog_reference.md`. Giving the UI real
+subject grouping needs a SEPARATE display field; overloading `category` for it would
+silently change document expiry rules. That field was built the next day — see
+`FileTypeSpec.group` below.
+
+### `FileTypeSpec.group` is that separate display field
+
+Decided 2026-08-18. Builds the field the entry above says is needed, and closes the "UI
+grouping" open decision in `docs/architecture/file_type_catalog_reference.md`.
+
+The catalog grew from 5 document types to 22, and the picker rendered them as one flat row
+of buttons — fine at 5, unusable at 22. Grouping them needed a heading per type, which
+`category` cannot supply for the reason set out directly above: it is a recency bucket, so
+grouping by it would file articles of incorporation under "Other", where nobody would look.
+
+`FileTypeSpec.group` is therefore display-only, mirrored onto `storage.FileType.group`
+(migration `0011`) and copied over by the same `sync_global_file_types` helper as every
+other catalog field — so adding a file type is still a one-file edit. Its values are the
+section headings already used in `file_type_catalog_reference.md`: Financial, Tax / SAT,
+Legal / corporate, Credit process, Collateral / aval (declared, no members yet),
+Operational, Other.
+
+**The frontend is told the grouping, never asked to know it.** `FileTypeSerializer` sends
+`group` (stable key), `group_label` ("Fiscales / SAT") and `group_order` (position in the
+reading order the catalog declares). The frontend buckets and sorts by those and keeps no
+list of its own — the same rule that already governs file types themselves, for the same
+reason: a hardcoded copy goes stale the day a group is added, silently. `group_order` is
+what stops groups falling back to alphabetical, where "Fiscales / SAT" would precede
+"Financieros".
+
+**The data migration matters more than the columns.** Migration `0009` seeds the FileType
+rows on a fresh database and runs BEFORE `0011` adds these columns, so the two `AddField`s
+alone would leave every row at `group='other'` on a brand new install — the whole catalog
+under one meaningless heading. `0011` re-runs the catalog sync after the columns exist,
+which is what actually fills them in.
+
+**Adding a field to `SYNCABLE_FIELDS` is a migration-safety question, not a bookkeeping
+one.** `sync_global_file_types` is handed a HISTORICAL model by data migrations, and
+migration `0009` calls it two migrations before these columns exist — so simply listing the
+new fields made `manage.py migrate` die with `FieldError: Invalid field name(s) for model
+FileType` on every fresh database, while existing ones (whose `0009` had already run) were
+untouched. `syncable_fields_for()` now narrows the write to the fields the given model
+version actually has, so an early migration seeds what existed then and the migration that
+ADDS a field is the one that fills it in. Regression tests in
+`core/tests/test_file_type_sync.py` build the real historical state with `MigrationExecutor`
+rather than a stub, because the stub would not have caught this.
+
+**`is_default_suggestion` was exposed at the same time.** The catalog had flagged 11 types
+as a sensible starting set since it was written, and the frontend could not see it. It now
+drives a "Select suggested" shortcut, which is what makes a 22-document catalog approachable
+on first setup.
+
+**Guard against the silent failure.** `group` has a default, so forgetting it on a new
+catalog row is invisible — the document just quietly appears under "Other".
+`test_no_requirable_type_falls_back_to_other` fails the build instead.
+
+### Equivalence groups were designed and then dropped before shipping
+
+Decided 2026-08-17. Records a rejected design so it is not re-invented from scratch.
+
+Some documents prove the same fact by different means: the Alta en Hacienda (form R1), the
+Cédula de Identificación Fiscal, and the Constancia de Situación Fiscal all establish that
+a company is registered with the tax authority. The plan was an `equivalent_group` field on
+`FileTypeSpec`, so a requirement could be satisfied by any one member of the group.
+
+**Dropped because, after the v1 cut, no group had more than one member.** Both alternatives
+to the Constancia were deferred to v2, leaving `registro_fiscal` with a single member —
+which is just an ordinary requirement. The other candidate, official photo ID, turned out
+not to need the mechanism at all: `identificacion_oficial` is ONE file type covering INE,
+passport and driving licence, with a `tipo_identificacion` field recording which was
+actually supplied.
+
+Shipping the field anyway would have meant a `FileTypeSpec` attribute, matching logic in
+`CreditCase.missing_file_type_names`, and tests — all for zero live use, and all of it
+plausible-looking enough that a later reader would assume it was doing something.
+
+Revisit when `alta_hacienda_r1` or `cedula_identificacion_fiscal` lands; the reasoning is
+kept in `docs/architecture/file_type_catalog_reference.md` rather than in code.
+
+### `months_required` records real values even though nothing enforces them
+
+Decided 2026-08-17. Makes an existing gap explicit rather than papering over it.
+
+`FileTypeSpec.months_required` says how many distinct months a document must cover — 12 for
+bank statements, 1 for a balance sheet. **For credit cases it currently does nothing.**
+`CreditCase.missing_file_type_names` (`processing/models.py`) is a plain set subtraction of
+uploaded file type keys from required ones, with a `TODO` on it, so a single uploaded bank
+statement satisfies a 12-month requirement. Month-coverage machinery does exist
+(`check_aggregate_satisfied_month_intervals`) but hangs off `AccountApplication` and is
+gated on `type == 'loan'`.
+
+**The 17 new types still carry honest values** (12 for monthly filings like
+`declaraciones_provisionales`, 1 for point-in-time documents, `None` for timeless ones like
+`acta_constitutiva`).
+  - WHY not zero them out: the values are correct domain facts, and writing `None`
+    everywhere would mean re-researching all 22 types when enforcement lands.
+  - WHY not enforce it now: `missing_file_type_names` drives `requirements_complete`, which
+    drives the credit case status transitions in
+    `processing/services/credit_case_status.py`. Turning enforcement on would immediately
+    move existing cases backwards out of `pending_final_verdict`, and it needs to land with
+    the related `quantity` work rather than as a side effect of adding documents.
+  - The docstring on the field now says all of this, so nobody reads `months_required=12`
+    and assumes it is being checked.
+
+Also unresolved and recorded there: the field counts MONTHS, but "two fiscal years of
+audited financials" means two annual documents, not 24 months.
+
+
 ## Deployment
 
 ### Hosting platform (not yet implemented)
@@ -310,3 +522,100 @@ updates (it has already bitten this repo), and no effect is needed here anyway.
   - `frontend/src/lib/` is the priority target: pure logic and auth/API plumbing carry more risk per line than page components, so it's covered first.
   - `frontend/src/lib/api.generated.ts` (openapi-typescript output) is excluded from the suite — it's type-only, no runtime behavior to test.
   - run via `make vitest` (mirrors `make pytest`); runs in Docker with `--no-deps` since these tests mock `fetch` and never need `backend`/`postgres-db` running.
+
+### Colour lives in design tokens, not in components
+
+Decided 2026-08-18, when light/dark mode was added.
+
+Every colour in the frontend used to be a hardcoded Tailwind palette class — `bg-white`,
+`text-zinc-600`, `border-red-200` — spread across ~24 files. That is fine with one theme and
+impossible with two: there is no single place to restate the palette.
+
+**Components now name a ROLE, and `globals.css` decides what that role looks like.**
+`bg-surface` instead of `bg-white`, `text-fg-muted` instead of `text-zinc-600`,
+`border-danger-line bg-danger-surface text-danger` instead of the red-200/50/800 trio. Each
+token is defined twice — light values on `:root`, dark values on `.dark` — and exposed to
+Tailwind through `@theme inline`, which is what makes the generated CSS reference
+`var(--surface)` at use time instead of baking in today's value.
+
+**Why not `dark:` variants.** The obvious alternative is to keep the palette classes and add a
+`dark:` twin to each of the ~400 colour utilities. It costs the same edit on the first pass and
+more on every pass after: every class list doubles in length, and every new component has to
+remember its own twin or it silently breaks in one theme. With tokens, a component written a
+year from now is themed correctly by default.
+
+**The theme is a class on `<html>`, not a media query.** `prefers-color-scheme` cannot be
+overridden from inside the page, and the app has a toggle button, so `src/lib/theme.ts` owns a
+`dark` class instead and `@custom-variant dark` teaches Tailwind to match it. Precedence:
+an explicit choice (persisted in `localStorage`) beats the OS setting; with no choice stored the
+OS wins, including when it changes later.
+
+**The theme is applied before first paint.** `THEME_INIT_SCRIPT` is a plain inline `<script>` in
+the root layout's `<head>` — not `next/script`, whose inline strategies all run after hydration
+has begun, which is exactly late enough for a dark-mode user to see a white flash. `<html>`
+carries `suppressHydrationWarning` because that script legitimately mutates it before React
+hydrates.
+
+**`useSyncExternalStore`, not `useState` + `useEffect`.** The theme genuinely lives outside React
+(on the `<html>` element, put there before React loads), and this repo's
+`react-hooks/set-state-in-effect` rule rejects the usual mount-sync pattern anyway. The hook
+lives in `src/lib/useTheme.ts`, separate from `src/lib/theme.ts`, because the root layout is a
+Server Component and cannot import a module that depends on client-only hooks.
+
+**Two deliberate light-mode changes came with this.** Tailwind v4 dropped the default border
+colour, so the app's ~130 bare `border` classes were painting in `currentColor` (near-black);
+they now default to the border token. And inputs that carried no background class were relying
+on whatever sat behind them being white; form controls now get the surface token explicitly,
+since a transparent input is invisible in dark mode.
+
+**One deliberate exception**: `StatusDot`'s status colours stay literal (`bg-green-500`,
+`bg-red-500`, ...). They are signal colours, not surfaces — the same meaning in both themes, and
+legible against both backgrounds.
+
+
+### Document names are shown in Spanish, and one function decides that
+
+Decided 2026-08-20.
+
+The app's users are Mexican credit teams. They know the document as a *pagaré*, not a
+"promissory note", and as an *acta constitutiva*, not "articles of incorporation". The UI
+was printing the English name everywhere.
+
+No translation work was needed: every entry in `core/file_type_catalog.py` has always
+carried both `label_en` and `label_es`. This was purely a question of which one the UI
+reads. Nothing was renamed and nothing was dropped — the English name is still stored on
+`storage.FileType`, still served by every endpoint that serves the Spanish one, and
+explicitly kept for a future language toggle.
+
+**The choice lives in exactly one function.** `fileTypeDisplayLabel()` in
+`frontend/src/lib/fileTypes.ts` takes anything carrying the two labels and returns the one
+to print. Every component that renders a document name — `FileTypePicker`,
+`FileTypeChooser`, `FileTypeSelect`, `ImpactWarning`, and `fileTypeLabel()` itself — goes
+through it. The alternative, swapping `.label_en` for `.label_es` at each call site, would
+have worked identically today and cost a scavenger hunt the day the app grows a real
+language switch. It falls back to the English name when a type has no Spanish one,
+because a name in the wrong language beats a blank where a name should be.
+
+**Searching still matches both names and the key.** A user who learned these documents in
+English, or who is pasting a key out of a URL, must still find them. `searchFileTypes()`
+already did this; `FileTypeSelect` did not, and now carries a separate `search` field per
+option so the visible label and the matchable text can differ.
+
+**Group headings are Spanish with no English counterpart.** `FILE_TYPE_GROUPS` in the
+catalog holds one heading per group, and they are printed directly above the Spanish
+document names — an English heading over a Spanish list reads as a bug. Unlike the file
+types there is no second English heading stored anywhere, so that tuple is the one place
+that would have to gain one.
+
+**Ordering moved to `label_es` too** (migration `0012`, `AlterModelOptions` only — no DDL).
+A list sorted by the English name looks shuffled to someone reading the Spanish one:
+"Pagaré" would sit under P-for-Promissory-note. Note that the *database* does this
+sorting, and Postgres' default collation ignores case, accents and spaces where Python's
+`sorted` does not — hence the `alphabetical_key` helper in
+`storage/tests/views_serializers/test_requirements.py`, without which the test asserting
+the list arrives sorted fails on "Declaración anual" vs "Declaraciones provisionales".
+
+**Deliberately NOT done: the rest of the UI.** Buttons, table headers, statuses and error
+messages are still English. The request was about document names, and translating the
+whole app is a separate piece of work with its own decision to make (a real i18n layer vs.
+hardcoded Spanish).

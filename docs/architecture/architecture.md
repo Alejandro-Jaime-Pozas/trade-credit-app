@@ -34,6 +34,11 @@
     in the `celery-worker` container instead of the upload request. See
     `backend/storage/tasks.py` and `docs/architecture/decisions.md` § "Background document
     processing".
+-   AI model: OpenAI `gpt-5-nano`, set once as `GPT_MODEL_VERSION` in
+    `backend/integrations/openai/constants.py` and used for all classification and extraction.
+    Chosen for cost, not accuracy — it misclassifies documents and misses extracted fields more
+    often than `gpt-5` would, which is why file types stay user-correctable. See
+    `docs/architecture/decisions.md` § "The classifier runs on GPT-5 Nano".
 -   Background Scheduling: Celery Beat — not implemented. Nothing needs a schedule yet; task-level
     retries cover the failure cases that exist today.
 

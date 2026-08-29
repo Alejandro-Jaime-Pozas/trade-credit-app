@@ -1,4 +1,4 @@
-.PHONY: test ci pytest vitest typecheck lint up down down-v cli worker-logs build build-nc makemigrations
+.PHONY: test ci pytest vitest typecheck lint up down down-v cli worker-logs build build-nc makemigrations backend
 
 # Run both test suites (backend pytest + frontend vitest).
 test: pytest vitest
@@ -36,6 +36,14 @@ down:
 # Same as down, but also removes named volumes (postgres-data, frontend-node-modules).
 down-v:
 	docker compose down -v
+
+# Run just the backend and the services it depends on, instead of the whole stack.
+# compose starts depends_on services automatically, so this is backend + postgres-db
+# + redis — no frontend, no celery-worker.
+# NOTE: without celery-worker, uploads still return 201 but nothing classifies them —
+# the job sits in redis unconsumed. Use `make up` when you need classification to run.
+backend:
+	docker compose up backend
 
 # Drop into a shell inside the backend container
 cli:
