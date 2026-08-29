@@ -325,6 +325,21 @@ class FileType(models.Model):
                     'requirement (e.g. 12 monthly bank statements). Null means one '
                     'document is enough regardless of period.',
     )
+    group = models.CharField(
+        max_length=20,
+        default='other',
+        help_text='Which heading this type is listed under when a user picks documents, '
+                    'e.g. "financial" or "tax" (see core.file_type_catalog.FileTypeGroup). '
+                    'Display only. Deliberately NOT the same as `category`: that is a '
+                    'recency bucket, which is why a timeless acta constitutiva is '
+                    'category "other" but group "legal".',
+    )
+    is_default_suggestion = models.BooleanField(
+        default=False,
+        help_text='Whether this type is pre-ticked when an organization builds its first '
+                    'requirement template. A starting point only — the organization can '
+                    'remove any of them and add any other type.',
+    )
     is_active = models.BooleanField(
         default=True,
         help_text='Whether this type can still be added to new templates. Existing '
@@ -350,7 +365,10 @@ class FileType(models.Model):
     )
 
     class Meta:
-        ordering = ['label_en']
+        # Alphabetical by the SPANISH name, because that is the name the UI prints.
+        # Ordering by label_en would look randomly shuffled to a user reading label_es
+        # ("Pagaré" would sit under P-for-Promissory-note, not under P-for-Pagaré).
+        ordering = ['label_es']
         constraints = [
             models.UniqueConstraint(
                 fields=['organization', 'key'],
@@ -560,7 +578,8 @@ class CreditCaseRequirement(models.Model):
     )
 
     class Meta:
-        ordering = ['file_type__label_en']
+        # Same reason as FileType.Meta.ordering: sorted by the name the user reads.
+        ordering = ['file_type__label_es']
         constraints = [
             models.UniqueConstraint(
                 fields=['credit_case', 'file_type'],

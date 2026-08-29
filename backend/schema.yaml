@@ -3057,6 +3057,9 @@ components:
         label_en:
           type: string
           readOnly: true
+        label_es:
+          type: string
+          readOnly: true
         is_required:
           type: boolean
           default: true
@@ -3093,6 +3096,7 @@ components:
       - file_type_key
       - id
       - label_en
+      - label_es
       - source
       - synced_at
       - url
@@ -3425,6 +3429,32 @@ components:
           description: 'One of core.file_type_catalog.FileTypeCategory: financial,
             legal or other. Decides how recent a document must be to still count.'
           maxLength: 20
+        group:
+          type: string
+          description: 'Which heading this type is listed under when a user picks
+            documents, e.g. "financial" or "tax" (see core.file_type_catalog.FileTypeGroup).
+            Display only. Deliberately NOT the same as `category`: that is a recency
+            bucket, which is why a timeless acta constitutiva is category "other"
+            but group "legal".'
+          maxLength: 20
+        group_label:
+          type: string
+          description: |-
+            The heading this type is listed under, e.g. "Tax / SAT".
+
+            Sent rather than left to the client so the frontend never keeps its own copy of
+            the group list — a hardcoded copy would silently go stale the day a group is
+            added to the catalog, which is the same reason file types themselves are served
+            rather than hardcoded.
+          readOnly: true
+        group_order:
+          type: integer
+          description: |-
+            Where this type's group sits in the order a person should meet them (financials
+            first, odds and ends last). A sort key, so the frontend orders groups the way the
+            catalog declares rather than alphabetically — "Credit process" before "Financial"
+            would read as nonsense. Unknown groups sort last.
+          readOnly: true
         months_required:
           type: integer
           maximum: 32767
@@ -3438,12 +3468,19 @@ components:
           description: Whether this type can still be added to new templates. Existing
             documents keep resolving either way — a type is never deleted, because
             documents already reference its key.
+        is_default_suggestion:
+          type: boolean
+          description: Whether this type is pre-ticked when an organization builds
+            its first requirement template. A starting point only — the organization
+            can remove any of them and add any other type.
         is_global:
           type: boolean
           description: True for app-provided types, which every organization can use.
           readOnly: true
       required:
       - category
+      - group_label
+      - group_order
       - id
       - is_global
       - key
@@ -4077,6 +4114,9 @@ components:
           type: string
           readOnly: true
         label_en:
+          type: string
+          readOnly: true
+        label_es:
           type: string
           readOnly: true
         is_required:
@@ -4752,6 +4792,9 @@ components:
         label_en:
           type: string
           readOnly: true
+        label_es:
+          type: string
+          readOnly: true
         is_required:
           type: boolean
           description: True means a credit case is incomplete without it. False means
@@ -4773,6 +4816,7 @@ components:
       - file_type_key
       - id
       - label_en
+      - label_es
     SourceEnum:
       enum:
       - template

@@ -14,6 +14,7 @@ from core.constants import (
     UPLOAD_DOCUMENT_BASENAME,
     CREDIT_CASE_ID,
 )
+from core.file_type_catalog import FILE_TYPE_GROUP_LABELS, FILE_TYPE_GROUP_ORDER
 from core.serializer_utils import NamedHyperlinkedModelSerializer, NamedHyperlinkedRelatedField
 from processing.models import CreditCase
 
@@ -362,10 +363,33 @@ class FileTypeSerializer(NamedHyperlinkedModelSerializer):
     """
 
     is_global = serializers.SerializerMethodField()
+    group_label = serializers.SerializerMethodField()
+    group_order = serializers.SerializerMethodField()
 
     def get_is_global(self, obj) -> bool:
         """True for app-provided types, which every organization can use."""
         return obj.organization_id is None
+
+    def get_group_label(self, obj) -> str:
+        """
+        The heading this type is listed under, e.g. "Fiscales / SAT". In Spanish, like
+        the document names the UI prints under it.
+
+        Sent rather than left to the client so the frontend never keeps its own copy of
+        the group list — a hardcoded copy would silently go stale the day a group is
+        added to the catalog, which is the same reason file types themselves are served
+        rather than hardcoded.
+        """
+        return FILE_TYPE_GROUP_LABELS.get(obj.group, obj.group)
+
+    def get_group_order(self, obj) -> int:
+        """
+        Where this type's group sits in the order a person should meet them (financials
+        first, odds and ends last). A sort key, so the frontend orders groups the way the
+        catalog declares rather than alphabetically — "Fiscales / SAT" before "Financieros"
+        would read as nonsense. Unknown groups sort last.
+        """
+        return FILE_TYPE_GROUP_ORDER.get(obj.group, len(FILE_TYPE_GROUP_ORDER))
 
     class Meta:
         model = FileType
@@ -376,8 +400,12 @@ class FileTypeSerializer(NamedHyperlinkedModelSerializer):
             'label_en',
             'label_es',
             'category',
+            'group',
+            'group_label',
+            'group_order',
             'months_required',
             'is_active',
+            'is_default_suggestion',
             'is_global',
         ]
 
@@ -391,7 +419,11 @@ class RequirementTemplateItemSerializer(serializers.ModelSerializer):
     """
 
     file_type_key = serializers.CharField(source='file_type.key', read_only=True)
+    # Both labels travel with the row so the UI never has to look the file type up in a
+    # second list just to print its name. The frontend shows label_es today (its users
+    # are Mexican companies); label_en stays for a future language toggle.
     label_en = serializers.CharField(source='file_type.label_en', read_only=True)
+    label_es = serializers.CharField(source='file_type.label_es', read_only=True)
 
     class Meta:
         model = RequirementTemplateItem
@@ -400,6 +432,7 @@ class RequirementTemplateItemSerializer(serializers.ModelSerializer):
             'file_type',
             'file_type_key',
             'label_en',
+            'label_es',
             'is_required',
             'months_required',
             'order',
@@ -529,7 +562,10 @@ class CreditCaseRequirementSerializer(NamedHyperlinkedModelSerializer):
     # required unless the client says otherwise.
     is_required = serializers.BooleanField(default=True)
     file_type_key = serializers.CharField(source='file_type.key', read_only=True)
+    # See RequirementTemplateItemSerializer: label_es is what the UI prints, label_en is
+    # kept alongside it for later.
     label_en = serializers.CharField(source='file_type.label_en', read_only=True)
+    label_es = serializers.CharField(source='file_type.label_es', read_only=True)
 
     class Meta:
         model = CreditCaseRequirement
@@ -540,6 +576,7 @@ class CreditCaseRequirementSerializer(NamedHyperlinkedModelSerializer):
             'file_type',
             'file_type_key',
             'label_en',
+            'label_es',
             'is_required',
             'months_required',
             'source',

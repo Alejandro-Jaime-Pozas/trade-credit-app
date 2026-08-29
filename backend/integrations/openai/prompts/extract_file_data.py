@@ -23,6 +23,8 @@ EXTRACT_FILE_DATA = f"""
         - Not include bank specific data such as bank account number or bank name.
     - When extracting date fields, the year should always be between 2000 and the current year.
     - A constancia_de_situacion_fiscal's date_range_start and date_range_end should be the same, the exact date is below the 'Lugar y Fecha de Emisión' text or similar if available.
+    - For any document issued on a single date rather than covering a period (an identificacion_oficial, an acta_constitutiva, a comprobante_de_domicilio), set date_range_start and date_range_end to that same issue date.
+    - If the schema only has document_date, is_legible and summary, this is a document we just need to confirm exists: describe it in one short sentence, set is_legible to false only if it is genuinely too blurry, cropped or dark to read, and give its printed date if one is visible.
 """
 
 def get_file_data_prompt(file_type_name: str):

@@ -8,6 +8,8 @@ edit truthfully, applying it preserves per-case additions and leaves status alon
 none of it reaches across organizations.
 """
 
+import unicodedata
+
 import pytest
 from django.urls import reverse
 from django.utils import timezone
@@ -15,6 +17,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core.file_type_spec import DEFAULT_SUGGESTION_KEYS
+from core.file_type_spec import REQUIRABLE_KEYS
 from core.file_type_sync import sync_global_file_types
 from customers.models import Customer
 from identity.models import Organization, User
@@ -56,6 +59,20 @@ def global_file_type(key):
     return FileType.objects.get(key=key, organization=None)
 
 
+def alphabetical_key(name):
+    """
+    Sort a display name the way Postgres' default collation does.
+
+    Postgres ignores case, accents and spaces when ordering, so "Declaración anual" sorts
+    before "Declaraciones provisionales" — while Python's plain `sorted` compares raw
+    code points and puts them the other way round. Tests that assert an API list arrived
+    sorted have to use the database's rules, not Python's.
+    """
+    stripped = unicodedata.normalize('NFKD', name)
+    without_accents = ''.join(c for c in stripped if not unicodedata.combining(c))
+    return ''.join(c for c in without_accents if c.isalnum()).lower()
+
+
 def make_template(org, keys, name='Default', is_default=True):
     template = RequirementTemplate.objects.create(
         organization=org, name=name, is_default=is_default,
@@ -85,6 +102,21 @@ def test_unknown_is_never_a_selectable_file_type():
     over, so it must never be offered as something a credit case can require.
     """
     assert not FileType.objects.filter(key='unknown').exists()
+
+
+@pytest.mark.django_db
+def test_every_requirable_catalog_type_reaches_the_table():
+    """
+    Requirement templates point at FileType ROWS, not at the catalog tuple, so a spec
+    added to `core/file_type_catalog.py` is invisible to users until it is synced. This
+    fails the moment someone adds a type without the table catching up — which is easy to
+    miss, because nothing else errors.
+    """
+    synced_keys = set(
+        FileType.objects.filter(organization=None).values_list('key', flat=True)
+    )
+
+    assert set(REQUIRABLE_KEYS) - synced_keys == set()
 
 
 @pytest.mark.django_db
@@ -985,3 +1017,117 @@ def test_submitted_case_rejects_bulk_set_requirements():
 
     assert res.status_code == status.HTTP_400_BAD_REQUEST
     assert credit_case.requirements.count() == 0
+
+
+@pytest.mark.django_db
+def test_sync_copies_the_display_group_and_suggestion_flag():
+    """
+    Both fields are what let the frontend show 22 documents as a tidy grouped list with a
+    sensible starting selection, rather than one undifferentiated wall of buttons.
+    """
+    acta = global_file_type('acta_constitutiva')
+
+    assert acta.group == 'legal'
+    assert acta.is_default_suggestion is True
+
+    # Group is NOT category: an acta is timeless, so its recency bucket is "other" while
+    # a person still looks for it under "Legal / corporate".
+    assert acta.category == 'other'
+
+
+@pytest.mark.django_db
+def test_sync_repairs_a_group_edited_by_hand():
+    file_type = global_file_type('bank_statement')
+    file_type.group = 'operational'
+    file_type.is_default_suggestion = False
+    file_type.save(update_fields=['group', 'is_default_suggestion'])
+
+    sync_global_file_types(FileType)
+
+    file_type.refresh_from_db()
+    assert file_type.group == 'financial'
+    assert file_type.is_default_suggestion is True
+
+
+@pytest.mark.django_db
+def test_file_types_endpoint_carries_grouping_for_the_picker():
+    """
+    The frontend groups and orders by what this endpoint says, and deliberately keeps no
+    copy of the group list — so these four fields are the whole contract.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+
+    res = client.get(reverse('filetype-list'))
+
+    assert res.status_code == status.HTTP_200_OK
+    rows = {row['key']: row for row in res.data['results']}
+
+    acta = rows['acta_constitutiva']
+    assert acta['group'] == 'legal'
+    # Headings are in Spanish: they are printed directly above the Spanish document
+    # names the UI shows, so an English heading there would be a language mix.
+    assert acta['group_label'] == 'Legales / corporativos'
+    assert acta['is_default_suggestion'] is True
+
+    # Financials come before legal in the reading order the catalog declares.
+    assert rows['bank_statement']['group_order'] < acta['group_order']
+
+
+@pytest.mark.django_db
+def test_file_types_endpoint_carries_both_labels_ordered_by_spanish():
+    """
+    The UI prints the Spanish name, so the list has to ARRIVE sorted by it — a list
+    sorted by label_en looks shuffled to someone reading label_es. The English name is
+    still served, unchanged, for a future language toggle.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+
+    res = client.get(reverse('filetype-list'))
+
+    assert res.status_code == status.HTTP_200_OK
+    rows = res.data['results']
+
+    # Both names are present on every row.
+    assert all(row['label_en'] and row['label_es'] for row in rows)
+
+    # The Spanish name is the real one, not a copy of the English one.
+    pagare = next(row for row in rows if row['key'] == 'pagare')
+    assert pagare['label_en'] == 'Promissory note'
+    assert pagare['label_es'] == 'Pagaré'
+
+    # Sorted by the Spanish name. Compared through `alphabetical_key` because Postgres
+    # does the sorting (FileType.Meta.ordering) and its default collation ignores case,
+    # accents and spaces, which Python's plain `sorted` does not.
+    spanish_names = [row['label_es'] for row in rows]
+    assert spanish_names == sorted(spanish_names, key=alphabetical_key)
+
+    # And it is really the SPANISH order: sorting by the English names would produce a
+    # different list ("Pagaré" lands under P either way, but "Balance general" and
+    # "Acta constitutiva" do not).
+    english_names = [row['label_en'] for row in rows]
+    assert english_names != sorted(english_names, key=alphabetical_key)
+
+
+@pytest.mark.django_db
+def test_credit_case_requirement_rows_carry_the_spanish_label():
+    """
+    A requirement row names its document inline, so the UI can render the list without
+    cross-referencing /file-types/. That name has to include the Spanish one.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    customer = make_customer(org)
+    credit_case = make_credit_case(customer)
+    CreditCaseRequirement.objects.create(
+        credit_case=credit_case, file_type=global_file_type('pagare'),
+    )
+
+    res = client.get(reverse('creditcaserequirement-list'))
+
+    assert res.status_code == status.HTTP_200_OK
+    row = next(r for r in res.data['results'] if r['file_type_key'] == 'pagare')
+    assert row['label_es'] == 'Pagaré'
+    assert row['label_en'] == 'Promissory note'

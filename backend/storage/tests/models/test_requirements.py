@@ -26,7 +26,16 @@ def make_org(name='Acme', domain='acme.com'):
     return Organization.objects.create(name=name, email_domain=domain)
 
 
-def make_file_type(key='acta_constitutiva', organization=None):
+def make_file_type(key='test_only_document', organization=None):
+    """
+    Create a FileType row directly.
+
+    The default key is deliberately synthetic and must stay OUT of
+    `core/file_type_catalog.py`. Every requirable catalog key is already seeded as a
+    global row by migration 0009, so creating a global row with a real key here would
+    trip the partial unique index on `key WHERE organization IS NULL` — which is exactly
+    what happened when `acta_constitutiva` (the previous default) joined the catalog.
+    """
     return FileType.objects.create(
         key=key,
         label_en=key.replace('_', ' ').title(),
@@ -43,11 +52,11 @@ def test_global_file_type_key_cannot_be_duplicated():
     organization=NULL, and Postgres treats two NULLs as different values. The partial
     unique index on key WHERE organization IS NULL is what actually rejects it.
     """
-    make_file_type(key='acta_constitutiva')
+    make_file_type(key='test_only_document')
 
     with pytest.raises(IntegrityError):
         with transaction.atomic():
-            make_file_type(key='acta_constitutiva')
+            make_file_type(key='test_only_document')
 
 
 @pytest.mark.django_db

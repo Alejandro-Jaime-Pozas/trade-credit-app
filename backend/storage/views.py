@@ -284,8 +284,15 @@ class RequirementTemplateViewSet(
         )
 
     def _serialize_file_types(self, file_types):
+        # Both labels are sent: the impact warning in the UI prints label_es, and
+        # label_en is kept so a future language toggle needs no API change.
         return [
-            {'id': file_type.id, 'key': file_type.key, 'label_en': file_type.label_en}
+            {
+                'id': file_type.id,
+                'key': file_type.key,
+                'label_en': file_type.label_en,
+                'label_es': file_type.label_es,
+            }
             for file_type in file_types
         ]
 
