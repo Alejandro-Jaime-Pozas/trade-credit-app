@@ -1,28 +1,225 @@
 @import "tailwindcss";
 
+/*
+ * Dark mode is driven by a `dark` CLASS on <html>, not by the browser's
+ * `prefers-color-scheme` media query. A media query is read-only — the user cannot
+ * override it from inside the page — and this app has a toggle button in the header,
+ * so the theme has to be something JavaScript can set. `src/lib/theme.ts` owns that
+ * class; it still falls back to the OS preference when the user has never chosen.
+ *
+ * This @custom-variant line is what teaches Tailwind v4 the same thing, so a
+ * `dark:...` utility applies inside `.dark` instead of inside the media query.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * ---------------------------------------------------------------------------
+ * Design tokens
+ * ---------------------------------------------------------------------------
+ * Components never name a raw palette colour (`bg-white`, `text-zinc-600`). They name
+ * a ROLE (`bg-surface`, `text-fg-muted`), and the role's value is defined twice below:
+ * once for light mode on `:root`, once for dark mode on `.dark`. That is the whole
+ * dark-mode mechanism — one class, two values — so a component written today keeps
+ * working in both themes without a second set of `dark:` classes to maintain.
+ *
+ * Naming convention:
+ *   canvas / surface-*  → backgrounds, from the page behind everything to raised cards
+ *   fg-*                → text, from primary copy down to the faintest hint text
+ *   border / border-*   → lines and outlines
+ *   primary-*           → the app's main action button
+ *   danger/success/warning/accent → status ramps, each with:
+ *       -surface (tinted panel bg), -line (its border), plain (its text),
+ *       -solid (a filled button in that colour) and -solid-hover
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Tells the browser to draw native scrollbars, selects and date pickers light. */
+  color-scheme: light;
+
+  /* Backgrounds, from furthest back to most raised. */
+  --canvas: #fafafa; /* the page itself, behind all cards */
+  --surface: #ffffff; /* cards, header, footer, menus */
+  --surface-subtle: #fafafa; /* hover states and recessed panels inside a card */
+  --surface-muted: #f4f4f5; /* chips and pills */
+  --surface-strong: #e4e4e7; /* the strongest neutral fill (drag handles, hovers on chips) */
+
+  /* Text, from loudest to quietest. */
+  --fg: #18181b; /* headings and primary copy */
+  --fg-secondary: #3f3f46; /* labels and secondary copy */
+  --fg-muted: #52525b; /* supporting text */
+  --fg-subtle: #71717a; /* captions, metadata */
+  --fg-faint: #a1a1aa; /* placeholders, disabled text */
+
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+
+  /* The primary action button: near-black in light mode, near-white in dark mode. */
+  --primary: #18181b;
+  --primary-hover: #27272a;
+  --primary-fg: #ffffff; /* text/icons drawn ON the primary colour */
+
+  /* Status ramps. */
+  --danger: #991b1b;
+  --danger-surface: #fef2f2;
+  --danger-line: #fecaca;
+  --danger-solid: #dc2626;
+  --danger-solid-hover: #b91c1c;
+
+  --success: #14532d;
+  --success-surface: #f0fdf4;
+  --success-surface-strong: #dcfce7;
+  --success-line: #bbf7d0;
+  --success-solid: #16a34a;
+  --success-solid-hover: #15803d;
+
+  --warning: #92400e;
+  --warning-surface: #fffbeb;
+  --warning-surface-strong: #fef3c7;
+  --warning-line: #fde68a;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-fg: #ffffff;
 }
 
+.dark {
+  color-scheme: dark;
+
+  --canvas: #09090b;
+  --surface: #18181b;
+  --surface-subtle: #202023;
+  --surface-muted: #27272a;
+  --surface-strong: #3f3f46;
+
+  --fg: #fafafa;
+  --fg-secondary: #d4d4d8;
+  --fg-muted: #a1a1aa;
+  --fg-subtle: #8b8b94;
+  --fg-faint: #71717a;
+
+  --border: #27272a;
+  --border-strong: #3f3f46;
+
+  --primary: #fafafa;
+  --primary-hover: #e4e4e7;
+  --primary-fg: #18181b;
+
+  /*
+   * Status colours are not simply inverted. On a dark background a saturated mid-tone
+   * reads as glare, so the tinted panels become very dark and the TEXT becomes the
+   * light, saturated end of the ramp — the opposite arrangement to light mode.
+   */
+  --danger: #fca5a5;
+  --danger-surface: #2a1214;
+  --danger-line: #7f1d1d;
+  --danger-solid: #dc2626;
+  --danger-solid-hover: #ef4444;
+
+  --success: #86efac;
+  --success-surface: #0e2018;
+  --success-surface-strong: #14532d;
+  --success-line: #166534;
+  --success-solid: #16a34a;
+  --success-solid-hover: #22c55e;
+
+  --warning: #fcd34d;
+  --warning-surface: #2a1e06;
+  --warning-surface-strong: #3b2a08;
+  --warning-line: #78350f;
+
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-fg: #ffffff;
+}
+
+/*
+ * `@theme inline` turns each token into a Tailwind colour utility — `--color-surface`
+ * gives you `bg-surface`, `text-surface`, `border-surface`, and so on. "inline" matters:
+ * it makes the generated CSS reference `var(--surface)` at use time rather than baking
+ * in today's value, which is exactly what lets `.dark` re-point it.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-strong: var(--surface-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-line: var(--danger-line);
+  --color-danger-solid: var(--danger-solid);
+  --color-danger-solid-hover: var(--danger-solid-hover);
+
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+  --color-success-surface-strong: var(--success-surface-strong);
+  --color-success-line: var(--success-line);
+  --color-success-solid: var(--success-solid);
+  --color-success-solid-hover: var(--success-solid-hover);
+
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-surface-strong: var(--warning-surface-strong);
+  --color-warning-line: var(--warning-line);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--canvas);
+  color: var(--fg);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  /*
+   * Tailwind v4 dropped the old default border colour, so a bare `border` class now
+   * paints in `currentColor` — i.e. the text colour, which is near-black in light mode
+   * and would be near-white in dark mode. The app uses bare `border` in over a hundred
+   * places, so point that default at the border token instead of restating a colour on
+   * every one of them.
+   */
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
+
+  /*
+   * Many inputs in the app carry no background class at all, which used to be harmless
+   * because whatever sat behind them was white. In dark mode a transparent input is
+   * invisible, so form controls get the surface tokens by default; anything that wants
+   * a different fill still overrides it with a utility class.
+   */
+  input,
+  select,
+  textarea {
+    background-color: var(--surface);
+    color: var(--fg);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--fg-faint);
+  }
 }
 
 /*

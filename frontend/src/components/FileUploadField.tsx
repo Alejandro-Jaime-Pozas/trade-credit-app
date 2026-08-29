@@ -128,8 +128,8 @@ export function FileUploadField(props: {
         className={[
           "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium",
           disabled || uploading
-            ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-400"
-            : "cursor-pointer border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
+            ? "cursor-not-allowed bg-surface-subtle text-fg-faint"
+            : "cursor-pointer border-border-strong bg-surface text-fg hover:bg-surface-subtle",
         ].join(" ")}
       >
         {uploading && <Spinner />}
@@ -139,13 +139,13 @@ export function FileUploadField(props: {
       {uploading && uploadingNames.length > 0 && (
         // `aria-live` so a screen reader announces the upload starting, since the
         // spinner itself is deliberately silent.
-        <p aria-live="polite" className="mt-2 text-xs text-zinc-500">
+        <p aria-live="polite" className="mt-2 text-xs text-fg-subtle">
           Uploading {uploadingNames.join(", ")}
         </p>
       )}
 
       {error && (
-        <p className="mt-2 text-xs text-red-700">
+        <p className="mt-2 text-xs text-danger">
           {error}{" "}
           <button
             type="button"

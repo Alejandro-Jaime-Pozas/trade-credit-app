@@ -11,7 +11,15 @@
 import { Spinner } from "./Spinner";
 import { CREDIT_CASE_STATUS_LABELS } from "@/lib/constants";
 
-/** Tailwind background class per status. Anything unrecognised falls back to grey. */
+/**
+ * Tailwind background class per status. Anything unrecognised falls back to grey.
+ *
+ * These are the one place in the app that still names raw palette colours instead of
+ * design tokens, on purpose: they are signal colours (green = good, red = rejected)
+ * rather than surfaces, they carry the same meaning in light and dark mode, and a
+ * saturated 500-weight dot reads clearly against both the white and the near-black
+ * background.
+ */
 const STATUS_DOT_COLORS: Record<string, string> = {
   complete: "bg-green-500",
   missing_documents: "bg-orange-500",
@@ -30,7 +38,7 @@ export function StatusDot({ status }: { status: string | null | undefined }) {
         role="img"
         aria-label={label}
         title={label}
-        className="inline-flex text-zinc-400"
+        className="inline-flex text-fg-faint"
       >
         <Spinner size={10} />
       </span>
@@ -58,7 +66,7 @@ export function StatusDot({ status }: { status: string | null | undefined }) {
  * deliberately small — just enough to separate the two, not enough to detach them.
  */
 export function StatusWithDot({ status }: { status: string | null | undefined }) {
-  if (!status) return <span className="text-zinc-600">—</span>;
+  if (!status) return <span className="text-fg-muted">—</span>;
   return (
     <span className="inline-flex items-center gap-2">
       <StatusDot status={status} />

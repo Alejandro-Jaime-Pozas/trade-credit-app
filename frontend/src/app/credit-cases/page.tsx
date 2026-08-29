@@ -80,7 +80,7 @@ export default function CreditCasesPage() {
         <div className="flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Credit Cases</h1>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               Credit cases for your org. Sorting and filtering are applied in the browser
               across all loaded cases.
             </p>
@@ -88,14 +88,14 @@ export default function CreditCasesPage() {
 
           <Link
             href="/credit-cases/new"
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover"
           >
             New credit case
           </Link>
         </div>
 
         {error ? (
-          <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="mt-6 rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
             {error}
           </div>
         ) : null}

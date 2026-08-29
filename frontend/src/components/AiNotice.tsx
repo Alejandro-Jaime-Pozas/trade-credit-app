@@ -14,7 +14,7 @@
  */
 export function AiNotice({ className = "" }: { className?: string }) {
   return (
-    <p className={["text-xs italic text-zinc-500", className].join(" ")}>
+    <p className={["text-xs italic text-fg-subtle", className].join(" ")}>
       AI can make mistakes, make sure the data created is accurate.
     </p>
   );

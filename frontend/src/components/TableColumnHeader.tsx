@@ -257,20 +257,20 @@ export function TableColumnHeader({
         onClick={() => onToggleValue?.(option.value)}
         className={[
           "flex w-full items-center gap-2 px-3 py-2 text-left text-sm normal-case tracking-normal",
-          isActive ? "bg-zinc-100" : "hover:bg-zinc-50",
+          isActive ? "bg-surface-muted" : "hover:bg-surface-subtle",
         ].join(" ")}
       >
         <span
           aria-hidden="true"
           className={[
             "flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] leading-none",
-            isSelected ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white",
+            isSelected ? "border-primary bg-primary text-primary-fg" : "border-border-strong bg-surface",
           ].join(" ")}
         >
           {isSelected ? "✓" : ""}
         </span>
-        <span className="flex-1 truncate font-normal text-zinc-800">{option.label}</span>
-        <span className="shrink-0 text-xs text-zinc-500">{option.count}</span>
+        <span className="flex-1 truncate font-normal text-fg">{option.label}</span>
+        <span className="shrink-0 text-xs text-fg-subtle">{option.count}</span>
       </button>
     );
   }
@@ -284,7 +284,7 @@ export function TableColumnHeader({
         left: position?.left ?? 0,
         width: PANEL_WIDTH,
       }}
-      className="z-50 rounded-md border bg-white shadow-lg"
+      className="z-50 rounded-md border bg-surface shadow-lg"
     >
       <div className="border-b p-2">
         <input
@@ -321,14 +321,14 @@ export function TableColumnHeader({
         className="overflow-y-auto py-1"
       >
         {navigable.length === 0 ? (
-          <div className="px-3 py-2 text-sm font-normal normal-case tracking-normal text-zinc-500">
+          <div className="px-3 py-2 text-sm font-normal normal-case tracking-normal text-fg-subtle">
             No matching values.
           </div>
         ) : (
           <>
             {pinned.length > 0 && (
               <div role="group" aria-label="Selected values">
-                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
                   Selected
                 </div>
                 {pinned.map((option, index) => renderOption(option, index))}
@@ -343,7 +343,7 @@ export function TableColumnHeader({
       </div>
 
       <div className="flex items-center justify-between border-t px-2 py-2">
-        <span className="text-xs font-normal normal-case tracking-normal text-zinc-500">
+        <span className="text-xs font-normal normal-case tracking-normal text-fg-subtle">
           {selected.length} selected
         </span>
         <button
@@ -351,7 +351,7 @@ export function TableColumnHeader({
           onMouseDown={(e) => e.preventDefault()}
           onClick={onClearColumn}
           disabled={selected.length === 0}
-          className="rounded px-2 py-1 text-xs font-normal normal-case tracking-normal text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
+          className="rounded px-2 py-1 text-xs font-normal normal-case tracking-normal text-fg-muted hover:bg-surface-muted disabled:opacity-40"
         >
           Clear
         </button>
@@ -432,8 +432,8 @@ export function TableColumnHeader({
           aria-label={ariaLabel}
           title={ariaLabel}
           className={[
-            "flex h-7 w-7 items-center justify-center rounded text-sm leading-none hover:bg-zinc-200",
-            sortDirection ? "text-zinc-900" : "text-zinc-400",
+            "flex h-7 w-7 items-center justify-center rounded text-sm leading-none hover:bg-surface-strong",
+            sortDirection ? "text-fg" : "text-fg-faint",
           ].join(" ")}
         >
           {glyph}
@@ -452,15 +452,15 @@ export function TableColumnHeader({
           aria-expanded={open}
           title={`Filter by ${label}`}
           className={[
-            "flex h-7 min-w-7 items-center justify-center gap-1 rounded px-1.5 leading-none hover:bg-zinc-200",
-            selected.length > 0 ? "text-zinc-900" : "text-zinc-400",
+            "flex h-7 min-w-7 items-center justify-center gap-1 rounded px-1.5 leading-none hover:bg-surface-strong",
+            selected.length > 0 ? "text-fg" : "text-fg-faint",
           ].join(" ")}
         >
           <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
             <path d="M1.5 2.5h13L9.5 8.4V14L6.5 12.4V8.4z" />
           </svg>
           {selected.length > 0 && (
-            <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] leading-4 text-white">
+            <span className="rounded-full bg-primary px-1.5 text-[10px] leading-4 text-primary-fg">
               {selected.length}
             </span>
           )}
@@ -485,7 +485,7 @@ export function TableColumnHeader({
             onResize(0);
             onResizeEnd?.();
           }}
-          className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none hover:bg-zinc-300 focus:bg-zinc-400 focus:outline-none"
+          className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none hover:bg-surface-strong focus:bg-fg-faint focus:outline-none"
         />
       )}
 

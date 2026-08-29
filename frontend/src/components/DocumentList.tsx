@@ -109,8 +109,8 @@ export function DocumentList(props: {
     onRename?.(doc, trimmed || null);
   }
 
-  if (!sorted) return <div className="text-sm text-zinc-600">Loading…</div>;
-  if (sorted.length === 0) return <div className="text-sm text-zinc-600">{emptyMessage}</div>;
+  if (!sorted) return <div className="text-sm text-fg-muted">Loading…</div>;
+  if (sorted.length === 0) return <div className="text-sm text-fg-muted">{emptyMessage}</div>;
 
   return (
     <>
@@ -156,14 +156,14 @@ export function DocumentList(props: {
                     <button
                       type="button"
                       onClick={() => commitRename(doc)}
-                      className="rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-800"
+                      className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-fg hover:bg-primary-hover"
                     >
                       Save
                     </button>
                     <button
                       type="button"
                       onClick={cancelRename}
-                      className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-zinc-50"
+                      className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-surface-subtle"
                     >
                       Cancel
                     </button>
@@ -171,11 +171,11 @@ export function DocumentList(props: {
                 ) : (
                   <div id={titleId} className="flex items-center gap-2 truncate font-medium">
                     <span className="truncate">{displayName}</span>
-                    {renaming && <Spinner className="text-zinc-500" />}
+                    {renaming && <Spinner className="text-fg-subtle" />}
                   </div>
                 )}
 
-                <div className="mt-1 text-xs text-zinc-500">
+                <div className="mt-1 text-xs text-fg-subtle">
                   {doc.mimetype} · {formatDate(doc.uploaded_at)}
                   {originalDiffers && ` · ${doc.original_title}`}
                 </div>
@@ -189,7 +189,7 @@ export function DocumentList(props: {
                      reason: work is actively happening rather than waiting on a person. */
                   <span
                     role="status"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-500"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-subtle"
                   >
                     <Spinner size={10} />
                     Classifying…
@@ -206,7 +206,7 @@ export function DocumentList(props: {
                     onChange={(key) => onChangeFileType(doc, key)}
                   />
                 ) : (
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                  <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-secondary">
                     {doc.file_type_name ?? "Not classified"}
                   </span>
                 )}
@@ -218,7 +218,7 @@ export function DocumentList(props: {
                 href={doc.file}
                 target="_blank"
                 rel="noreferrer"
-                className="text-zinc-900 underline"
+                className="text-fg underline"
               >
                 Download
               </a>
@@ -228,7 +228,7 @@ export function DocumentList(props: {
                   disabled={renaming}
                   onClick={() => startRename(doc)}
                   aria-label={`Rename ${displayName}`}
-                  className="text-zinc-900 underline disabled:opacity-60"
+                  className="text-fg underline disabled:opacity-60"
                 >
                   Rename
                 </button>
@@ -238,7 +238,7 @@ export function DocumentList(props: {
                   type="button"
                   onClick={() => onDelete(doc)}
                   aria-label={`Delete ${displayName}`}
-                  className="text-red-700 underline"
+                  className="text-danger underline"
                 >
                   Delete
                 </button>

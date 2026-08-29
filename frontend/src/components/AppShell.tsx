@@ -4,12 +4,14 @@
  * Shared page chrome: header nav, signed-in user info, logout, footer.
  *
  * Wraps most page content so every screen has consistent navigation
- * (Credit Cases, Customers) and auth actions without duplicating markup.
+ * (Credit Cases, Customers), the light/dark theme button, and auth actions without
+ * duplicating markup.
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React from "react";
 import { useAuth } from "@/lib/auth";
+import { ThemeToggle } from "./ThemeToggle";
 
 function NavLink(props: { href: string; label: string }) {
   const pathname = usePathname();
@@ -19,7 +21,7 @@ function NavLink(props: { href: string; label: string }) {
       href={props.href}
       className={[
         "text-sm font-medium transition-colors",
-        active ? "text-zinc-900" : "text-zinc-600 hover:text-zinc-900",
+        active ? "text-fg" : "text-fg-muted hover:text-fg",
       ].join(" ")}
     >
       {props.label}
@@ -39,8 +41,8 @@ export function AppShell(props: { children: React.ReactNode }) {
   // normally on small screens — the padding just grows at wider breakpoints so text
   // isn't flush against the edge.
   return (
-    <div className="min-h-full flex flex-col bg-zinc-50">
-      <header className="border-b bg-white">
+    <div className="min-h-full flex flex-col bg-canvas">
+      <header className="border-b bg-surface">
         <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link href="/credit-cases" className="font-semibold tracking-tight">
@@ -55,9 +57,12 @@ export function AppShell(props: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Every page renders through AppShell, so the header is the one place the
+                theme button has to live to be available app-wide. */}
+            <ThemeToggle />
             {user ? (
               <>
-                <div className="hidden sm:block text-sm text-zinc-600">
+                <div className="hidden sm:block text-sm text-fg-muted">
                   Signed in as <span className="font-medium">{user.email}</span>
                 </div>
                 <button
@@ -66,7 +71,7 @@ export function AppShell(props: { children: React.ReactNode }) {
                     logout();
                     router.push("/login");
                   }}
-                  className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-zinc-50"
+                  className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-surface-subtle"
                 >
                   Log out
                 </button>
@@ -76,7 +81,7 @@ export function AppShell(props: { children: React.ReactNode }) {
                 {pathname !== "/login" && (
                   <Link
                     href="/login"
-                    className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-zinc-50"
+                    className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-surface-subtle"
                   >
                     Log in
                   </Link>
@@ -84,7 +89,7 @@ export function AppShell(props: { children: React.ReactNode }) {
                 {pathname !== "/signup" && (
                   <Link
                     href="/signup"
-                    className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-fg hover:bg-primary-hover"
                   >
                     Sign up
                   </Link>
@@ -97,8 +102,8 @@ export function AppShell(props: { children: React.ReactNode }) {
       <main className="flex-1">
         <div className="w-full px-4 py-8 sm:px-6 lg:px-8">{props.children}</div>
       </main>
-      <footer className="border-t bg-white">
-        <div className="w-full px-4 py-4 sm:px-6 lg:px-8 text-xs text-zinc-500">
+      <footer className="border-t bg-surface">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-8 text-xs text-fg-subtle">
           Dev mode. API base:{" "}
           <span className="font-mono">{process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"}</span>
         </div>

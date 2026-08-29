@@ -46,7 +46,7 @@ export function Modal(props: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 dark:bg-black/70"
       onMouseDown={(e) => {
         // Only a press that starts on the backdrop itself counts. Without this check a
         // drag that began inside the panel and released outside would close it.
@@ -58,7 +58,7 @@ export function Modal(props: {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4">
           <h2 id="modal-title" className="text-lg font-semibold">
@@ -69,7 +69,7 @@ export function Modal(props: {
             onClick={close}
             disabled={busy}
             aria-label="Close"
-            className="-mr-1 -mt-1 rounded-md px-2 py-1 text-lg leading-none text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-40"
+            className="-mr-1 -mt-1 rounded-md px-2 py-1 text-lg leading-none text-fg-subtle hover:bg-surface-muted hover:text-fg disabled:opacity-40"
           >
             ✕
           </button>

@@ -198,31 +198,31 @@ export default function RequirementsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             Required documents
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-fg-muted">
             The documents every new credit case asks for by default. Existing cases keep
             what they were created with unless you choose to update them.
           </p>
         </div>
 
         {error && (
-          <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="mt-6 rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
             {error}
           </div>
         )}
 
         {saved && !impact && (
-          <div className="mt-6 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+          <div className="mt-6 rounded-md border border-success-line bg-success-surface p-3 text-sm text-success">
             {saved}
           </div>
         )}
 
-        <section className="mt-6 rounded-lg border bg-white p-6">
-          {loading && <p className="text-sm text-zinc-600">Loading…</p>}
+        <section className="mt-6 rounded-lg border bg-surface p-6">
+          {loading && <p className="text-sm text-fg-muted">Loading…</p>}
 
           {!loading && fileTypes && (
             <>
               {!template && (
-                <p className="mb-4 text-sm text-zinc-600">
+                <p className="mb-4 text-sm text-fg-muted">
                   You haven&apos;t set your required documents yet. Pick them below.
                 </p>
               )}

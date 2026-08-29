@@ -322,14 +322,14 @@ export default function CustomerDetailPage() {
             <h1 className="text-2xl font-semibold tracking-tight">
               {customer ? customer.name : "Customer"}
             </h1>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               View and update customer profile, contacts, and uploads.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/customers"
-              className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+              className="rounded-md border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-subtle"
             >
               Back
             </Link>
@@ -337,7 +337,7 @@ export default function CustomerDetailPage() {
               type="button"
               disabled={!customer || deleting}
               onClick={() => setConfirmingDelete(true)}
-              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+              className="rounded-md border border-danger-line bg-surface px-3 py-2 text-sm font-medium text-danger hover:bg-danger-surface disabled:opacity-60"
             >
               {deleting ? "Deleting…" : "Delete"}
             </button>
@@ -378,13 +378,13 @@ export default function CustomerDetailPage() {
         />
 
         {error ? (
-          <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="mt-6 rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
             {error}
           </div>
         ) : null}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <section className="lg:col-span-2 rounded-lg border bg-white p-6">
+          <section className="lg:col-span-2 rounded-lg border bg-surface p-6">
             <h2 className="text-base font-semibold">Profile</h2>
             {/* Uploading a CSF fills rfc/zip/street from the document, so these fields
                 can hold AI-extracted values the user never typed. */}
@@ -428,7 +428,7 @@ export default function CustomerDetailPage() {
               {saved && (
                 <span
                   aria-live="polite"
-                  className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900"
+                  className="rounded-md border border-success-line bg-success-surface px-3 py-2 text-sm text-success"
                 >
                   {saved}
                 </span>
@@ -437,7 +437,7 @@ export default function CustomerDetailPage() {
                 type="button"
                 onClick={handleDiscardChanges}
                 disabled={!customer || saving || !hasUnsavedChanges}
-                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-60"
               >
                 Discard changes
               </button>
@@ -470,13 +470,13 @@ export default function CustomerDetailPage() {
                     setSaving(false);
                   }
                 }}
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save changes"}
               </button>
             </div>
 
-            <div className="mt-6 text-xs text-zinc-500">
+            <div className="mt-6 text-xs text-fg-subtle">
               Created: {customer ? formatDate(customer.created_at) : "—"} · Updated:{" "}
               {customer ? formatDate(customer.updated_at) : "—"}
             </div>
@@ -485,9 +485,9 @@ export default function CustomerDetailPage() {
           {/* Same shape as the credit case detail page's Required documents section:
               the upload control on top, then bordered rows with the document type on
               the right — so documents look the same wherever the user meets them. */}
-          <section className="rounded-lg border bg-white p-6">
+          <section className="rounded-lg border bg-surface p-6">
             <h2 className="text-base font-semibold">Documents</h2>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               Choosing a file uploads it straight away and links it to this customer.
               File type is detected automatically — correct it here if it&apos;s wrong.
             </p>
@@ -518,17 +518,17 @@ export default function CustomerDetailPage() {
 
           {/* Same table as the /credit-cases dashboard, scoped to this customer —
               shared component, so the columns can't drift apart. */}
-          <section className="lg:col-span-3 rounded-lg border bg-white p-6">
+          <section className="lg:col-span-3 rounded-lg border bg-surface p-6">
             <div className="flex items-end justify-between gap-4">
               <div>
                 <h2 className="text-base font-semibold">Credit cases</h2>
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 text-sm text-fg-muted">
                   Every credit case for this customer.
                 </p>
               </div>
               <Link
                 href="/credit-cases/new"
-                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover"
               >
                 New credit case
               </Link>
@@ -541,11 +541,11 @@ export default function CustomerDetailPage() {
             />
           </section>
 
-          <section className="lg:col-span-3 rounded-lg border bg-white p-6">
+          <section className="lg:col-span-3 rounded-lg border bg-surface p-6">
             <div className="flex items-end justify-between gap-4">
               <div>
                 <h2 className="text-base font-semibold">Contacts</h2>
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 text-sm text-fg-muted">
                   Customer contacts are unique by (organization, email).
                 </p>
               </div>
@@ -626,7 +626,7 @@ export default function CustomerDetailPage() {
                       setCreatingContact(false);
                     }
                   }}
-                  className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
                 >
                   {creatingContact ? "Adding…" : "Add contact"}
                 </button>
@@ -634,8 +634,8 @@ export default function CustomerDetailPage() {
             </div>
 
             <div className="mt-6 overflow-x-auto rounded-lg border">
-              <table className="min-w-full text-sm bg-white">
-                <thead className="border-b bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-600">
+              <table className="min-w-full text-sm bg-surface">
+                <thead className="border-b bg-surface-subtle text-left text-xs uppercase tracking-wide text-fg-muted">
                   <tr>
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Email</th>
@@ -646,29 +646,29 @@ export default function CustomerDetailPage() {
                 <tbody className="divide-y">
                   {!contacts ? (
                     <tr>
-                      <td className="px-4 py-4 text-zinc-600" colSpan={4}>
+                      <td className="px-4 py-4 text-fg-muted" colSpan={4}>
                         Loading…
                       </td>
                     </tr>
                   ) : contacts.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-4 text-zinc-600" colSpan={4}>
+                      <td className="px-4 py-4 text-fg-muted" colSpan={4}>
                         No contacts yet.
                       </td>
                     </tr>
                   ) : (
                     contacts.map((c) => (
-                      <tr key={c.url} className="hover:bg-zinc-50">
+                      <tr key={c.url} className="hover:bg-surface-subtle">
                         <td className="px-4 py-3">
                           {(c.first_name || "") + " " + (c.last_name || "")}
                         </td>
                         <td className="px-4 py-3">{c.email}</td>
-                        <td className="px-4 py-3 text-zinc-600">{c.role || "—"}</td>
+                        <td className="px-4 py-3 text-fg-muted">{c.role || "—"}</td>
                         <td className="px-4 py-3 text-right">
                           <button
                             type="button"
                             aria-label={`Delete contact ${c.email}`}
-                            className="text-sm font-medium text-red-700 underline"
+                            className="text-sm font-medium text-danger underline"
                             onClick={() => setContactToDelete(c)}
                           >
                             Delete

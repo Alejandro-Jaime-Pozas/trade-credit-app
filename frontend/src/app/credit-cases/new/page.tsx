@@ -415,7 +415,7 @@ export default function NewCreditCasePage() {
           </div>
           <Link
             href="/credit-cases"
-            className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            className="rounded-md border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-subtle"
           >
             Back
           </Link>
@@ -424,21 +424,21 @@ export default function NewCreditCasePage() {
         <div className="mt-6 space-y-6">
 
           {/* ── Step 1: Customer ──────────────────────────────────── */}
-          <section className="rounded-lg border bg-white p-6">
+          <section className="rounded-lg border bg-surface p-6">
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-fg">
                 1
               </span>
               <h2 className="text-base font-semibold">Link a customer</h2>
             </div>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               To create a new credit case, first search for a customer or create a new one.
             </p>
 
             {linkedCustomer ? (
               /* Confirmed customer */
-              <div className="mt-4 flex items-center justify-between rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm">
-                <span className="font-medium text-green-900">
+              <div className="mt-4 flex items-center justify-between rounded-md border border-success-line bg-success-surface px-4 py-3 text-sm">
+                <span className="font-medium text-success">
                   ✓ {linkedCustomer.name}
                   {linkedCustomer.rfc ? ` · ${linkedCustomer.rfc}` : ""}
                 </span>
@@ -452,7 +452,7 @@ export default function NewCreditCasePage() {
                     clearCustomerSuccess();
                     setError(null);
                   }}
-                  className="text-xs text-zinc-600 underline hover:text-zinc-900"
+                  className="text-xs text-fg-muted underline hover:text-fg"
                 >
                   Change
                 </button>
@@ -498,20 +498,20 @@ export default function NewCreditCasePage() {
                     <div
                       id="new-credit-case-customer-listbox"
                       role="listbox"
-                      className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg"
+                      className="absolute z-10 mt-1 w-full rounded-md border bg-surface shadow-lg"
                     >
                       {allCustomers === null ? (
-                        <div className="px-4 py-3 text-sm text-zinc-500">
+                        <div className="px-4 py-3 text-sm text-fg-subtle">
                           Loading customers…
                         </div>
                       ) : showingRecent && dropdownOptions.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-zinc-500">
+                        <div className="px-4 py-3 text-sm text-fg-subtle">
                           No customers yet — type a name to create one.
                         </div>
                       ) : (
                         <>
                           {showingRecent && (
-                            <div className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                            <div className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-fg-faint">
                               Recent customers
                             </div>
                           )}
@@ -531,12 +531,12 @@ export default function NewCreditCasePage() {
                                   onMouseDown={() => handleSelectExisting(c)}
                                   className={[
                                     "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm",
-                                    active ? "bg-zinc-100" : "hover:bg-zinc-50",
+                                    active ? "bg-surface-muted" : "hover:bg-surface-subtle",
                                   ].join(" ")}
                                 >
                                   <span className="font-medium">{c.name}</span>
                                   {c.rfc && (
-                                    <span className="text-zinc-500">· {c.rfc}</span>
+                                    <span className="text-fg-subtle">· {c.rfc}</span>
                                   )}
                                 </button>
                               );
@@ -553,8 +553,8 @@ export default function NewCreditCasePage() {
                                   onMouseDown={handleStartCreate}
                                   className={[
                                     "flex w-full items-center px-4 py-2.5 text-left text-sm",
-                                    filteredCustomers.length > 0 ? "text-zinc-600" : "",
-                                    active ? "bg-zinc-100" : "hover:bg-zinc-50",
+                                    filteredCustomers.length > 0 ? "text-fg-muted" : "",
+                                    active ? "bg-surface-muted" : "hover:bg-surface-subtle",
                                   ].join(" ")}
                                 >
                                   + Create &ldquo;{search.trim()}&rdquo; as new customer
@@ -572,21 +572,21 @@ export default function NewCreditCasePage() {
                 {createMode && (
                   <form
                     onSubmit={(e) => { e.preventDefault(); void handleCreateCustomer(); }}
-                    className="mt-4 space-y-4 rounded-md border bg-zinc-50 p-4"
+                    className="mt-4 space-y-4 rounded-md border bg-surface-subtle p-4"
                   >
-                    <div className="text-sm font-semibold text-zinc-800">
+                    <div className="text-sm font-semibold text-fg">
                       New customer
                     </div>
 
                     <label className="block">
                       <div className="text-sm font-medium">
-                        Name <span className="text-red-500">*</span>
+                        Name <span className="text-danger">*</span>
                       </div>
                       <input
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         required
-                        className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                         placeholder="Customer name"
                       />
                     </label>
@@ -595,7 +595,7 @@ export default function NewCreditCasePage() {
                       <button
                         type="button"
                         onClick={() => setShowMoreFields((v) => !v)}
-                        className="text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
+                        className="text-sm font-medium text-fg-muted underline hover:text-fg"
                       >
                         {showMoreFields ? "Hide extra fields" : "(show more fields)"}
                       </button>
@@ -608,7 +608,7 @@ export default function NewCreditCasePage() {
                           <input
                             value={rfc}
                             onChange={(e) => setRfc(e.target.value)}
-                            className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                             placeholder="RFC"
                           />
                         </label>
@@ -617,12 +617,12 @@ export default function NewCreditCasePage() {
                           <input
                             value={legalName}
                             onChange={(e) => setLegalName(e.target.value)}
-                            className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                             placeholder="Razón social"
                           />
                         </label>
                         <div className="border-t pt-4">
-                          <div className="text-sm font-medium text-zinc-700">
+                          <div className="text-sm font-medium text-fg-secondary">
                             Domicilio fiscal
                           </div>
                           <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -631,7 +631,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={codigoPostal}
                                 onChange={(e) => setCodigoPostal(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -639,7 +639,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={tipoDeVialidad}
                                 onChange={(e) => setTipoDeVialidad(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                                 placeholder="Calle, avenida, etc."
                               />
                             </label>
@@ -648,7 +648,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={nombreDeVialidad}
                                 onChange={(e) => setNombreDeVialidad(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -656,7 +656,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={numeroExterior}
                                 onChange={(e) => setNumeroExterior(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -664,7 +664,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={numeroInterior}
                                 onChange={(e) => setNumeroInterior(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -672,7 +672,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={nombreDeLaColonia}
                                 onChange={(e) => setNombreDeLaColonia(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -680,7 +680,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={nombreDeLaLocalidad}
                                 onChange={(e) => setNombreDeLaLocalidad(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -688,7 +688,7 @@ export default function NewCreditCasePage() {
                               <input
                                 value={nombreDelMunicipio}
                                 onChange={(e) => setNombreDelMunicipio(e.target.value)}
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                             <label className="block">
@@ -698,7 +698,7 @@ export default function NewCreditCasePage() {
                                 onChange={(e) =>
                                   setNombreDeLaEntidadFederativa(e.target.value)
                                 }
-                                className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                                className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                               />
                             </label>
                           </div>
@@ -707,7 +707,7 @@ export default function NewCreditCasePage() {
                     )}
 
                     {error && (
-                      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                      <div className="rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
                         {error}
                       </div>
                     )}
@@ -716,7 +716,7 @@ export default function NewCreditCasePage() {
                       <button
                         type="submit"
                         disabled={submittingCustomer || !customerName.trim() || !organizationUrl}
-                        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
                       >
                         {submittingCustomer ? "Creating…" : "Create customer"}
                       </button>
@@ -726,7 +726,7 @@ export default function NewCreditCasePage() {
                           setCreateMode(false);
                           setSearch("");
                         }}
-                        className="text-sm text-zinc-600 hover:text-zinc-900"
+                        className="text-sm text-fg-muted hover:text-fg"
                       >
                         Cancel
                       </button>
@@ -739,16 +739,16 @@ export default function NewCreditCasePage() {
 
           {/* ── Step 2: Credit case ───────────────────────────────── */}
           {phase === "creditcase" && linkedCustomer && (
-            <section className="rounded-lg border bg-white p-6">
+            <section className="rounded-lg border bg-surface p-6">
               <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-fg">
                   2
                 </span>
                 <h2 className="text-base font-semibold">Credit case details</h2>
               </div>
 
               {customerSuccess && (
-                <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+                <div className="mt-4 rounded-md border border-success-line bg-success-surface p-3 text-sm text-success">
                   {customerSuccess}
                 </div>
               )}
@@ -768,7 +768,7 @@ export default function NewCreditCasePage() {
                     <select
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
-                      className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                     >
                       <option value="MXN">MXN</option>
                     </select>
@@ -778,7 +778,7 @@ export default function NewCreditCasePage() {
                     <select
                       value={requestedTermDays}
                       onChange={(e) => setRequestedTermDays(e.target.value)}
-                      className="mt-1 w-full rounded-md border bg-white px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                     >
                       {REQUESTED_TERM_DAYS_OPTIONS.map((days) => (
                         <option key={days} value={String(days)}>
@@ -790,7 +790,7 @@ export default function NewCreditCasePage() {
                 </div>
 
                 {error && phase === "creditcase" && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  <div className="rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
                     {error}
                   </div>
                 )}
@@ -799,7 +799,7 @@ export default function NewCreditCasePage() {
                   <button
                     type="submit"
                     disabled={submittingCreditCase}
-                    className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
                   >
                     {submittingCreditCase ? "Creating…" : "Create credit case"}
                   </button>
@@ -810,9 +810,9 @@ export default function NewCreditCasePage() {
 
           {/* ── Step 3: Required documents ────────────────────────── */}
           {phase === "requirements" && createdCreditCase && fileTypes && (
-            <section className="rounded-lg border bg-white p-6">
+            <section className="rounded-lg border bg-surface p-6">
               <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-fg">
                   3
                 </span>
                 <h2 className="text-base font-semibold">
@@ -822,14 +822,14 @@ export default function NewCreditCasePage() {
                 </h2>
               </div>
 
-              <p className="mt-2 text-sm text-zinc-600">
+              <p className="mt-2 text-sm text-fg-muted">
                 {defaultTemplate
                   ? "Take your organization's default list, or pick the documents this customer needs."
                   : "Choose the documents this credit case needs. You'll be asked whether to keep them as your default for future cases."}
               </p>
 
               {error && (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <div className="mt-4 rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
                   {error}
                 </div>
               )}
@@ -868,7 +868,7 @@ export default function NewCreditCasePage() {
                     <button
                       type="button"
                       onClick={() => router.push(`/credit-cases/${createdCreditCase.id}`)}
-                      className="text-sm text-zinc-600 underline hover:text-zinc-900"
+                      className="text-sm text-fg-muted underline hover:text-fg"
                     >
                       Skip for now
                     </button>

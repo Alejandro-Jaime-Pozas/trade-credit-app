@@ -26,12 +26,12 @@ export default function LoginPage() {
     <AppShell>
       <div className="mx-auto max-w-md">
         <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
-        <p className="mt-2 text-sm text-zinc-600">
+        <p className="mt-2 text-sm text-fg-muted">
           Sign in with the email and password for your account.
         </p>
 
         <form
-          className="mt-6 space-y-4 rounded-lg border bg-white p-6"
+          className="mt-6 space-y-4 rounded-lg border bg-surface p-6"
           onSubmit={async (e) => {
             e.preventDefault();
             setSubmitting(true);
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </label>
 
           {error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <div className="rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
               {error}
             </div>
           ) : null}
@@ -80,14 +80,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
           >
             {submitting ? "Logging in…" : "Log in"}
           </button>
 
-          <div className="text-sm text-zinc-600">
+          <div className="text-sm text-fg-muted">
             Don’t have an account?{" "}
-            <Link href="/signup" className="font-medium text-zinc-900 underline">
+            <Link href="/signup" className="font-medium text-fg underline">
               Sign up
             </Link>
           </div>

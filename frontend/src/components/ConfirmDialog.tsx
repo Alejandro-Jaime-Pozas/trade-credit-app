@@ -59,7 +59,7 @@ export function ConfirmDialog(props: {
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-surface-subtle disabled:opacity-60"
           >
             Cancel
           </button>
@@ -67,7 +67,7 @@ export function ConfirmDialog(props: {
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-md bg-danger-solid px-4 py-2 text-sm font-medium text-white hover:bg-danger-solid-hover disabled:opacity-60"
           >
             {busy && <Spinner />}
             {busy ? busyLabel : confirmLabel}
@@ -76,12 +76,12 @@ export function ConfirmDialog(props: {
       }
     >
       {name && (
-        <p className="mt-3 rounded-md border bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-900">
+        <p className="mt-3 rounded-md border bg-surface-subtle px-3 py-2 text-sm font-medium text-fg">
           {name}
         </p>
       )}
-      {description && <div className="mt-3 text-sm text-zinc-600">{description}</div>}
-      <p className="mt-3 text-sm text-zinc-600">This can&apos;t be undone.</p>
+      {description && <div className="mt-3 text-sm text-fg-muted">{description}</div>}
+      <p className="mt-3 text-sm text-fg-muted">This can&apos;t be undone.</p>
     </Modal>
   );
 }

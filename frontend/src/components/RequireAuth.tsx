@@ -22,7 +22,7 @@ export function RequireAuth(props: { children: React.ReactNode }) {
   }, [loading, user, router]);
 
   if (loading) {
-    return <div className="text-sm text-zinc-600">Loading…</div>;
+    return <div className="text-sm text-fg-muted">Loading…</div>;
   }
 
   if (!user) {

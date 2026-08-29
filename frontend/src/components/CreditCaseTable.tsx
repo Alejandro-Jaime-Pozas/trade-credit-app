@@ -369,18 +369,18 @@ export function CreditCaseTable(props: {
     <>
       {activeChips.length > 0 && (
         <div className="mt-6 flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase tracking-wide text-zinc-500">Filters</span>
+          <span className="text-xs uppercase tracking-wide text-fg-subtle">Filters</span>
           {activeChips.map((chip) => (
             <button
               key={`${chip.columnId}:${chip.value}`}
               type="button"
               onClick={() => handleToggleValue(chip.columnId, chip.value)}
               aria-label={`Remove ${chip.columnLabel} filter ${chip.label}`}
-              className="flex items-center gap-1 rounded-full border bg-white px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+              className="flex items-center gap-1 rounded-full border bg-surface px-2.5 py-1 text-xs text-fg-secondary hover:bg-surface-subtle"
             >
-              <span className="text-zinc-500">{chip.columnLabel}:</span>
+              <span className="text-fg-subtle">{chip.columnLabel}:</span>
               <span className="font-medium">{chip.label}</span>
-              <span aria-hidden="true" className="text-zinc-400">
+              <span aria-hidden="true" className="text-fg-faint">
                 ✕
               </span>
             </button>
@@ -388,16 +388,16 @@ export function CreditCaseTable(props: {
           <button
             type="button"
             onClick={() => setFilters({})}
-            className="text-xs text-zinc-600 underline hover:text-zinc-900"
+            className="text-xs text-fg-muted underline hover:text-fg"
           >
             Clear all filters
           </button>
         </div>
       )}
 
-      <div className="mt-6 overflow-x-auto rounded-lg border bg-white">
+      <div className="mt-6 overflow-x-auto rounded-lg border bg-surface">
         <table className="min-w-full text-sm">
-          <thead className="border-b bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-600">
+          <thead className="border-b bg-surface-subtle text-left text-xs uppercase tracking-wide text-fg-muted">
             <tr>
               {COLUMNS.map((col) => (
                 <TableColumnHeader
@@ -424,13 +424,13 @@ export function CreditCaseTable(props: {
           <tbody className="divide-y">
             {!cases ? (
               <tr>
-                <td className="px-4 py-4 text-zinc-600" colSpan={COLUMNS.length}>
+                <td className="px-4 py-4 text-fg-muted" colSpan={COLUMNS.length}>
                   Loading…
                 </td>
               </tr>
             ) : visibleRows.length === 0 ? (
               <tr>
-                <td className="px-4 py-4 text-zinc-600" colSpan={COLUMNS.length}>
+                <td className="px-4 py-4 text-fg-muted" colSpan={COLUMNS.length}>
                   {cases.length === 0
                     ? emptyMessage
                     : "No credit cases match the current filters."}
@@ -440,11 +440,11 @@ export function CreditCaseTable(props: {
               visibleRows.map((cc) => {
                 const cust = customersByUrl[cc.customer?.url ?? ""];
                 return (
-                  <tr key={cc.url} className="hover:bg-zinc-50">
+                  <tr key={cc.url} className="hover:bg-surface-subtle">
                     <td className="px-4 py-3 font-medium">
                       <Link
                         href={`/credit-cases/${cc.id}`}
-                        className="text-zinc-900 underline"
+                        className="text-fg underline"
                       >
                         #{cc.id}
                       </Link>
@@ -455,12 +455,12 @@ export function CreditCaseTable(props: {
                         // name is just a friendlier label for the row than its id.
                         <Link
                           href={`/credit-cases/${cc.id}`}
-                          className="font-medium text-zinc-900 underline"
+                          className="font-medium text-fg underline"
                         >
                           {cust.name}
                         </Link>
                       ) : (
-                        <span className="text-zinc-600">—</span>
+                        <span className="text-fg-muted">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -475,7 +475,7 @@ export function CreditCaseTable(props: {
                     </td>
                     {/* nowrap so the date and time stay on one line rather than
                         wrapping the "PM" onto a second row. */}
-                    <td className="whitespace-nowrap px-4 py-3 text-zinc-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-fg-muted">
                       {formatDate(cc.created_at)}
                     </td>
                   </tr>

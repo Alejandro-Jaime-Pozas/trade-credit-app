@@ -40,20 +40,20 @@ export default function NewCustomerPage() {
         <div className="flex items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">New customer</h1>
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-fg-muted">
               Create a customer and (optionally) a primary contact.
             </p>
           </div>
           <Link
             href="/customers"
-            className="rounded-md border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            className="rounded-md border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-subtle"
           >
             Back
           </Link>
         </div>
 
         {!organizationUrl ? (
-          <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="mt-6 rounded-md border border-warning-line bg-warning-surface p-3 text-sm text-warning">
             Your user has no linked organization yet. Signup should auto-create one
             based on email domain.
           </div>
@@ -106,7 +106,7 @@ export default function NewCustomerPage() {
             }
           }}
         >
-          <section className="rounded-lg border bg-white p-6">
+          <section className="rounded-lg border bg-surface p-6">
             <h2 className="text-base font-semibold">Customer</h2>
             <div className="mt-4 space-y-4">
               <label className="block">
@@ -151,7 +151,7 @@ export default function NewCustomerPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border bg-white p-6">
+          <section className="rounded-lg border bg-surface p-6">
             <h2 className="text-base font-semibold">Primary contact (optional)</h2>
             <div className="mt-4 space-y-4">
               <label className="block">
@@ -195,7 +195,7 @@ export default function NewCustomerPage() {
           </section>
 
           {error ? (
-            <div className="lg:col-span-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <div className="lg:col-span-2 rounded-md border border-danger-line bg-danger-surface p-3 text-sm text-danger">
               {error}
             </div>
           ) : null}
@@ -204,16 +204,16 @@ export default function NewCustomerPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
             >
               {submitting ? "Creating…" : "Create customer"}
             </button>
           </div>
         </form>
 
-        <div className="mt-6 rounded-md border bg-white p-4 text-sm text-zinc-600">
+        <div className="mt-6 rounded-md border bg-surface p-4 text-sm text-fg-muted">
           To start a trade credit solicitud for this customer, use{" "}
-          <Link href="/credit-cases/new" className="font-medium text-zinc-900 underline">
+          <Link href="/credit-cases/new" className="font-medium text-fg underline">
             New credit case
           </Link>
           .

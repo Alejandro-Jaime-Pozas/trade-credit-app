@@ -84,7 +84,7 @@ export function CustomerFormFields(props: CustomerFormFieldsProps) {
       </label>
 
       <div className="border-t pt-4">
-        <div className="text-sm font-medium text-zinc-700">Domicilio fiscal</div>
+        <div className="text-sm font-medium text-fg-secondary">Domicilio fiscal</div>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <label className="block">
             <div className="text-sm font-medium">Código postal</div>
