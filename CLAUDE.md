@@ -1,6 +1,8 @@
 # Instructions
 - Always strictly follow @docs/ config. if you have questions, ask.
 - Always implement features using instructions in @ai/execution_context/feature_context.md
+- Always follow the principle of least privileges
+- Always build simple, lean, modular code, don't introduce complexity from the beginning
 
 # Tech Stack
 - Follow the exact specifications in @docs/architecture/architecture.md, if you need to make updates to the tech stack, ask first.
