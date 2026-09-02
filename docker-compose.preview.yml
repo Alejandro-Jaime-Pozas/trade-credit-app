@@ -1,0 +1,47 @@
+# Read-only preview stack for parallel UI work.
+#
+# The problem this solves: `docker-compose.yml` runs ONE frontend container that
+# bind-mounts ./frontend and serves `next dev`. Every file saved there hot-reloads
+# straight into the browser, so nobody can use the app while the UI is being edited.
+#
+# The fix is two working trees and two dev servers. The main tree keeps serving :3000
+# untouched; a git worktree runs THIS file to serve :3001. Edits land only in the
+# worktree, so :3000 stays stable until the branch is merged.
+#
+# Frontend only, deliberately. There is no backend, postgres or redis here: the preview
+# talks to the backend the main stack is already running on :8000, which means both
+# browsers share one database and one set of records. Editing backend code in the
+# worktree therefore does NOTHING until merge - that code is not what is running.
+#
+# Usage (from the worktree, or `make ui-start` from either tree):
+#   docker compose -f docker-compose.preview.yml -p tca-ui up -d
+#
+# The -p project name is not optional. Without it this stack and the main one share a
+# project, and `docker compose down` in either tree tears down both.
+
+services:
+  frontend-preview:
+    build:
+      context: ./frontend
+    ports:
+      # Host 3001 -> container 3000. The container port stays 3000 so the image and its
+      # CMD are identical to the main stack's; only the host mapping differs.
+      - 3001:3000
+    environment:
+      # Read by the browser, not the container, so `localhost` is the developer's
+      # machine and this correctly points at the main stack's backend.
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/frontend
+      # Mounted read-only for `npm run api:generate`, which reads /backend/schema.yaml.
+      # Read-only matters: it guarantees the preview can never write into a backend tree.
+      - ./backend:/backend:ro
+      # Its own node_modules volume, separate from the main stack's. Sharing one would
+      # let two `next dev` processes fight over the same install.
+      - preview-node-modules:/frontend/node_modules
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    # No env_file. .env is gitignored, so a fresh worktree does not have one, and a
+    # frontend dev server does not need any of the secrets in it.
+
+volumes:
+  preview-node-modules:

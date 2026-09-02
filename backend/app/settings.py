@@ -37,6 +37,13 @@ ALLOWED_HOSTS = []
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    # Port 3001 is the preview frontend from docker-compose.preview.yml - a second dev
+    # server run out of a git worktree so UI work in progress does not hot-reload into
+    # the browser of whoever is using the app on :3000. It talks to THIS backend, so
+    # without an entry here every one of its API calls fails CORS and the page looks
+    # broken for reasons that have nothing to do with the UI being worked on.
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
 ]
 
 
