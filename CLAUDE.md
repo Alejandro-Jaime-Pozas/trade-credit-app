@@ -22,5 +22,13 @@
 # Testing
 - Any code implementation that warrants tests shall implement those tests, run them, and verify they pass after the code is implemented, always.
 
+# Frontend Workflow
+- Frontend work happens in a git worktree on port 3001, never in the main tree. The main tree's `next dev` hot-reloads every saved file straight into the browser on port 3000, so editing `frontend/` here makes the app unusable for whoever is using it.
+- Start with `make ui-start` (creates `../trade_credit_app-ui` on branch `ui/work` and serves it on 3001). Edit only files under that worktree. Check your work at http://localhost:3001.
+- Publish with `make ui-publish` from the main tree, only once the work is finished and its tests pass. That merges the branch and lets port 3000 pick the change up in one shot. Never merge partial work.
+- `make ui-start` refuses to run if the main tree is dirty. A worktree branches from committed state only, so uncommitted edits would be silently missing from it. Commit first — do not work around this.
+- The preview has NO backend of its own: it talks to the backend the main stack runs on port 8000, sharing one database. Backend code edited in the worktree therefore does nothing until merge. Do backend changes in the main tree first, then the UI in the worktree.
+- Ask before running `make ui-clean` — it removes the worktree.
+
 # Out of Scope
 - Other dirs outside this dir.
