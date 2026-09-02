@@ -409,3 +409,54 @@ describe("a document still being classified", () => {
     ).toHaveTextContent("Not classified");
   });
 });
+
+/**
+ * A customer with twenty uploads used to push everything below the list — the credit
+ * cases table included — off the bottom of the page.
+ */
+describe("long lists", () => {
+  function manyDocs(count: number) {
+    return Array.from({ length: count }, (_, i) =>
+      makeDoc({ id: i + 1, original_title: `doc-${i + 1}.pdf` }),
+    );
+  }
+
+  it("does not cap a list short enough to sit on the page", () => {
+    render(<DocumentList documents={manyDocs(6)} fileTypes={FILE_TYPES} />);
+
+    const list = screen.getAllByRole("listitem")[0].parentElement as HTMLElement;
+    // No scroll container at all, so a short list never shows a scrollbar it doesn't need.
+    expect(list.style.maxHeight).toBe("");
+    expect(list.className).not.toContain("overflow-y-auto");
+  });
+
+  it("caps and scrolls once the list is long", () => {
+    render(<DocumentList documents={manyDocs(7)} fileTypes={FILE_TYPES} />);
+
+    const list = screen.getAllByRole("listitem")[0].parentElement as HTMLElement;
+    expect(list.style.maxHeight).not.toBe("");
+    expect(list.className).toContain("overflow-y-auto");
+    // Everything is still rendered — it scrolls, it does not truncate.
+    expect(screen.getAllByRole("listitem")).toHaveLength(7);
+  });
+
+  it("keeps the file type dropdown out of the scrolling box", async () => {
+    // The rows sit in an `overflow-y-auto` container, and a scroll container clips its
+    // descendants — so a panel rendered inside one would be sliced off on the rows near
+    // the bottom, which are exactly the ones a user scrolls down to correct.
+    const user = userEvent.setup();
+    render(
+      <DocumentList
+        documents={manyDocs(7)}
+        fileTypes={FILE_TYPES}
+        onChangeFileType={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Change file type" })[0]);
+
+    const panel = screen.getByRole("listbox", { name: "Document types" });
+    const list = screen.getAllByRole("listitem")[0].parentElement as HTMLElement;
+    expect(list.contains(panel)).toBe(false);
+  });
+});

@@ -98,3 +98,11 @@ CREDIT_CASE_AI_VERDICT_ENABLED=False
 
 # file_type_name -> pydantic extraction model now lives in core/file_type_spec.py
 # as PYDANTIC_BY_KEY, derived from the core/file_type_catalog.py entries.
+
+# How many days an organization gets to reach a verdict on a credit case before it counts
+# as overdue, unless that organization sets its own value.
+#
+# 5 is a working week: long enough that a case opened on Monday is not already late on
+# Tuesday, short enough that a stalled case surfaces inside the same week. It is only a
+# starting point - every organization can change it, and any single case can override it.
+DEFAULT_VERDICT_DAYS = 5

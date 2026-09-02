@@ -1131,3 +1131,187 @@ def test_credit_case_requirement_rows_carry_the_spanish_label():
     row = next(r for r in res.data['results'] if r['file_type_key'] == 'pagare')
     assert row['label_es'] == 'Pagaré'
     assert row['label_en'] == 'Promissory note'
+
+
+# ---------------------------------------------------------------------------
+# Impact preview (the not-yet-saved list)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_preview_impact_reports_a_list_that_has_not_been_saved():
+    """
+    The whole point of the endpoint: the user is told what an edit would do while the
+    template still says something else, so they can back out without a write.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    template = make_template(org, ['bank_statement', 'balance_sheet'])
+
+    credit_case = make_credit_case(customer)
+    for key in ['bank_statement', 'balance_sheet']:
+        CreditCaseRequirement.objects.create(
+            credit_case=credit_case,
+            file_type=global_file_type(key),
+            source=CreditCaseRequirement.Source.TEMPLATE,
+            source_template=template,
+        )
+    UploadDocument.objects.create(
+        credit_case=credit_case, file='x.pdf', file_type_name='balance_sheet',
+    )
+
+    # Proposed, not saved: drop balance_sheet, add income_statement.
+    res = client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={
+            'file_type_ids': [
+                global_file_type('bank_statement').id,
+                global_file_type('income_statement').id,
+            ]
+        },
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_200_OK
+    (entry,) = res.data['credit_cases']
+    assert entry['credit_case_id'] == credit_case.id
+    assert [f['key'] for f in entry['adds']] == ['income_statement']
+    assert [f['key'] for f in entry['removes']] == ['balance_sheet']
+    assert [f['key'] for f in entry['removes_with_uploads']] == ['balance_sheet']
+
+
+@pytest.mark.django_db
+def test_preview_impact_writes_nothing():
+    """
+    A preview that saved anything would defeat its own purpose — "Cancel" is only
+    trustworthy if asking the question left no trace.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    template = make_template(org, ['bank_statement'])
+
+    credit_case = make_credit_case(customer)
+    CreditCaseRequirement.objects.create(
+        credit_case=credit_case,
+        file_type=global_file_type('bank_statement'),
+        source=CreditCaseRequirement.Source.TEMPLATE,
+        source_template=template,
+    )
+
+    client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={'file_type_ids': [global_file_type('income_statement').id]},
+        format='json',
+    )
+
+    assert [item.file_type.key for item in template.items.all()] == ['bank_statement']
+    assert [r.file_type.key for r in credit_case.requirements.all()] == ['bank_statement']
+
+
+@pytest.mark.django_db
+def test_preview_impact_is_empty_when_the_proposed_list_matches_what_cases_have():
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    template = make_template(org, ['bank_statement'])
+
+    credit_case = make_credit_case(customer)
+    CreditCaseRequirement.objects.create(
+        credit_case=credit_case,
+        file_type=global_file_type('bank_statement'),
+        source=CreditCaseRequirement.Source.TEMPLATE,
+        source_template=template,
+    )
+
+    res = client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={'file_type_ids': [global_file_type('bank_statement').id]},
+        format='json',
+    )
+
+    assert res.data['credit_cases'] == []
+
+
+@pytest.mark.django_db
+def test_preview_impact_ignores_submitted_cases():
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = make_customer(org)
+    template = make_template(org, ['bank_statement'])
+
+    submitted = make_credit_case(customer, submitted_at=timezone.now())
+    CreditCaseRequirement.objects.create(
+        credit_case=submitted,
+        file_type=global_file_type('bank_statement'),
+        source=CreditCaseRequirement.Source.TEMPLATE,
+        source_template=template,
+    )
+
+    res = client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={'file_type_ids': [global_file_type('income_statement').id]},
+        format='json',
+    )
+
+    assert res.data['credit_cases'] == []
+
+
+@pytest.mark.django_db
+def test_preview_impact_rejects_a_file_type_from_another_organization():
+    """
+    The ids arrive in a request body, so they are re-derived from what this user can
+    see. Without that, one organization could probe another's private document types.
+    """
+    org = make_org()
+    other_org = make_org('Other', 'other.com')
+    client = make_client_for(make_user_in_org(org))
+    make_customer(org)
+    template = make_template(org, ['bank_statement'])
+    foreign = FileType.objects.create(
+        key='carta_de_poder',
+        organization=other_org,
+        label_en='Power of attorney',
+        label_es='Carta de poder',
+        category='legal',
+    )
+
+    res = client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={'file_type_ids': [foreign.id]},
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_preview_impact_rejects_a_missing_file_type_ids_list():
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    template = make_template(org, ['bank_statement'])
+
+    res = client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={},
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_preview_impact_on_another_organizations_template_is_not_found():
+    org = make_org()
+    other_org = make_org('Other', 'other.com')
+    client = make_client_for(make_user_in_org(org))
+    template = make_template(other_org, ['bank_statement'])
+
+    res = client.post(
+        reverse('requirementtemplate-preview-impact', args=[template.id]),
+        data={'file_type_ids': [global_file_type('bank_statement').id]},
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_404_NOT_FOUND

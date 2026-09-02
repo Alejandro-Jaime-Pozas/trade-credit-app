@@ -5,8 +5,14 @@
  *
  * Changing this list does NOT automatically change credit cases that already exist.
  * Each case holds its own copy of what it requires, so that a case already under review
- * keeps reporting what it was actually judged against. After saving, this page asks the
- * backend which open cases would change and offers to update them — or leave them alone.
+ * keeps reporting what it was actually judged against. Before saving, this page asks the
+ * backend which open cases the new list would change and offers to update them — or to
+ * leave them alone.
+ *
+ * BEFORE, not after, and that ordering is the point. This page used to save, then ask,
+ * then offer to undo — so "Cancel" was itself a write, and a user who closed the tab
+ * mid-prompt was left with a default they had never agreed to. Now the save happens only
+ * once the user has chosen, and Cancel sends nothing at all.
  *
  * Cases already submitted for approval are never offered: their requirement list is the
  * evidence the reviewer worked from.
@@ -24,8 +30,8 @@ import {
   applyTemplateToCases,
   createDefaultTemplate,
   getDefaultTemplate,
-  getTemplateImpact,
   listFileTypes,
+  previewTemplateImpact,
   templateFileTypeIds,
   updateTemplateItems,
   type TemplateImpactEntry,
@@ -43,20 +49,18 @@ export default function RequirementsPage() {
   // few seconds after the click that caused it.
   const { message: saved, show: showSaved, clear: clearSaved } = useTransientMessage();
 
-  // Populated only when a save would change existing open cases.
+  // Populated only when the list the user just picked would change existing open cases.
   const [impact, setImpact] = useState<TemplateImpactEntry[] | null>(null);
   const [applying, setApplying] = useState(false);
-  // What the default contained BEFORE this save, so Cancel can put it back. The save has
-  // to happen first — the impact is computed server-side against the stored template —
-  // so "cancel" means undo rather than don't-do.
-  const [previousFileTypeIds, setPreviousFileTypeIds] = useState<number[] | null>(null);
+  // The list the user picked, held while they answer the prompt. Nothing has been
+  // written yet — this is what gets saved if (and only if) they say yes.
+  const [pendingFileTypeIds, setPendingFileTypeIds] = useState<number[] | null>(null);
 
   /**
    * Bumping this remounts the chooser, resetting its ticked boxes to the saved template.
    *
-   * Deliberately NOT bumped on Cancel: someone who backs out of a save is usually mid-
-   * thought about which documents they want, so their selection stays on screen to keep
-   * adjusting. It is only their *saved* default that gets put back.
+   * Deliberately NOT bumped on Cancel: someone who backs out is usually mid-thought about
+   * which documents they want, so their selection stays on screen to keep adjusting.
    *
    * Leaving the page needs no bump at all — the page unmounts, and coming back re-reads
    * the template, so an unsaved selection never survives navigation.
@@ -90,6 +94,37 @@ export default function RequirementsPage() {
     };
   }, []);
 
+  /**
+   * Write the chosen list, and optionally push it onto the open cases listed in `impact`.
+   *
+   * The single place this page writes anything. Both prompt answers land here, and so
+   * does the no-prompt path, so there is exactly one description of what saving means.
+   */
+  async function commit(fileTypeIds: number[], creditCaseIds: number[]) {
+    const updated = template
+      ? await updateTemplateItems({ template, fileTypeIds })
+      : await createDefaultTemplate({ fileTypeIds });
+    setTemplate(updated);
+
+    if (creditCaseIds.length > 0) {
+      await applyTemplateToCases({ template: updated, creditCaseIds });
+    }
+
+    setImpact(null);
+    setPendingFileTypeIds(null);
+    setChooserResetKey((k) => k + 1);
+  }
+
+  /**
+   * Ask first, save second.
+   *
+   * Nothing is written here. If the new list would change open cases, the selection is
+   * held in `pendingFileTypeIds` and the prompt decides its fate; otherwise there is
+   * nothing to ask about and it is saved immediately.
+   *
+   * A template that doesn't exist yet skips the preview: no case can have been seeded
+   * from a template that was never there, so there is nothing it could disturb.
+   */
   async function handleSave(selection: FileTypeChooserSelection) {
     // No Default button is rendered on this page — this list IS the default — so the
     // chooser can only report explicitly picked file types.
@@ -98,25 +133,22 @@ export default function RequirementsPage() {
     setSaving(true);
     setError(null);
     clearSaved();
-    const idsBeforeSave = templateFileTypeIds(template);
     try {
-      const updated = template
-        ? await updateTemplateItems({
+      const entries = template
+        ? await previewTemplateImpact({
             template,
             fileTypeIds: selection.fileTypeIds,
           })
-        : await createDefaultTemplate({ fileTypeIds: selection.fileTypeIds });
+        : [];
 
-      setTemplate(updated);
-      showSaved("Default requirements saved.");
-
-      // Ask what this would do to open cases. Empty means everything is already in
-      // sync, so there is nothing to prompt about.
-      const entries = await getTemplateImpact(updated);
       if (entries.length > 0) {
-        setPreviousFileTypeIds(idsBeforeSave);
+        setPendingFileTypeIds(selection.fileTypeIds);
         setImpact(entries);
+        return;
       }
+
+      await commit(selection.fileTypeIds, []);
+      showSaved("Default requirements saved.");
     } catch (err) {
       logError("requirements:save", err);
       setError(err instanceof ApiError ? err.message : "Failed to save requirements");
@@ -126,17 +158,14 @@ export default function RequirementsPage() {
   }
 
   async function handleApplyToOpenCases() {
-    if (!template || !impact) return;
+    if (!impact || pendingFileTypeIds === null) return;
     setApplying(true);
     setError(null);
     try {
-      await applyTemplateToCases({
-        template,
-        creditCaseIds: impact.map((entry) => entry.credit_case_id),
-      });
-      setImpact(null);
-      setPreviousFileTypeIds(null);
-      setChooserResetKey((k) => k + 1);
+      await commit(
+        pendingFileTypeIds,
+        impact.map((entry) => entry.credit_case_id),
+      );
       showSaved("Default requirements saved and applied to open credit cases.");
     } catch (err) {
       logError("requirements:apply", err);
@@ -146,47 +175,32 @@ export default function RequirementsPage() {
     }
   }
 
-  /** Accept the new default, but leave open cases on the list they already had. */
-  function handleKeepOpenCases() {
-    setImpact(null);
-    setPreviousFileTypeIds(null);
-    setChooserResetKey((k) => k + 1);
-    showSaved("Default requirements saved. Open credit cases were left as they are.");
-  }
-
-  /**
-   * Back out entirely: put the default back to what it was before this save.
-   *
-   * The template had to be written before the impact could be computed, so cancelling
-   * is an undo rather than a "don't do it". Without this, dismissing the dialog would
-   * silently leave a default the user never agreed to.
-   */
-  async function handleCancelSave() {
-    if (!template || previousFileTypeIds === null) {
-      setImpact(null);
-      return;
-    }
+  /** Save the new default, but leave open cases on the list they already had. */
+  async function handleKeepOpenCases() {
+    if (pendingFileTypeIds === null) return;
     setApplying(true);
     setError(null);
     try {
-      const reverted = await updateTemplateItems({
-        template,
-        fileTypeIds: previousFileTypeIds,
-      });
-      setTemplate(reverted);
-      setImpact(null);
-      setPreviousFileTypeIds(null);
-      clearSaved();
+      await commit(pendingFileTypeIds, []);
+      showSaved("Default requirements saved. Open credit cases were left as they are.");
     } catch (err) {
-      logError("requirements:cancel", err);
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to undo the change to your default requirements",
-      );
+      logError("requirements:keep", err);
+      setError(err instanceof ApiError ? err.message : "Failed to save requirements");
     } finally {
       setApplying(false);
     }
+  }
+
+  /**
+   * Back out. Sends nothing.
+   *
+   * Nothing was written to undo — that is the whole reason the preview happens before
+   * the save. The user's ticked boxes are deliberately left on screen (see
+   * `chooserResetKey`) so they can adjust rather than start over.
+   */
+  function handleCancelSave() {
+    setImpact(null);
+    setPendingFileTypeIds(null);
   }
 
   const selectedIds = templateFileTypeIds(template);
@@ -245,8 +259,8 @@ export default function RequirementsPage() {
             entries={impact}
             busy={applying}
             onApply={() => void handleApplyToOpenCases()}
-            onKeep={handleKeepOpenCases}
-            onCancel={() => void handleCancelSave()}
+            onKeep={() => void handleKeepOpenCases()}
+            onCancel={handleCancelSave}
           />
         )}
       </RequireAuth>

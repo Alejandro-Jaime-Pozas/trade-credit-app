@@ -197,3 +197,91 @@ def test_create_credit_case_rejects_another_organizations_assigned_to():
 
     assert res.status_code == status.HTTP_400_BAD_REQUEST
     assert not CreditCase.objects.exists()
+
+
+# --- verdict deadline -------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_credit_case_detail_reports_its_verdict_deadline():
+    """
+    The dashboard reads these four fields directly, so they have to be on the wire, not
+    just on the model.
+    """
+    org = make_org()
+    org.default_verdict_days = 5
+    org.save()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    case = CreditCase.objects.create(customer=make_customer(org))
+
+    res = client.get(reverse('creditcase-detail', args=[case.id]))
+
+    assert res.status_code == status.HTTP_200_OK
+    assert res.data['verdict_due_days'] is None          # no override set
+    assert res.data['verdict_due_at'] is not None
+    assert res.data['days_since_created'] == 0           # created just now
+    assert res.data['days_until_verdict_due'] == 5       # the org default
+    assert res.data['is_verdict_overdue'] is False
+
+
+@pytest.mark.django_db
+def test_setting_a_per_case_override_changes_the_deadline():
+    """A single case can be given more time without touching the organization default."""
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    case = CreditCase.objects.create(customer=make_customer(org))
+
+    res = client.patch(
+        reverse('creditcase-detail', args=[case.id]),
+        data={'verdict_due_days': 30},
+    )
+
+    assert res.status_code == status.HTTP_200_OK
+    assert res.data['verdict_due_days'] == 30
+    assert res.data['days_until_verdict_due'] == 30
+    case.refresh_from_db()
+    assert case.verdict_due_days == 30
+
+
+@pytest.mark.django_db
+def test_verdict_due_days_override_rejects_zero():
+    """
+    Zero days would mean the case is overdue the moment it exists. CreditCase.save() does
+    not run full_clean(), so DRF's field validation is the layer that actually stops this.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    case = CreditCase.objects.create(customer=make_customer(org))
+
+    res = client.patch(
+        reverse('creditcase-detail', args=[case.id]),
+        data={'verdict_due_days': 0},
+    )
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'verdict_due_days' in res.data
+
+
+@pytest.mark.django_db
+def test_computed_deadline_fields_are_read_only():
+    """
+    A client must not be able to declare its own case on time. The day count is the only
+    writable part of the deadline.
+    """
+    org = make_org()
+    user = make_user_in_org(org)
+    client = make_client_for(user)
+    case = CreditCase.objects.create(customer=make_customer(org))
+
+    res = client.patch(
+        reverse('creditcase-detail', args=[case.id]),
+        data={'is_verdict_overdue': True, 'days_until_verdict_due': 999},
+    )
+
+    # Ignored rather than rejected: DRF drops read-only fields silently.
+    assert res.status_code == status.HTTP_200_OK
+    assert res.data['is_verdict_overdue'] is False
+    assert res.data['days_until_verdict_due'] != 999

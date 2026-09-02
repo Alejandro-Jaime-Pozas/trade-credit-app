@@ -39,6 +39,10 @@ class CreditCaseViewSet(
     queryset = (
         CreditCase.objects.all()
         .order_by('-updated_at')
+        # select_related is what keeps the verdict deadline cheap: every case falls back
+        # to customer.organization.default_verdict_days when it has no override, so
+        # without this the list endpoint would fire two extra queries PER ROW.
+        .select_related('customer__organization')
         .prefetch_related('label_values__label', 'requirements__file_type')
     )
     serializer_class = CreditCaseSerializer

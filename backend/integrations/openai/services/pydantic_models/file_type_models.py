@@ -23,6 +23,26 @@ def date_pattern_2000_to_current_year() -> str:
 DATE_2000_TO_CURRENT_YEAR_PATTERN = date_pattern_2000_to_current_year()
 
 
+def date_pattern_2000_to_future_year(years_ahead: int = 30) -> str:
+    """
+    Same shape as `date_pattern_2000_to_current_year`, but the year range runs FORWARD.
+
+    Needed because some documents state a date that has not happened yet. A pagare's
+    `fecha_vencimiento` is the obvious case: it is the day the note comes due, so it is in
+    the future for every pagare that still matters. The current-year-capped pattern would
+    reject exactly the documents this field exists to capture.
+
+    `years_ahead` is generous on purpose - a long-dated note is unusual but not wrong, and
+    the cost of allowing one is nothing, while the cost of rejecting one is a failed
+    extraction.
+    """
+    current_year = date.today().year
+    years = "|".join(str(y) for y in range(2000, current_year + years_ahead + 1))
+    return rf"^(?:{years})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$"
+
+DATE_2000_TO_FUTURE_YEAR_PATTERN = date_pattern_2000_to_future_year()
+
+
 class StrictBaseModel(BaseModel):
     """ Pydantic BaseModel with gpt required config for requests. """
     model_config = {
@@ -51,13 +71,16 @@ class PresenceOnlyPydantic(StrictBaseModel):
     """
     Extraction schema for documents that only need to EXIST.
 
-    Some required documents carry nothing an underwriter would pull off them: a signed
-    pagare, a photo of the business premises, a CURP printout. Giving each its own schema
+    Some required documents carry nothing an underwriter would pull off them: a photo of
+    the business premises, a CURP printout, an IMSS alta. Giving each its own schema
     would be ceremony with no payoff, so they all share this one.
+
+    A pagare is NOT one of these, though it looks like it should be: its fecha_vencimiento
+    decides when the note can be enforced, so it has its own `PagarePydantic`.
 
     Deliberately NOT reusing `UnknownFileDataPydantic`. That model means "the classifier
     could not tell what this is", which the app relies on as a failure signal - reusing it
-    here would make a perfectly good pagare indistinguishable from a document nobody could
+    here would make a perfectly good CURP indistinguishable from a document nobody could
     read.
     """
     document_date: Optional[str] = Field(
@@ -389,6 +412,48 @@ class ReferenciasComercialesPydantic(DateBaseModel):
     referencias: List[ReferenciaComercial] = Field(...,
         description='One entry per supplier reference listed in the document.',
     )
+
+
+class PagarePydantic(DateBaseModel):
+    """
+    A pagare (promissory note): the borrower's signed, unconditional promise to pay a fixed
+    amount on a fixed date. It is the instrument a creditor actually enforces, so the date it
+    comes due is the single most important thing on it.
+
+    NOTE ON THE DATE FIELDS - this is deliberate and easy to get wrong:
+    `date_range_start` and `date_range_end` both hold the SUSCRIPCION (issue) date, following
+    the convention for single-date documents. The maturity date lives in its own
+    `fecha_vencimiento` field instead of in `date_range_end`, because `DateBaseModel` caps
+    those two fields at the current year and a maturity date is normally in the future.
+    """
+    fecha_vencimiento: Optional[date] = Field(
+        ...,
+        description='The date the pagare comes due (fecha de vencimiento), in YYYY-MM-DD '
+                    'format. Null only if the note is payable on sight (a la vista) or shows '
+                    'no due date at all.',
+        json_schema_extra={"pattern": DATE_2000_TO_FUTURE_YEAR_PATTERN},
+    )
+    monto: Optional[float] = Field(
+        ...,
+        description='Face amount of the note as a number, without currency symbols or '
+                    'thousands separators.',
+    )
+    moneda: Optional[str] = Field(
+        ...,
+        description='Currency of the amount, as a 3-letter code such as MXN or USD.',
+        max_length=3,
+    )
+    beneficiario: Optional[str] = Field(
+        ...,
+        description='Who the note is payable to (the creditor / beneficiario).',
+        max_length=200,
+    )
+    suscriptor: Optional[str] = Field(
+        ...,
+        description='Who signed and owes the note (the debtor / suscriptor).',
+        max_length=200,
+    )
+
 
 
 # GENERAL

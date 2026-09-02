@@ -21,9 +21,10 @@ EXTRACT_FILE_DATA = f"""
     - If file_type_name is unknown, provide a super concise one-sentence for reason field.
     - A cashflow_statement and income_statement must:
         - Not include bank specific data such as bank account number or bank name.
-    - When extracting date fields, the year should always be between 2000 and the current year.
+    - When extracting date fields, the year should always be between 2000 and the current year, EXCEPT for fields that describe something that has not happened yet - a pagare's fecha_vencimiento is normally in the future and must be extracted as printed.
     - A constancia_de_situacion_fiscal's date_range_start and date_range_end should be the same, the exact date is below the 'Lugar y Fecha de Emisión' text or similar if available.
     - For any document issued on a single date rather than covering a period (an identificacion_oficial, an acta_constitutiva, a comprobante_de_domicilio), set date_range_start and date_range_end to that same issue date.
+    - For a pagare, set date_range_start and date_range_end to the date the note was signed (fecha de suscripcion), and put the due date in fecha_vencimiento. These are different dates: the note is signed today and comes due later. If the note is payable on sight (a la vista), leave fecha_vencimiento null.
     - If the schema only has document_date, is_legible and summary, this is a document we just need to confirm exists: describe it in one short sentence, set is_legible to false only if it is genuinely too blurry, cropped or dark to read, and give its printed date if one is visible.
 """
 

@@ -109,7 +109,7 @@ def test_only_unknown_uses_the_unknown_extraction_model():
     """
     `UnknownFileDataPydantic` means "the classifier could not tell what this is". Using it
     as a stand-in for a document with nothing to extract would make a perfectly good
-    pagaré indistinguishable from a failed classification — that is what
+    CURP printout indistinguishable from a failed classification — that is what
     `PresenceOnlyPydantic` is for.
     """
     misuse = [
@@ -210,3 +210,53 @@ def test_every_group_with_members_is_worth_showing():
 
     assert grouped, 'no requirable types are grouped at all'
     assert grouped <= set(FILE_TYPE_GROUP_LABELS)
+
+
+def test_pagare_extracts_its_due_date():
+    """
+    The whole reason `pagare` stopped being a presence-only type: a promissory note is
+    enforced on its due date, so that date has to come out of the document.
+    """
+    model = PYDANTIC_BY_KEY['pagare']
+
+    assert model is not PresenceOnlyPydantic
+    assert 'fecha_vencimiento' in model.model_fields
+
+
+def test_pagare_due_date_accepts_a_future_year():
+    """
+    The trap this guards.
+
+    `DateBaseModel`'s date_range_start/end use a regex capped at the CURRENT year, which is
+    right for a document describing something that already happened. A pagare's
+    fecha_vencimiento is the opposite: it is in the future for every note that still
+    matters, so it carries its own forward-looking pattern. Reusing the capped pattern here
+    would reject exactly the documents this field exists to read - and it would fail inside
+    a Celery worker, after the OpenAI call was paid for.
+    """
+    import re
+    from datetime import date
+
+    schema = PYDANTIC_BY_KEY['pagare'].model_json_schema()
+
+    def field_pattern(name):
+        """Pull a field's regex out, seeing through the anyOf that Optional produces."""
+        prop = schema['properties'][name]
+        if 'pattern' in prop:
+            return prop['pattern']
+        for option in prop.get('anyOf', []):
+            if 'pattern' in option:
+                return option['pattern']
+        raise AssertionError(f'{name} has no pattern in the generated schema')
+
+    pattern = re.compile(field_pattern('fecha_vencimiento'))
+    five_years_out = f'{date.today().year + 5}-06-15'
+
+    assert pattern.match(five_years_out), (
+        f'{five_years_out} must be accepted - a pagare due five years from now is '
+        f'unusual, not invalid'
+    )
+
+    # And the issue-date fields stay capped, since they describe something already done.
+    past_only = re.compile(field_pattern('date_range_start'))
+    assert not past_only.match(five_years_out)

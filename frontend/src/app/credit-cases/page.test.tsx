@@ -13,7 +13,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import type { CreditCase, Customer } from "@/lib/types";
+import type { CreditCase, Customer, Label } from "@/lib/types";
 
 // AppShell/RequireAuth pull in the auth context and next/navigation; the page
 // under test doesn't need either, so they render as pass-throughs.
@@ -57,9 +57,24 @@ function daysAgoIso(days: number): string {
 }
 
 /**
+ * The org's custom fields. One label -> one extra table column, so this is what
+ * turns "Sucursal" below into a real column with its own filter.
+ */
+const LABELS: Label[] = [
+  {
+    url: "http://api/labels/7/",
+    id: 7,
+    name: "Sucursal",
+    content_type: "creditcase",
+  } as unknown as Label,
+];
+
+/**
  * Three cases chosen so every column can be told apart:
  * amounts 2,000,000 / 100,000 / none; terms 30 / 60 / none;
- * created today / 3 days ago / 45 days ago.
+ * created today / 3 days ago / 45 days ago;
+ * verdict deadlines 5 days out / 3 days late / due today;
+ * and a Sucursal set on two of them and missing on the third.
  */
 function makeCases(): CreditCase[] {
   return [
@@ -73,6 +88,10 @@ function makeCases(): CreditCase[] {
       requested_term_days: 30,
       created_at: daysAgoIso(0),
       updated_at: daysAgoIso(0),
+      days_since_created: 0,
+      days_until_verdict_due: 5,
+      is_verdict_overdue: false,
+      custom_fields: { Sucursal: "MTY Norte" },
       customer: customerRef("http://api/customers/1/"),
     } as unknown as CreditCase,
     {
@@ -85,6 +104,10 @@ function makeCases(): CreditCase[] {
       requested_term_days: 60,
       created_at: daysAgoIso(3),
       updated_at: daysAgoIso(3),
+      days_since_created: 3,
+      days_until_verdict_due: -3,
+      is_verdict_overdue: true,
+      custom_fields: { Sucursal: "CDMX Sur" },
       customer: customerRef("http://api/customers/2/"),
     } as unknown as CreditCase,
     {
@@ -97,6 +120,11 @@ function makeCases(): CreditCase[] {
       requested_term_days: null,
       created_at: daysAgoIso(45),
       updated_at: daysAgoIso(45),
+      days_since_created: 45,
+      days_until_verdict_due: 0,
+      is_verdict_overdue: false,
+      // No Sucursal recorded — this row is what the "—" filter option must find.
+      custom_fields: {},
       customer: customerRef("http://api/customers/1/"),
     } as unknown as CreditCase,
   ];
@@ -105,7 +133,11 @@ function makeCases(): CreditCase[] {
 beforeEach(() => {
   drfListAll.mockReset();
   apiJson.mockReset();
-  drfListAll.mockResolvedValue(makeCases());
+  // The page now loads two lists through `drfListAll`, so the mock answers by path
+  // rather than returning the same rows to whoever asks.
+  drfListAll.mockImplementation(async ({ path }: { path: string }) =>
+    path === "/labels/" ? LABELS : makeCases(),
+  );
   apiJson.mockImplementation(async ({ pathOrUrl }: { pathOrUrl: string }) =>
     CUSTOMERS[pathOrUrl],
   );
@@ -125,6 +157,32 @@ async function renderPage() {
   // Wait for both the cases and the customer names to resolve. Acme owns two
   // of the three cases, hence findAll rather than find.
   await screen.findAllByRole("link", { name: "Acme Corp" });
+}
+
+/** The visible heading text of each column, left to right. */
+async function headerLabels(): Promise<string[]> {
+  const header = (await screen.findAllByRole("row"))[0];
+  // The heading text is the first child of the header cell's flex row; the rest
+  // are the sort and filter buttons.
+  return within(header)
+    .getAllByRole("columnheader")
+    .map((th) => th.querySelector("span")?.textContent?.trim() ?? "");
+}
+
+/** Position of a column by its heading, for reading the matching body cell. */
+async function columnIndex(label: string): Promise<number> {
+  const index = (await headerLabels()).indexOf(label);
+  expect(index).toBeGreaterThanOrEqual(0);
+  return index;
+}
+
+/** The text of one column's cell in each rendered row, in display order. */
+async function columnCells(label: string): Promise<string[]> {
+  const index = await columnIndex(label);
+  const rows = await screen.findAllByRole("row");
+  return rows
+    .slice(1)
+    .map((r) => within(r).getAllByRole("cell")[index]?.textContent?.trim() ?? "");
 }
 
 async function openFilter(user: ReturnType<typeof userEvent.setup>, label: string) {
@@ -206,11 +264,16 @@ describe("credit cases table columns", () => {
 
   it("keeps the created timestamp on a single line", async () => {
     await renderPage();
-    const row = (await screen.findAllByRole("row"))[1];
+    const rows = await screen.findAllByRole("row");
+    // Found by its position in the header rather than as "the last cell": the
+    // column list is dynamic now (deadline and label columns follow Created), so
+    // a fixed index would be testing the wrong cell as soon as one is added.
+    const created = await columnIndex("Created");
     // Without nowrap the time wrapped its "PM" onto a second row, making the
     // column two lines tall (docs/bug_fixes/2).
-    const createdCell = within(row).getAllByRole("cell").at(-1);
-    expect(createdCell).toHaveClass("whitespace-nowrap");
+    expect(within(rows[1]).getAllByRole("cell")[created]).toHaveClass(
+      "whitespace-nowrap",
+    );
   });
 });
 
@@ -391,8 +454,105 @@ describe("filtering", () => {
   });
 
   it("says there are no credit cases when the org has none", async () => {
-    drfListAll.mockResolvedValue([]);
+    drfListAll.mockImplementation(async () => []);
     render(<CreditCasesPage />);
     expect(await screen.findByText("No credit cases found.")).toBeInTheDocument();
+  });
+});
+
+describe("label columns", () => {
+  it("adds a column per custom field the org has defined", async () => {
+    await renderPage();
+    // Appended after the built-in columns, with its own sort and filter controls.
+    expect(await headerLabels()).toEqual([
+      "ID",
+      "Customer",
+      "Status",
+      "Verdict",
+      "Requested amount",
+      "Requested term",
+      "Created",
+      "Days open",
+      "Days left",
+      "Sucursal",
+    ]);
+    expect(
+      screen.getByRole("button", { name: "Sort by Sucursal ascending" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows each case's value from custom_fields, and — when it has none", async () => {
+    await renderPage();
+    expect(await columnCells("Sucursal")).toEqual(["MTY Norte", "CDMX Sur", "—"]);
+  });
+
+  it("filters the rows down to one label value", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    const listbox = await openFilter(user, "Sucursal");
+    await user.click(within(listbox).getByRole("option", { name: /MTY Norte/ }));
+    expect(await rowIds()).toEqual(["#1"]);
+  });
+
+  it("files a case with no value for the label under the — option", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    const listbox = await openFilter(user, "Sucursal");
+    // Same missing-value bucket every other column uses, so it reads as "—" and
+    // sits at the bottom of the option list.
+    const options = within(listbox).getAllByRole("option");
+    expect(options.at(-1)).toHaveTextContent("—");
+    await user.click(options.at(-1)!);
+    expect(await rowIds()).toEqual(["#3"]);
+  });
+});
+
+describe("verdict deadline columns", () => {
+  it("shows how long each case has been open", async () => {
+    await renderPage();
+    expect(await columnCells("Days open")).toEqual(["0d", "3d", "45d"]);
+  });
+
+  it("spells out days left as late / today / left rather than a signed number", async () => {
+    await renderPage();
+    // -3 must not reach the user as "-3"; a reader shouldn't have to decode a sign.
+    expect(await columnCells("Days left")).toEqual([
+      "5 days left",
+      "3 days late",
+      "Today",
+    ]);
+  });
+
+  it("sorts days left by the underlying number, most overdue first", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole("button", { name: /^Sort by Days left/ }));
+    // -3 (#2) then 0 (#3) then 5 (#1) — the wording must not sort alphabetically.
+    expect(await rowIds()).toEqual(["#2", "#3", "#1"]);
+  });
+
+  it("filters by the deadline windows, unioning the selected ones", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    const listbox = await openFilter(user, "Days left");
+    await user.click(within(listbox).getByRole("option", { name: /^Overdue/ }));
+    expect(await rowIds()).toEqual(["#2"]);
+
+    await user.click(within(listbox).getByRole("option", { name: /^Due today/ }));
+    expect(await rowIds()).toEqual(["#2", "#3"]);
+  });
+
+  it("sorts Days open but offers no filter for it", async () => {
+    await renderPage();
+    expect(
+      screen.getByRole("button", { name: "Sort by Days open ascending" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Filter by Days open/ }),
+    ).not.toBeInTheDocument();
   });
 });

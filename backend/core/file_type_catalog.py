@@ -41,6 +41,7 @@ from integrations.openai.services.pydantic_models.file_type_models import (
     IncomeStatementPydantic,
     OpinionDeCumplimientoPydantic,
     PoderNotarialPydantic,
+    PagarePydantic,
     PresenceOnlyPydantic,
     ReferenciasComercialesPydantic,
     UnknownFileDataPydantic,
@@ -138,7 +139,7 @@ class FileTypeSpec:
     document. Only ever used to generate a JSON schema for the OpenAI request
     (see `GPTService.get_pydantic_model_json_schema`).
 
-    Types with nothing worth extracting (a pagaré, a photo of the premises) share
+    Types with nothing worth extracting (a CURP printout, a photo of the premises) share
     `PresenceOnlyPydantic` — the app only needs to know a legible document of that kind
     arrived. Do NOT point those at `UnknownFileDataPydantic`: that means "the classifier
     could not tell what this is", and reusing it would destroy that failure signal.
@@ -388,7 +389,9 @@ FILE_TYPE_CATALOG: tuple[FileTypeSpec, ...] = (
         label_es='Pagaré',
         category=FileTypeCategory.OTHER,
         group=FileTypeGroup.CREDIT,
-        pydantic_model=PresenceOnlyPydantic,
+        # Not presence-only, unlike the other CREDIT documents: a pagare's fecha_vencimiento
+        # is what tells the business when the note can be enforced, so it has to be extracted.
+        pydantic_model=PagarePydantic,
     ),
 
     # OPERATIONAL

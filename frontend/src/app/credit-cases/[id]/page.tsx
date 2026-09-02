@@ -11,6 +11,8 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { CustomFieldsPanel } from "@/components/CustomFieldsPanel";
+import { ImpactWarning } from "@/components/ImpactWarning";
 import { DocumentList, documentDisplayName } from "@/components/DocumentList";
 import { FileTypePicker } from "@/components/FileTypePicker";
 import { FileUploadField } from "@/components/FileUploadField";
@@ -28,19 +30,47 @@ import { useClassificationPolling } from "@/lib/useClassificationPolling";
 import { useTransientMessage } from "@/lib/useTransientMessage";
 import {
   addCreditCaseRequirement,
+  applyTemplateToCases,
+  createDefaultTemplate,
   fileTypeLabel,
+  getDefaultTemplate,
   listCreditCaseRequirements,
   listFileTypes,
+  previewTemplateImpact,
   removeCreditCaseRequirement,
+  updateTemplateItems,
+  type TemplateImpactEntry,
 } from "@/lib/fileTypes";
 import type {
   CreditCase,
   CreditCaseRequirement,
   Customer,
   FileType,
+  RequirementTemplate,
   UploadDocument,
   User,
 } from "@/lib/types";
+
+/**
+ * How long is left to reach a verdict on a case, in words.
+ *
+ * `days_until_verdict_due` counts DOWN and then keeps going, so once the deadline has
+ * passed it is negative: -3 means the verdict is three days late, and printing it raw
+ * would read as "-3 days left". Null means no deadline could be worked out (the
+ * organization has not set one and neither has the case), which is shown as "—" rather
+ * than as zero, because "no deadline" and "due today" are not the same answer.
+ */
+function verdictDueLabel(days: number | null | undefined): string {
+  if (days == null) return "—";
+  if (days < 0) {
+    const late = Math.abs(days);
+    return `${late} ${late === 1 ? "day" : "days"} late`;
+  }
+  // Zero is the deadline itself, not "no time left" — saying "0 days left" beside a
+  // case that is still perfectly on time reads as an alarm it isn't.
+  if (days === 0) return "Due today";
+  return `${days} ${days === 1 ? "day" : "days"} left`;
+}
 
 export default function CreditCaseDetailPage() {
   const params = useParams<{ id: string }>();
@@ -58,10 +88,32 @@ export default function CreditCaseDetailPage() {
   const [requirements, setRequirements] = useState<CreditCaseRequirement[] | null>(null);
   const [editingRequirements, setEditingRequirements] = useState(false);
   const [savingRequirement, setSavingRequirement] = useState(false);
+  /*
+   * Requirement edits are a DRAFT until the user clicks Done.
+   *
+   * They used to be written on every click, which left no honest meaning for "Done" and
+   * no way to back out. Holding them here is what lets the Done prompt offer a Cancel
+   * that sends nothing — and what lets the prompt describe the whole change at once
+   * rather than one row at a time.
+   *
+   * Adds are file type ids (nothing exists to point at yet); removals are file type
+   * keys, because that is what the case's checklist is keyed by.
+   */
+  const [pendingAddIds, setPendingAddIds] = useState<number[]>([]);
+  const [pendingRemoveKeys, setPendingRemoveKeys] = useState<string[]>([]);
+  // The organization's default template, so Done can offer to make this list the new
+  // default. Null when the organization has never set one up.
+  const [defaultTemplate, setDefaultTemplate] = useState<RequirementTemplate | null>(null);
+  // Set while the Done prompt is open. Its presence IS the prompt.
+  const [requirementImpact, setRequirementImpact] =
+    useState<TemplateImpactEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [requestedAmount, setRequestedAmount] = useState("");
   const [requestedTermDays, setRequestedTermDays] = useState("30");
+  // Per-case override of how many days this case has to reach a verdict. Kept as a
+  // string because the box is empty when there is no override, and "" is not a number.
+  const [verdictDueDays, setVerdictDueDays] = useState("");
   const [currency, setCurrency] = useState("MXN");
   const [status, setStatus] = useState("missing_documents");
   const [verdict, setVerdict] = useState("pending");
@@ -76,8 +128,6 @@ export default function CreditCaseDetailPage() {
   const [deleting, setDeleting] = useState(false);
   // Deletes and removals are irreversible, so each waits on an explicit confirmation.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [requirementToRemove, setRequirementToRemove] =
-    useState<CreditCaseRequirement | null>(null);
   const [refreshingUploads, setRefreshingUploads] = useState(false);
   // Url of the document whose file type is being corrected, so only its badge spins.
   const [savingFileTypeUrl, setSavingFileTypeUrl] = useState<string | null>(null);
@@ -107,6 +157,7 @@ export default function CreditCaseDetailPage() {
         setCreditCase(cc);
         setRequestedAmount(cc.requested_amount ?? "");
         setRequestedTermDays(String(cc.requested_term_days ?? 30));
+        setVerdictDueDays(cc.verdict_due_days == null ? "" : String(cc.verdict_due_days));
         setCurrency(cc.currency ?? "MXN");
         setStatus(cc.status ?? "missing_documents");
         setVerdict(cc.verdict ?? "pending");
@@ -117,15 +168,21 @@ export default function CreditCaseDetailPage() {
         if (cancelled) return;
         setCustomer(cust);
 
-        const [caseUploads, catalog, caseRequirements] = await Promise.all([
-          loadUploads(cc.url),
-          listFileTypes(),
-          listCreditCaseRequirements(cc),
-        ]);
+        const [caseUploads, catalog, caseRequirements, orgTemplate] =
+          await Promise.all([
+            loadUploads(cc.url),
+            listFileTypes(),
+            listCreditCaseRequirements(cc),
+            // Only needed if the user edits requirements, but fetching it here keeps
+            // Done a single decision rather than a load followed by a decision. A
+            // failure degrades to "no default template", which the flow already handles.
+            getDefaultTemplate().catch(() => null),
+          ]);
         if (cancelled) return;
         setUploads(caseUploads);
         setFileTypes(catalog);
         setRequirements(caseRequirements);
+        setDefaultTemplate(orgTemplate);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof ApiError ? err.message : "Failed to load credit case");
@@ -179,6 +236,59 @@ export default function CreditCaseDetailPage() {
   }, [fileTypes, requiredFileStatuses, optionalFileStatuses]);
 
   /**
+   * The required-documents checklist as the user is currently building it.
+   *
+   * `pending` marks a row the user has changed but not yet saved: "add" for one they
+   * queued, "remove" for one they queued to drop (kept on screen, struck through, so
+   * the change is visible and undoable rather than silently gone).
+   */
+  const requirementDraft = useMemo(() => {
+    const queuedAdds = pendingAddIds
+      .map((id) => (fileTypes ?? []).find((f) => f.id === id))
+      .filter((f): f is FileType => Boolean(f))
+      .map((fileType) => ({
+        fileType: fileType.key,
+        label: fileTypeLabel(fileType.key, fileTypes),
+        satisfied: uploadedTypeNames.has(fileType.key),
+        pending: "add" as const,
+      }));
+
+    return [
+      ...requiredFileStatuses.map((req) => ({
+        ...req,
+        pending: pendingRemoveKeys.includes(req.fileType)
+          ? ("remove" as const)
+          : null,
+      })),
+      ...queuedAdds,
+    ];
+  }, [
+    requiredFileStatuses,
+    pendingAddIds,
+    pendingRemoveKeys,
+    fileTypes,
+    uploadedTypeNames,
+  ]);
+
+  const hasPendingRequirementEdits =
+    pendingAddIds.length > 0 || pendingRemoveKeys.length > 0;
+
+  /**
+   * The file type ids this case would require once the draft is applied.
+   *
+   * This is also what "make it the organization's default" would save, which is why it
+   * is derived from the draft rather than read back after saving: the user is being
+   * asked about a list that does not exist anywhere yet.
+   */
+  const draftFileTypeIds = useMemo(() => {
+    const byKey = new Map((fileTypes ?? []).map((f) => [f.key, f.id]));
+    return requirementDraft
+      .filter((row) => row.pending !== "remove")
+      .map((row) => byKey.get(row.fileType))
+      .filter((id): id is number => id !== undefined);
+  }, [requirementDraft, fileTypes]);
+
+  /**
    * Re-read the case and its requirements after an add/remove.
    *
    * The case has to come back too: a manual requirement change can flip
@@ -200,6 +310,19 @@ export default function CreditCaseDetailPage() {
     setAssignedTo(refreshed.assigned_to?.url ?? "");
   }, []);
 
+  /**
+   * Re-read the credit case on its own.
+   *
+   * Used after a custom field is written: the values are served back on the case itself as
+   * the read-only `custom_fields` map, so re-reading the case is what puts the new value
+   * on screen. Nothing about the documents can move here, so the uploads are left alone.
+   */
+  const refreshCase = useCallback(async () => {
+    if (!creditCase) return;
+    const refreshed = await apiJson<CreditCase>({ pathOrUrl: creditCase.url });
+    applyCase(refreshed);
+  }, [creditCase, applyCase]);
+
   async function refreshRequirements(current: CreditCase) {
     const [refreshedCase, caseRequirements] = await Promise.all([
       apiJson<CreditCase>({ pathOrUrl: current.url }),
@@ -209,30 +332,117 @@ export default function CreditCaseDetailPage() {
     setRequirements(caseRequirements);
   }
 
-  async function handleAddRequirement(fileTypeId: number) {
+  /** Queue a document to be required. Nothing is sent until Done. */
+  function queueAddRequirement(fileTypeId: number) {
+    setPendingAddIds((ids) => (ids.includes(fileTypeId) ? ids : [...ids, fileTypeId]));
+  }
+
+  /**
+   * Queue a required document to be dropped, or take back either kind of queued edit.
+   *
+   * One function for both because "undo" is just the inverse of whichever list the row
+   * is in: a queued add disappears, an existing row stops being marked for removal.
+   */
+  function toggleQueuedRemoval(fileTypeKey: string) {
+    const queuedAdd = (fileTypes ?? []).find((f) => f.key === fileTypeKey);
+    if (queuedAdd && pendingAddIds.includes(queuedAdd.id)) {
+      setPendingAddIds((ids) => ids.filter((id) => id !== queuedAdd.id));
+      return;
+    }
+    setPendingRemoveKeys((keys) =>
+      keys.includes(fileTypeKey)
+        ? keys.filter((key) => key !== fileTypeKey)
+        : [...keys, fileTypeKey],
+    );
+  }
+
+  function discardRequirementDraft() {
+    setPendingAddIds([]);
+    setPendingRemoveKeys([]);
+  }
+
+  /**
+   * Write the draft to this case, and optionally make it the organization's default.
+   *
+   * The per-case rows go first and always: they are what the user was actually editing.
+   * The template is only touched when they asked for it, and applying it to the other
+   * open cases is a separate call because the user is allowed to want one without the
+   * other.
+   */
+  async function commitRequirementDraft(options: { alsoUpdateDefault: boolean }) {
     if (!creditCase) return;
     setSavingRequirement(true);
     setError(null);
     try {
-      await addCreditCaseRequirement({ creditCase, fileTypeId });
+      for (const fileTypeId of pendingAddIds) {
+        await addCreditCaseRequirement({ creditCase, fileTypeId });
+      }
+      for (const key of pendingRemoveKeys) {
+        const row = (requirements ?? []).find((r) => r.file_type_key === key);
+        if (row) await removeCreditCaseRequirement(row);
+      }
+
+      if (options.alsoUpdateDefault) {
+        const template = defaultTemplate
+          ? await updateTemplateItems({
+              template: defaultTemplate,
+              fileTypeIds: draftFileTypeIds,
+            })
+          : await createDefaultTemplate({ fileTypeIds: draftFileTypeIds });
+        setDefaultTemplate(template);
+
+        const creditCaseIds = (requirementImpact ?? []).map(
+          (entry) => entry.credit_case_id,
+        );
+        if (creditCaseIds.length > 0) {
+          await applyTemplateToCases({ template, creditCaseIds });
+        }
+      }
+
+      discardRequirementDraft();
+      setRequirementImpact(null);
+      setEditingRequirements(false);
       await refreshRequirements(creditCase);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to add requirement");
+      setError(err instanceof ApiError ? err.message : "Failed to save requirements");
     } finally {
       setSavingRequirement(false);
     }
   }
 
-  async function handleRemoveRequirement(requirement: CreditCaseRequirement) {
-    if (!creditCase) return;
+  /**
+   * Done: ask before writing anything.
+   *
+   * With no queued edits there is nothing to ask about, so this just closes the editor —
+   * no prompt and no request. Otherwise the backend is asked what making this list the
+   * organization's default would do to the OTHER open cases, and that answer is what the
+   * prompt shows. This case is filtered out of it: it is written directly either way, so
+   * listing it here would count it twice.
+   */
+  async function handleDoneEditingRequirements() {
+    if (!hasPendingRequirementEdits) {
+      setEditingRequirements(false);
+      return;
+    }
+
     setSavingRequirement(true);
     setError(null);
     try {
-      await removeCreditCaseRequirement(requirement);
-      await refreshRequirements(creditCase);
-      setRequirementToRemove(null);
+      const entries = defaultTemplate
+        ? await previewTemplateImpact({
+            template: defaultTemplate,
+            fileTypeIds: draftFileTypeIds,
+          })
+        : [];
+      setRequirementImpact(
+        entries.filter((entry) => entry.credit_case_id !== creditCase?.id),
+      );
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to remove requirement");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to check what this change would affect",
+      );
     } finally {
       setSavingRequirement(false);
     }
@@ -243,6 +453,8 @@ export default function CreditCaseDetailPage() {
     return {
       requestedAmount: source?.requested_amount ?? "",
       requestedTermDays: String(source?.requested_term_days ?? 30),
+      verdictDueDays:
+        source?.verdict_due_days == null ? "" : String(source.verdict_due_days),
       currency: source?.currency ?? "MXN",
       status: source?.status ?? "missing_documents",
       verdict: source?.verdict ?? "pending",
@@ -256,18 +468,29 @@ export default function CreditCaseDetailPage() {
     return (
       requestedAmount !== saved.requestedAmount ||
       requestedTermDays !== saved.requestedTermDays ||
+      verdictDueDays !== saved.verdictDueDays ||
       currency !== saved.currency ||
       status !== saved.status ||
       verdict !== saved.verdict ||
       assignedTo !== saved.assignedTo
     );
-  }, [creditCase, requestedAmount, requestedTermDays, currency, status, verdict, assignedTo]);
+  }, [
+    creditCase,
+    requestedAmount,
+    requestedTermDays,
+    verdictDueDays,
+    currency,
+    status,
+    verdict,
+    assignedTo,
+  ]);
 
   /** Put every control back to the loaded case, abandoning what was changed. */
   function handleDiscardChanges() {
     const saved = creditCaseFormValues(creditCase);
     setRequestedAmount(saved.requestedAmount);
     setRequestedTermDays(saved.requestedTermDays);
+    setVerdictDueDays(saved.verdictDueDays);
     setCurrency(saved.currency);
     setStatus(saved.status);
     setVerdict(saved.verdict);
@@ -480,23 +703,31 @@ export default function CreditCaseDetailPage() {
           onCancel={() => setConfirmingDelete(false)}
         />
 
-        <ConfirmDialog
-          open={requirementToRemove !== null}
-          title="Remove this required document?"
-          name={
-            requirementToRemove
-              ? fileTypeLabel(requirementToRemove.file_type_key, fileTypes)
-              : undefined
-          }
-          description="This credit case will no longer ask the customer for it."
-          confirmLabel="Remove"
-          busyLabel="Removing…"
-          busy={savingRequirement}
-          onConfirm={() => {
-            if (requirementToRemove) void handleRemoveRequirement(requirementToRemove);
-          }}
-          onCancel={() => setRequirementToRemove(null)}
-        />
+        {/* Raised by Done, and the only confirmation the requirement editor needs: a
+            queued removal is undoable right up until this point, so a per-row "are you
+            sure?" would have been asking about something that had not happened yet.
+
+            Same three choices, and the same component, as the Requirements page — with
+            one extra job, because the user is deciding about this case as well as the
+            rest. "Only this case" still writes the draft; Cancel writes nothing at all
+            and leaves the draft on screen to keep adjusting. */}
+        {requirementImpact !== null && (
+          <ImpactWarning
+            entries={requirementImpact}
+            busy={savingRequirement}
+            title="Make this your default and update cases in progress?"
+            intro={
+              requirementImpact.length > 0
+                ? `Saving this as your organization's default would also change ${requirementImpact.length} other open credit case${requirementImpact.length === 1 ? "" : "s"}. Submitted cases are never changed.`
+                : "This case's documents will be saved either way. You can also make this list your organization's default for new credit cases."
+            }
+            applyLabel="Update all"
+            keepLabel="Only this case"
+            onApply={() => void commitRequirementDraft({ alsoUpdateDefault: true })}
+            onKeep={() => void commitRequirementDraft({ alsoUpdateDefault: false })}
+            onCancel={() => setRequirementImpact(null)}
+          />
+        )}
 
         <ConfirmDialog
           open={documentToDelete !== null}
@@ -520,7 +751,7 @@ export default function CreditCaseDetailPage() {
           <section className="lg:col-span-2 rounded-lg border bg-surface p-6">
             <h2 className="text-base font-semibold">Details</h2>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-md border bg-surface-subtle p-3 text-sm">
                 <div className="text-xs uppercase tracking-wide text-fg-muted">
                   Customer
@@ -546,6 +777,55 @@ export default function CreditCaseDetailPage() {
                 <div className="mt-1 font-medium">
                   {creditCase?.verdict_at ? formatDate(creditCase.verdict_at) : "—"}
                 </div>
+              </div>
+
+              <div className="rounded-md border bg-surface-subtle p-3 text-sm">
+                <div className="text-xs uppercase tracking-wide text-fg-muted">
+                  Days open
+                </div>
+                <div className="mt-1 font-medium">
+                  {creditCase?.days_since_created == null
+                    ? "—"
+                    : `${creditCase.days_since_created} ${
+                        creditCase.days_since_created === 1 ? "day" : "days"
+                      }`}
+                </div>
+              </div>
+
+              {/* An overdue verdict is the one number on this page a reviewer has to act
+                  on, so once it goes negative the whole tile switches to the danger
+                  tokens rather than only changing the wording. */}
+              <div
+                className={[
+                  "rounded-md border p-3 text-sm",
+                  creditCase?.is_verdict_overdue
+                    ? "border-danger-line bg-danger-surface"
+                    : "bg-surface-subtle",
+                ].join(" ")}
+              >
+                <div
+                  className={
+                    creditCase?.is_verdict_overdue
+                      ? "text-xs uppercase tracking-wide text-danger"
+                      : "text-xs uppercase tracking-wide text-fg-muted"
+                  }
+                >
+                  Verdict due
+                </div>
+                <div
+                  className={
+                    creditCase?.is_verdict_overdue
+                      ? "mt-1 font-medium text-danger"
+                      : "mt-1 font-medium"
+                  }
+                >
+                  {verdictDueLabel(creditCase?.days_until_verdict_due)}
+                </div>
+                {creditCase?.verdict_due_at && (
+                  <div className="mt-1 text-xs text-fg-subtle">
+                    {formatDate(creditCase.verdict_due_at)}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -642,6 +922,29 @@ export default function CreditCaseDetailPage() {
               </label>
             </div>
 
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <label className="block">
+                <div className="text-sm font-medium">Verdict deadline (days)</div>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={verdictDueDays}
+                  onChange={(e) => setVerdictDueDays(e.target.value)}
+                  disabled={!creditCase}
+                  placeholder="Organization default"
+                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
+                />
+                {/* Spelled out because an empty box looks like "no deadline", which is the
+                    opposite of what it means: the case falls back to the organization's
+                    default and is still counted as overdue against it. */}
+                <p className="mt-1 text-xs text-fg-subtle">
+                  Leave blank to use your organization&apos;s default deadline. Set a
+                  number only when this case needs more or less time than the rest.
+                </p>
+              </label>
+            </div>
+
             <div className="mt-4 flex items-center justify-end gap-3">
               {/* Confirms the save actually landed. `aria-live` so it is announced
                   rather than only appearing. */}
@@ -677,6 +980,11 @@ export default function CreditCaseDetailPage() {
                         requested_amount: requestedAmount.trim() || null,
                         currency,
                         requested_term_days: Number(requestedTermDays),
+                        // Empty box means null, which the backend reads as "use the
+                        // organization default" — not "no deadline".
+                        verdict_due_days: verdictDueDays.trim()
+                          ? Number(verdictDueDays)
+                          : null,
                         customer: creditCase.customer.url,
                         status,
                         verdict,
@@ -730,8 +1038,15 @@ export default function CreditCaseDetailPage() {
                 {creditCase && !creditCase.submitted_at && (
                   <button
                     type="button"
-                    onClick={() => setEditingRequirements((on) => !on)}
-                    className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-surface-subtle"
+                    disabled={savingRequirement}
+                    onClick={() => {
+                      if (editingRequirements) {
+                        void handleDoneEditingRequirements();
+                      } else {
+                        setEditingRequirements(true);
+                      }
+                    }}
+                    className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-surface-subtle disabled:opacity-60"
                   >
                     {editingRequirements ? "Done" : "Edit"}
                   </button>
@@ -752,7 +1067,7 @@ export default function CreditCaseDetailPage() {
               </p>
             )}
 
-            {requiredFileStatuses.length === 0 &&
+            {requirementDraft.length === 0 &&
               optionalFileStatuses.length === 0 && (
                 <div className="mt-4 rounded-md border border-dashed p-4 text-sm text-fg-muted">
                   No required documents set for this credit case.{" "}
@@ -763,37 +1078,58 @@ export default function CreditCaseDetailPage() {
                 </div>
               )}
 
-            {requiredFileStatuses.length > 0 && (
+            {requirementDraft.length > 0 && (
               <ul className="mt-4 space-y-2">
-                {requiredFileStatuses.map((req) => {
-                  const row = requirements?.find(
-                    (r) => r.file_type_key === req.fileType,
-                  );
+                {requirementDraft.map((req) => {
+                  const removing = req.pending === "remove";
                   return (
                     <li
                       key={req.fileType}
-                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                      className={[
+                        "flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm",
+                        // A queued edit is shown as a change in progress rather than as
+                        // a finished state: dashed while it is only a draft, struck
+                        // through where it is on its way out.
+                        req.pending ? "border-dashed" : "",
+                      ].join(" ")}
                     >
-                      <span>{req.label}</span>
+                      <span className={removing ? "text-fg-subtle line-through" : ""}>
+                        {req.label}
+                      </span>
                       <div className="flex items-center gap-2">
-                        <span
-                          className={
-                            req.satisfied
-                              ? "text-xs font-medium text-success"
-                              : "text-xs font-medium text-warning"
-                          }
-                        >
-                          {req.satisfied ? "Uploaded" : "Missing"}
-                        </span>
-                        {editingRequirements && row && (
+                        {req.pending ? (
+                          <span className="text-xs font-medium text-fg-subtle">
+                            {removing ? "Removing" : "Adding"}
+                          </span>
+                        ) : (
+                          <span
+                            className={
+                              req.satisfied
+                                ? "text-xs font-medium text-success"
+                                : "text-xs font-medium text-warning"
+                            }
+                          >
+                            {req.satisfied ? "Uploaded" : "Missing"}
+                          </span>
+                        )}
+                        {editingRequirements && (
                           <button
                             type="button"
                             disabled={savingRequirement}
-                            onClick={() => setRequirementToRemove(row)}
-                            aria-label={`Remove ${req.label}`}
-                            className="rounded-md border border-danger-line px-2 py-0.5 text-xs font-medium text-danger hover:bg-danger-surface disabled:opacity-60"
+                            onClick={() => toggleQueuedRemoval(req.fileType)}
+                            aria-label={
+                              req.pending
+                                ? `Undo ${req.label}`
+                                : `Remove ${req.label}`
+                            }
+                            className={[
+                              "rounded-md border px-2 py-0.5 text-xs font-medium disabled:opacity-60",
+                              req.pending
+                                ? "hover:bg-surface-subtle"
+                                : "border-danger-line text-danger hover:bg-danger-surface",
+                            ].join(" ")}
                           >
-                            Remove
+                            {req.pending ? "Undo" : "Remove"}
                           </button>
                         )}
                       </div>
@@ -809,8 +1145,8 @@ export default function CreditCaseDetailPage() {
                   Add a document this credit case needs
                 </p>
                 <p className="mt-1 text-xs text-fg-subtle">
-                  Only affects this case. Removing one your organization&apos;s default
-                  asks for will not come back the next time that default changes.
+                  Nothing is saved until you press Done — you will be asked then whether
+                  this should also become your organization&apos;s default.
                 </p>
                 <div className="mt-3">
                   {/* Same grouped, searchable list the requirement chooser uses, so
@@ -828,7 +1164,7 @@ export default function CreditCaseDetailPage() {
                         ? "This case already asks for every document type."
                         : "No documents match your search."
                     }
-                    onPick={(id) => void handleAddRequirement(id)}
+                    onPick={queueAddRequirement}
                   />
                 </div>
               </div>
@@ -855,6 +1191,16 @@ export default function CreditCaseDetailPage() {
               </>
             )}
           </section>
+
+          {/* Sits between the requirement checklist and the uploads: the case's own facts
+              first, the files last. Rendered only once the case is loaded because the
+              panel reads its saved values straight off `custom_fields`. Full width, since
+              an organization can define more fields than a single column would hold. */}
+          {creditCase && (
+            <div className="lg:col-span-3">
+              <CustomFieldsPanel creditCase={creditCase} onChanged={refreshCase} />
+            </div>
+          )}
 
           <section className="lg:col-span-3 rounded-lg border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">

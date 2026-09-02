@@ -20,6 +20,7 @@ import { apiForm, apiJson, ApiError, drfListAll, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { listFileTypes } from "@/lib/fileTypes";
 import { formatDate } from "@/lib/format";
+import { listCreditCaseLabels } from "@/lib/labels";
 import { useClassificationPolling } from "@/lib/useClassificationPolling";
 import { useTransientMessage } from "@/lib/useTransientMessage";
 import type {
@@ -27,6 +28,7 @@ import type {
   Customer,
   CustomerContact,
   FileType,
+  Label,
   UploadDocument,
 } from "@/lib/types";
 
@@ -44,6 +46,8 @@ export default function CustomerDetailPage() {
   const [creditCases, setCreditCases] = useState<CreditCase[] | null>(null);
   // The document catalog, so uploads show readable type names and can be re-labelled.
   const [fileTypes, setFileTypes] = useState<FileType[] | null>(null);
+  // The org's custom fields, so this table shows the same columns as the dashboard.
+  const [labels, setLabels] = useState<Label[]>([]);
   const [savingFileTypeUrl, setSavingFileTypeUrl] = useState<string | null>(null);
   // Url of the document being renamed, so only that row shows a spinner.
   const [renamingUrl, setRenamingUrl] = useState<string | null>(null);
@@ -78,14 +82,18 @@ export default function CustomerDetailPage() {
         if (cancelled) return;
         setContacts(allContacts.filter((c) => c.customer.url === cust.url));
 
-        const [allUploads, allCases, catalog] = await Promise.all([
+        const [allUploads, allCases, catalog, orgLabels] = await Promise.all([
           drfListAll<UploadDocument>({ path: "/upload-documents/" }),
           drfListAll<CreditCase>({ path: "/credit-cases/" }),
           listFileTypes(),
+          // Same reasoning as the dashboard: the label columns are a bonus, so a
+          // failure to load them costs the extra columns and nothing else.
+          listCreditCaseLabels().catch(() => [] as Label[]),
         ]);
         if (cancelled) return;
         setUploads(allUploads.filter((u) => u.customer?.url === cust.url));
         setFileTypes(catalog);
+        setLabels(orgLabels);
         // Newest first, matching the dashboard's default order.
         setCreditCases(
           allCases
@@ -537,6 +545,7 @@ export default function CustomerDetailPage() {
             <CreditCaseTable
               cases={creditCases}
               customersByUrl={customer ? { [customer.url]: customer } : {}}
+              labels={labels}
               emptyMessage="No credit cases for this customer yet."
             />
           </section>

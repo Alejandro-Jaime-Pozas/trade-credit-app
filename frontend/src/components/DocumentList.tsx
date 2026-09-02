@@ -13,6 +13,9 @@
  * Every editing control here is optional: a page that passes no `onRename` shows no
  * Rename button, and so on. That keeps read-only uses of the list honest instead of
  * offering actions that would go nowhere.
+ *
+ * Long lists scroll inside a capped box rather than growing without limit — see
+ * SCROLL_AFTER.
  */
 import React, { useMemo, useState } from "react";
 import { AiNotice } from "./AiNotice";
@@ -21,6 +24,22 @@ import { Spinner } from "./Spinner";
 import { classificationStatus } from "@/lib/classification";
 import { formatDate } from "@/lib/format";
 import type { FileType, UploadDocument } from "@/lib/types";
+
+/**
+ * How many documents fit before the list starts scrolling instead of growing.
+ *
+ * A customer with twenty uploads used to push everything below it — the credit cases
+ * table included — off the bottom of the page. Below this count the list renders with no
+ * scroll container at all, so a short list never gets a scrollbar it doesn't need.
+ *
+ * The rows contain `FileTypeSelect`, whose dropdown would be clipped by a scrolling
+ * ancestor; that is why it renders through a portal. Do not put an `overflow` container
+ * around anything with an absolutely-positioned popover inside it.
+ */
+const SCROLL_AFTER = 6;
+
+/** Height of the capped list, in rem. Roughly SCROLL_AFTER rows. */
+const SCROLL_MAX_HEIGHT_REM = 34;
 
 /**
  * What to call a document on screen.
@@ -112,12 +131,17 @@ export function DocumentList(props: {
   if (!sorted) return <div className="text-sm text-fg-muted">Loading…</div>;
   if (sorted.length === 0) return <div className="text-sm text-fg-muted">{emptyMessage}</div>;
 
+  const scrolls = sorted.length > SCROLL_AFTER;
+
   return (
     <>
       {/* Every document's type here was assigned by the classifier, so the caveat
           belongs to the whole list rather than to any one row. */}
       <AiNotice className="mb-3" />
-      <ul className="space-y-2">
+      <ul
+        className={scrolls ? "space-y-2 overflow-y-auto pr-1" : "space-y-2"}
+        style={scrolls ? { maxHeight: `${SCROLL_MAX_HEIGHT_REM}rem` } : undefined}
+      >
       {sorted.map((doc) => {
         const titleId = `document-title-${doc.id}`;
         const displayName = documentDisplayName(doc);

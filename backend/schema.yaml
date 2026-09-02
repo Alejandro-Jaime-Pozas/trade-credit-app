@@ -2162,6 +2162,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/RequirementTemplate'
           description: ''
+  /api/v1/requirement-templates/{id}/preview-impact/:
+    post:
+      operationId: requirement_templates_preview_impact_create
+      description: |-
+        Show what a document list would do to open cases WITHOUT saving it.
+
+        Same report as `impact`, but diffed against `file_type_ids` from the request body
+        instead of against what is stored. This exists so the user can be asked before
+        anything is written: the old flow saved the template, computed the impact, and
+        offered an undo — which made "Cancel" a second write, and left a user who closed
+        the tab mid-prompt with a default they never agreed to.
+
+        POST because it takes a body, not because it changes anything. It writes nothing.
+
+        The ids are re-derived from the file types this user can actually see rather than
+        trusted: this endpoint reads a request body and reports on real credit cases, so
+        an unchecked id here would let one organization probe another's private document
+        types.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this requirement template.
+        required: true
+      tags:
+      - requirement-templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RequirementTemplate'
+        required: true
+      security:
+      - cookieAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementTemplate'
+          description: ''
   /api/v1/schema/:
     get:
       operationId: schema_retrieve
@@ -2939,6 +2988,30 @@ components:
           readOnly: true
           nullable: true
           description: Final verdict timestamp after human review.
+        verdict_due_days:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          nullable: true
+          description: Overrides the organization default_verdict_days for THIS case
+            only. Null means "use the organization default", which is the normal case
+            - set a value here only when one case genuinely needs longer or shorter
+            than the rest.
+        verdict_due_at:
+          type: string
+          nullable: true
+          readOnly: true
+        days_since_created:
+          type: integer
+          nullable: true
+          readOnly: true
+        days_until_verdict_due:
+          type: integer
+          nullable: true
+          readOnly: true
+        is_verdict_overdue:
+          type: boolean
+          readOnly: true
         assigned_to:
           type: object
           properties:
@@ -3010,7 +3083,10 @@ components:
       - created_at
       - custom_fields
       - customer
+      - days_since_created
+      - days_until_verdict_due
       - id
+      - is_verdict_overdue
       - optional_file_type_names
       - organization
       - required_file_type_names
@@ -3020,6 +3096,7 @@ components:
       - updated_at
       - url
       - verdict_at
+      - verdict_due_at
     CreditCaseRequirement:
       type: object
       description: |-
@@ -3440,7 +3517,8 @@ components:
         group_label:
           type: string
           description: |-
-            The heading this type is listed under, e.g. "Tax / SAT".
+            The heading this type is listed under, e.g. "Fiscales / SAT". In Spanish, like
+            the document names the UI prints under it.
 
             Sent rather than left to the client so the frontend never keeps its own copy of
             the group list — a hardcoded copy would silently go stale the day a group is
@@ -3452,7 +3530,7 @@ components:
           description: |-
             Where this type's group sits in the order a person should meet them (financials
             first, odds and ends last). A sort key, so the frontend orders groups the way the
-            catalog declares rather than alphabetically — "Credit process" before "Financial"
+            catalog declares rather than alphabetically — "Fiscales / SAT" before "Financieros"
             would read as nonsense. Unknown groups sort last.
           readOnly: true
         months_required:
@@ -3640,6 +3718,14 @@ components:
             - url
             - display
           readOnly: true
+        default_verdict_days:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          description: How many days this organization allows itself to reach a verdict
+            on a credit case before that case counts as overdue. Applies to every
+            credit case in the organization unless the case sets its own verdict_due_days
+            override.
       required:
       - email_domain
       - id
@@ -4012,6 +4098,30 @@ components:
           readOnly: true
           nullable: true
           description: Final verdict timestamp after human review.
+        verdict_due_days:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          nullable: true
+          description: Overrides the organization default_verdict_days for THIS case
+            only. Null means "use the organization default", which is the normal case
+            - set a value here only when one case genuinely needs longer or shorter
+            than the rest.
+        verdict_due_at:
+          type: string
+          nullable: true
+          readOnly: true
+        days_since_created:
+          type: integer
+          nullable: true
+          readOnly: true
+        days_until_verdict_due:
+          type: integer
+          nullable: true
+          readOnly: true
+        is_verdict_overdue:
+          type: boolean
+          readOnly: true
         assigned_to:
           type: object
           properties:
@@ -4480,6 +4590,14 @@ components:
             - url
             - display
           readOnly: true
+        default_verdict_days:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          description: How many days this organization allows itself to reach a verdict
+            on a credit case before that case counts as overdue. Applies to every
+            credit case in the organization unless the case sets its own verdict_due_days
+            override.
     PatchedRequirementTemplate:
       type: object
       description: |-

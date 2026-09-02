@@ -10,7 +10,10 @@ import { describe, expect, it } from "vitest";
 import {
   AMOUNT_BUCKETS,
   compareValues,
+  DEADLINE_BUCKETS,
+  DEADLINE_OVERDUE,
   isWithinLastDays,
+  matchesDeadlineBuckets,
   matchesAmountBuckets,
   matchesRelativeDays,
   nextSortState,
@@ -209,5 +212,62 @@ describe("sequenceIndex", () => {
     expect(sequenceIndex("", STATUS_SEQUENCE)).toBeNull();
     expect(sequenceIndex(null, STATUS_SEQUENCE)).toBeNull();
     expect(sequenceIndex("something_new", STATUS_SEQUENCE)).toBeNull();
+  });
+});
+
+describe("matchesDeadlineBuckets", () => {
+  it("matches everything when nothing is selected", () => {
+    expect(matchesDeadlineBuckets(-1, [])).toBe(true);
+    expect(matchesDeadlineBuckets(null, [])).toBe(true);
+  });
+
+  it("treats any negative number of days left as overdue", () => {
+    // -1 is the first day past the deadline: the boundary the Overdue option owns.
+    expect(matchesDeadlineBuckets(-1, [DEADLINE_OVERDUE])).toBe(true);
+    expect(matchesDeadlineBuckets(-30, [DEADLINE_OVERDUE])).toBe(true);
+    expect(matchesDeadlineBuckets(0, [DEADLINE_OVERDUE])).toBe(false);
+    expect(matchesDeadlineBuckets(3, [DEADLINE_OVERDUE])).toBe(false);
+  });
+
+  it("puts a deadline of exactly today under Due today, not Overdue", () => {
+    expect(matchesDeadlineBuckets(0, ["0"])).toBe(true);
+    expect(matchesDeadlineBuckets(-1, ["0"])).toBe(false);
+    expect(matchesDeadlineBuckets(1, ["0"])).toBe(false);
+  });
+
+  it("counts a Within N days window inclusively", () => {
+    // Exactly 2 is inside "Within 2 days"; 3 is the first day outside it.
+    expect(matchesDeadlineBuckets(2, ["2"])).toBe(true);
+    expect(matchesDeadlineBuckets(3, ["2"])).toBe(false);
+    expect(matchesDeadlineBuckets(3, ["5"])).toBe(true);
+    // Today counts as being within any forward-looking window.
+    expect(matchesDeadlineBuckets(0, ["2"])).toBe(true);
+  });
+
+  it("keeps overdue cases out of the forward-looking windows", () => {
+    // Arithmetically -1 <= 2, but "due in the next 2 days" must not quietly
+    // absorb cases that are already late.
+    expect(matchesDeadlineBuckets(-1, ["2"])).toBe(false);
+    expect(matchesDeadlineBuckets(-1, ["10"])).toBe(false);
+  });
+
+  it("unions overlapping windows rather than intersecting them", () => {
+    expect(matchesDeadlineBuckets(3, ["2"])).toBe(false);
+    expect(matchesDeadlineBuckets(3, ["2", "5"])).toBe(true);
+    expect(matchesDeadlineBuckets(-1, ["2", DEADLINE_OVERDUE])).toBe(true);
+  });
+
+  it("matches a missing deadline only via the No deadline option", () => {
+    expect(matchesDeadlineBuckets(null, [NO_VALUE])).toBe(true);
+    expect(matchesDeadlineBuckets(undefined, [NO_VALUE])).toBe(true);
+    expect(matchesDeadlineBuckets(null, [DEADLINE_OVERDUE])).toBe(false);
+    expect(matchesDeadlineBuckets(null, ["10"])).toBe(false);
+    expect(matchesDeadlineBuckets(0, [NO_VALUE])).toBe(false);
+  });
+
+  it("offers the agreed windows plus a No deadline option", () => {
+    expect(DEADLINE_BUCKETS.map((b) => b.value)).toEqual([
+      DEADLINE_OVERDUE, "0", "2", "5", "10", NO_VALUE,
+    ]);
   });
 });

@@ -97,6 +97,9 @@ class OrganizationSerializer(NamedHyperlinkedModelSerializer):
             'name',
             'email_domain',
             'users',
+            # How long this organization gives itself to decide a credit case. Writable:
+            # it is a setting the organization is meant to tune.
+            'default_verdict_days',
         ]
 
     # custom code for create() or update() serializer methods

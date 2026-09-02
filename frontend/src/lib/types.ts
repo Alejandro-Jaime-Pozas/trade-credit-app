@@ -15,6 +15,11 @@ export type Customer = components["schemas"]["Customer"];
 export type CustomerContact = components["schemas"]["CustomerContact"];
 export type CreditCase = components["schemas"]["CreditCase"];
 export type UploadDocument = components["schemas"]["UploadDocument"];
+export type Organization = components["schemas"]["Organization"];
+
+/** User-defined custom fields: the definition (`Label`) and one object's value. */
+export type Label = components["schemas"]["Label"];
+export type LabelValue = components["schemas"]["LabelValue"];
 
 /** Document requirements: the catalog, an org's template, and one case's rows. */
 export type FileType = components["schemas"]["FileType"];

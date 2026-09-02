@@ -213,6 +213,61 @@ export function matchesAmountBuckets(
   });
 }
 
+// ── DAYS LEFT column: verdict-deadline buckets ─────────────────────
+
+/**
+ * Option value for "this case is past its verdict deadline".
+ *
+ * A word rather than a number because, unlike every other bucket here, it is a
+ * direction (< 0) rather than a threshold — writing it as `"-1"` would read as
+ * "within -1 days" and invite someone to plug it into the same comparison.
+ */
+export const DEADLINE_OVERDUE = "overdue";
+
+/**
+ * Preset ranges offered by the DAYS LEFT column's filter.
+ *
+ * The underlying field is `CreditCase.days_until_verdict_due`, a whole number of
+ * days that goes NEGATIVE once the deadline has passed. Distinct values would be
+ * near-useless as options (one per row again), so the user picks a window; the
+ * numeric `value`s are day counts, matching {@link RELATIVE_DAY_OPTIONS}.
+ */
+export const DEADLINE_BUCKETS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: DEADLINE_OVERDUE, label: "Overdue" },
+  { value: "0", label: "Due today" },
+  { value: "2", label: "Within 2 days" },
+  { value: "5", label: "Within 5 days" },
+  { value: "10", label: "Within 10 days" },
+  { value: NO_VALUE, label: "No deadline" },
+];
+
+/**
+ * True when `daysLeft` matches ANY selected bucket (union), the same way
+ * {@link matchesAmountBuckets} and {@link matchesRelativeDays} behave — so
+ * "Overdue" + "Within 2 days" means "either", not "both".
+ * An empty selection means "no filter", so everything matches.
+ *
+ * "Within N days" deliberately excludes overdue cases even though a negative
+ * number is arithmetically "less than N": a user asking what is due in the next
+ * two days is planning ahead, and quietly folding last week's misses into that
+ * answer would hide the fact that they are a separate, more urgent problem.
+ * Overdue is its own option for exactly that reason.
+ */
+export function matchesDeadlineBuckets(
+  daysLeft: number | null | undefined,
+  selected: string[],
+): boolean {
+  if (selected.length === 0) return true;
+  return selected.some((bucket) => {
+    // A case with no deadline set is reachable only through "No deadline".
+    if (bucket === NO_VALUE) return daysLeft === null || daysLeft === undefined;
+    if (daysLeft === null || daysLeft === undefined) return false;
+    if (bucket === DEADLINE_OVERDUE) return daysLeft < 0;
+    // Inclusive: "Within 2 days" covers today (0), tomorrow (1) and the day after (2).
+    return daysLeft >= 0 && daysLeft <= Number(bucket);
+  });
+}
+
 // ── Enum sort ordering ─────────────────────────────────────────────
 
 /**

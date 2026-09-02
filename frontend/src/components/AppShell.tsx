@@ -53,6 +53,7 @@ export function AppShell(props: { children: React.ReactNode }) {
               {/* <NavLink href="/credit-cases/new" label="New case" /> */}
               <NavLink href="/customers" label="Customers" />
               <NavLink href="/requirements" label="Requirements" />
+              <NavLink href="/labels" label="Custom fields" />
             </nav>
           </div>
 

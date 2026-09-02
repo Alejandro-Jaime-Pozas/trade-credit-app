@@ -14,13 +14,17 @@ import { AppShell } from "@/components/AppShell";
 import { CreditCaseTable } from "@/components/CreditCaseTable";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiJson, ApiError, drfListAll } from "@/lib/api";
-import type { CreditCase, Customer } from "@/lib/types";
+import { listCreditCaseLabels } from "@/lib/labels";
+import type { CreditCase, Customer, Label } from "@/lib/types";
 
 export default function CreditCasesPage() {
   const [cases, setCases] = useState<CreditCase[] | null>(null);
   const [customersByUrl, setCustomersByUrl] = useState<Record<string, Customer>>(
     {},
   );
+  // The org's custom fields, one extra table column each. Starts empty rather than
+  // null: no labels and labels-not-loaded-yet look the same to the table.
+  const [labels, setLabels] = useState<Label[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,8 +32,16 @@ export default function CreditCasesPage() {
     async function load() {
       setError(null);
       try {
-        const allCases = await drfListAll<CreditCase>({ path: "/credit-cases/" });
+        const [allCases, orgLabels] = await Promise.all([
+          drfListAll<CreditCase>({ path: "/credit-cases/" }),
+          // Label columns are an addition to the table, not the table itself, so a
+          // failure here is swallowed on purpose: the user loses the custom-field
+          // columns and keeps their credit cases, rather than facing a blank
+          // dashboard because an optional list endpoint was unhappy.
+          listCreditCaseLabels().catch(() => [] as Label[]),
+        ]);
         if (cancelled) return;
+        setLabels(orgLabels);
         const sorted = [...allCases].sort(
           (a, b) =>
             new Date(b.updated_at ?? b.created_at ?? 0).getTime() -
@@ -100,7 +112,11 @@ export default function CreditCasesPage() {
           </div>
         ) : null}
 
-        <CreditCaseTable cases={cases} customersByUrl={customersByUrl} />
+        <CreditCaseTable
+          cases={cases}
+          customersByUrl={customersByUrl}
+          labels={labels}
+        />
       </RequireAuth>
     </AppShell>
   );

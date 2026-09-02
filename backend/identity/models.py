@@ -1,7 +1,9 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractUser
-from django.core.validators import URLValidator
+from django.core.validators import MinValueValidator, URLValidator
+
+from core.constants import DEFAULT_VERDICT_DAYS
 
 
 def validate_domain(value):
@@ -119,6 +121,14 @@ class Organization(models.Model):
         validators=[validate_domain],
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    default_verdict_days = models.PositiveSmallIntegerField(
+        default=DEFAULT_VERDICT_DAYS,
+        validators=[MinValueValidator(1)],
+        help_text='How many days this organization allows itself to reach a verdict on a '
+                  'credit case before that case counts as overdue. Applies to every credit '
+                  'case in the organization unless the case sets its own '
+                  'verdict_due_days override.',
+    )
     users = models.ManyToManyField(
         User,
         related_name='organizations',

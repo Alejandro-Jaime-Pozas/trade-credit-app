@@ -11,6 +11,8 @@ That is what the diff/apply pair below is for: the user is shown exactly what wo
 change and chooses which open cases to update.
 """
 
+from typing import NamedTuple
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -68,6 +70,87 @@ def seed_requirements_from_template(credit_case, template, user=None):
     return len(created)
 
 
+class ProposedTemplateItem(NamedTuple):
+    """
+    A template line that does not exist in the database (yet).
+
+    Lets a list of file types the user is only *considering* be diffed with exactly the
+    same code a saved template goes through, which is what makes the preview honest —
+    a second implementation would drift from the real one the first time either changed.
+
+    The defaults mirror what the frontend actually sends when it saves a template
+    (`updateTemplateItems`): required, and no per-template months override.
+    """
+
+    file_type: object
+    is_required: bool = True
+    months_required: int | None = None
+
+
+def _diff_items_against_case(items_by_file_type_id, credit_case):
+    """
+    The diff itself, shared by the saved-template and proposed-list entry points.
+
+    `items_by_file_type_id` maps a FileType id to anything carrying `file_type`,
+    `is_required` and `months_required` — a real `RequirementTemplateItem` or a
+    `ProposedTemplateItem`.
+    """
+    requirements = list(credit_case.requirements.select_related('file_type'))
+
+    # Any existing row blocks an add, whatever its source or state:
+    #   - a manual row for the same file type already covers that requirement, and
+    #     unique(credit_case, file_type) would reject a second one anyway;
+    #   - an EXCLUDED row means a user deliberately dropped that document from this
+    #     case, and a re-sync must not quietly put it back. That is the whole point of
+    #     keeping excluded rows instead of deleting them.
+    present_file_type_ids = {req.file_type_id for req in requirements}
+
+    template_sourced = [
+        req for req in requirements
+        if req.source == CreditCaseRequirement.Source.TEMPLATE
+        and not req.is_excluded
+    ]
+
+    adds = [
+        item.file_type
+        for file_type_id, item in items_by_file_type_id.items()
+        if file_type_id not in present_file_type_ids
+    ]
+    removes = [
+        req.file_type
+        for req in template_sourced
+        if req.file_type_id not in items_by_file_type_id
+    ]
+    updates = [
+        req.file_type
+        for req in template_sourced
+        if req.file_type_id in items_by_file_type_id
+        and (
+            req.is_required != items_by_file_type_id[req.file_type_id].is_required
+            or req.months_required
+            != items_by_file_type_id[req.file_type_id].months_required
+        )
+    ]
+
+    return {'adds': adds, 'removes': removes, 'updates': updates}
+
+
+def diff_file_types_against_case(file_types, credit_case):
+    """
+    What would change if the case were synced to this list of file types.
+
+    Used to show a user the consequences of an edit BEFORE anything is written. The old
+    flow had to save the template first and offer an undo, which meant "Cancel" was
+    itself a write — and a user who closed the tab mid-prompt was left with a default
+    they had never agreed to.
+    """
+    proposed = {
+        file_type.id: ProposedTemplateItem(file_type=file_type)
+        for file_type in file_types
+    }
+    return _diff_items_against_case(proposed, credit_case)
+
+
 def diff_template_against_case(template, credit_case):
     """
     Work out what would change if this template were re-applied to this credit case.
@@ -89,43 +172,7 @@ def diff_template_against_case(template, credit_case):
         item.file_type_id: item
         for item in template.items.select_related('file_type')
     }
-    requirements = list(credit_case.requirements.select_related('file_type'))
-
-    # Any existing row blocks an add, whatever its source or state:
-    #   - a manual row for the same file type already covers that requirement, and
-    #     unique(credit_case, file_type) would reject a second one anyway;
-    #   - an EXCLUDED row means a user deliberately dropped that document from this
-    #     case, and a re-sync must not quietly put it back. That is the whole point of
-    #     keeping excluded rows instead of deleting them.
-    present_file_type_ids = {req.file_type_id for req in requirements}
-
-    template_sourced = [
-        req for req in requirements
-        if req.source == CreditCaseRequirement.Source.TEMPLATE
-        and not req.is_excluded
-    ]
-
-    adds = [
-        item.file_type
-        for file_type_id, item in items_by_file_type.items()
-        if file_type_id not in present_file_type_ids
-    ]
-    removes = [
-        req.file_type
-        for req in template_sourced
-        if req.file_type_id not in items_by_file_type
-    ]
-    updates = [
-        req.file_type
-        for req in template_sourced
-        if req.file_type_id in items_by_file_type
-        and (
-            req.is_required != items_by_file_type[req.file_type_id].is_required
-            or req.months_required != items_by_file_type[req.file_type_id].months_required
-        )
-    ]
-
-    return {'adds': adds, 'removes': removes, 'updates': updates}
+    return _diff_items_against_case(items_by_file_type, credit_case)
 
 
 def file_types_with_uploads(credit_case, file_types):

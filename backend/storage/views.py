@@ -32,6 +32,7 @@ from .models import (
 )
 from .services.requirements import (
     apply_template_to_case,
+    diff_file_types_against_case,
     diff_template_against_case,
     file_types_with_uploads,
     open_cases_for_template,
@@ -108,6 +109,39 @@ class UploadDocumentViewSet(
         # Return list response
         out = self.get_serializer(docs, many=True)
         return Response(out.data, status=status.HTTP_201_CREATED)
+
+    def perform_update(self, serializer):
+        """
+        Save an edited document, then recompute the credit case(s) it counts toward.
+
+        This is the manual-relabel path. A document's type IS what satisfies a
+        requirement, so correcting one GPT got wrong can complete a case's checklist
+        exactly as uploading the missing file would have — and without this, that case
+        stayed parked in "missing documents" with a checklist reading Complete, because
+        the status only ever moved on upload or delete.
+
+        `handle_manual_requirement_change` rather than the gentler
+        `handle_requirements_progress`, matching `perform_destroy`: a person relabelling
+        a document is making a direct decision about one case, so it is allowed to pull
+        the case BACK too — relabelling away the only bank statement un-satisfies the
+        requirement it was covering.
+
+        The previous credit case is read BEFORE the save because `credit_case` is
+        writable: a PATCH can move a document from one case to another, which changes
+        what both of them have.
+        """
+        previous_credit_case = serializer.instance.credit_case
+        document = serializer.save()
+
+        # A set, so a document that stayed on the same case is recomputed once, and a
+        # document moved between cases recomputes both ends.
+        affected = {
+            case
+            for case in (previous_credit_case, document.credit_case)
+            if case is not None
+        }
+        for credit_case in affected:
+            handle_manual_requirement_change(credit_case)
 
     def perform_destroy(self, instance):
         """
@@ -223,6 +257,29 @@ class LabelValueViewSet(
         return Response(out.data, status=response_status)
 
 
+def file_types_visible_to(user):
+    """
+    The document types a user may use: the app's own plus their organization's.
+
+    Shared by `FileTypeViewSet` and the template impact preview, so "which file types
+    exist for me" is answered in exactly one place. Two copies of this would be a
+    tenant-isolation bug waiting to happen — the preview accepts file type ids straight
+    from a request body, and this queryset is what stops one organization naming
+    another's private document type.
+    """
+    queryset = FileType.objects.all()
+
+    if not user.is_authenticated:
+        return queryset.none()
+
+    if user.is_superuser:
+        return queryset
+
+    return queryset.filter(
+        Q(organization__isnull=True) | Q(organization__in=user.organizations.all())
+    ).distinct()
+
+
 class FileTypeViewSet(
     ReadOnlyModelViewSet,
 ):
@@ -246,18 +303,7 @@ class FileTypeViewSet(
         `filter(organization__in=...)`, which would drop every global row, since NULL
         never matches an IN clause.
         """
-        queryset = super().get_queryset()
-        user = self.request.user
-
-        if not user.is_authenticated:
-            return queryset.none()
-
-        if user.is_superuser:
-            return queryset
-
-        return queryset.filter(
-            Q(organization__isnull=True) | Q(organization__in=user.organizations.all())
-        ).distinct()
+        return file_types_visible_to(self.request.user)
 
 
 class RequirementTemplateViewSet(
@@ -296,6 +342,35 @@ class RequirementTemplateViewSet(
             for file_type in file_types
         ]
 
+    def _impact_entries(self, template, diff_for_case):
+        """
+        One report entry per open case the change would actually alter.
+
+        `diff_for_case` is called with a credit case and returns the usual
+        adds/removes/updates dict, so the saved-template report and the not-yet-saved
+        preview below describe their consequences in exactly the same words.
+        """
+        entries = []
+        for credit_case in open_cases_for_template(template):
+            diff = diff_for_case(credit_case)
+            if not (diff['adds'] or diff['removes'] or diff['updates']):
+                continue
+
+            entries.append({
+                'credit_case_id': credit_case.id,
+                'customer_name': credit_case.customer.name,
+                'adds': self._serialize_file_types(diff['adds']),
+                'removes': self._serialize_file_types(diff['removes']),
+                'updates': self._serialize_file_types(diff['updates']),
+                # Removing a requirement the customer already satisfied leaves that
+                # document in place but no longer counting - worth warning about first.
+                'removes_with_uploads': self._serialize_file_types(
+                    file_types_with_uploads(credit_case, diff['removes'])
+                ),
+            })
+
+        return entries
+
     @action(detail=True, methods=['get'])
     def impact(self, request, pk=None):
         """
@@ -309,27 +384,58 @@ class RequirementTemplateViewSet(
         returns an empty list once everything is in sync.
         """
         template = self.get_object()
+        return Response({
+            'credit_cases': self._impact_entries(
+                template,
+                lambda credit_case: diff_template_against_case(template, credit_case),
+            )
+        })
 
-        results = []
-        for credit_case in open_cases_for_template(template):
-            diff = diff_template_against_case(template, credit_case)
-            if not (diff['adds'] or diff['removes'] or diff['updates']):
-                continue
+    @action(detail=True, methods=['post'], url_path='preview-impact')
+    def preview_impact(self, request, pk=None):
+        """
+        Show what a document list would do to open cases WITHOUT saving it.
 
-            results.append({
-                'credit_case_id': credit_case.id,
-                'customer_name': credit_case.customer.name,
-                'adds': self._serialize_file_types(diff['adds']),
-                'removes': self._serialize_file_types(diff['removes']),
-                'updates': self._serialize_file_types(diff['updates']),
-                # Removing a requirement the customer already satisfied leaves that
-                # document in place but no longer counting - worth warning about first.
-                'removes_with_uploads': self._serialize_file_types(
-                    file_types_with_uploads(credit_case, diff['removes'])
+        Same report as `impact`, but diffed against `file_type_ids` from the request body
+        instead of against what is stored. This exists so the user can be asked before
+        anything is written: the old flow saved the template, computed the impact, and
+        offered an undo — which made "Cancel" a second write, and left a user who closed
+        the tab mid-prompt with a default they never agreed to.
+
+        POST because it takes a body, not because it changes anything. It writes nothing.
+
+        The ids are re-derived from the file types this user can actually see rather than
+        trusted: this endpoint reads a request body and reports on real credit cases, so
+        an unchecked id here would let one organization probe another's private document
+        types.
+        """
+        template = self.get_object()
+
+        file_type_ids = request.data.get('file_type_ids')
+        if not isinstance(file_type_ids, list):
+            return Response(
+                {'detail': 'file_type_ids must be a list of file type ids.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        file_types = list(
+            file_types_visible_to(request.user).filter(id__in=file_type_ids)
+        )
+        unknown = sorted(set(file_type_ids) - {ft.id for ft in file_types})
+        if unknown:
+            return Response(
+                {'detail': f'These file type ids are not available to you: {unknown}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'credit_cases': self._impact_entries(
+                template,
+                lambda credit_case: diff_file_types_against_case(
+                    file_types, credit_case
                 ),
-            })
-
-        return Response({'credit_cases': results})
+            )
+        })
 
     @action(detail=True, methods=['post'])
     def apply(self, request, pk=None):

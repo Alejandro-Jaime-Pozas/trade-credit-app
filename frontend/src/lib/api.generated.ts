@@ -1173,6 +1173,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requirement-templates/{id}/preview-impact/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Show what a document list would do to open cases WITHOUT saving it.
+         *
+         *     Same report as `impact`, but diffed against `file_type_ids` from the request body
+         *     instead of against what is stored. This exists so the user can be asked before
+         *     anything is written: the old flow saved the template, computed the impact, and
+         *     offered an undo — which made "Cancel" a second write, and left a user who closed
+         *     the tab mid-prompt with a default they never agreed to.
+         *
+         *     POST because it takes a body, not because it changes anything. It writes nothing.
+         *
+         *     The ids are re-derived from the file types this user can actually see rather than
+         *     trusted: this endpoint reads a request body and reports on real credit cases, so
+         *     an unchecked id here would let one organization probe another's private document
+         *     types.
+         */
+        post: operations["requirement_templates_preview_impact_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/schema/": {
         parameters: {
             query?: never;
@@ -1576,6 +1608,12 @@ export interface components {
              * @description Final verdict timestamp after human review.
              */
             readonly verdict_at: string | null;
+            /** @description Overrides the organization default_verdict_days for THIS case only. Null means "use the organization default", which is the normal case - set a value here only when one case genuinely needs longer or shorter than the rest. */
+            verdict_due_days?: number | null;
+            readonly verdict_due_at: string | null;
+            readonly days_since_created: number | null;
+            readonly days_until_verdict_due: number | null;
+            readonly is_verdict_overdue: boolean;
             assigned_to?: {
                 /** Format: uri */
                 url: string;
@@ -1816,7 +1854,8 @@ export interface components {
             /** @description Which heading this type is listed under when a user picks documents, e.g. "financial" or "tax" (see core.file_type_catalog.FileTypeGroup). Display only. Deliberately NOT the same as `category`: that is a recency bucket, which is why a timeless acta constitutiva is category "other" but group "legal". */
             group?: string;
             /**
-             * @description The heading this type is listed under, e.g. "Tax / SAT".
+             * @description The heading this type is listed under, e.g. "Fiscales / SAT". In Spanish, like
+             *     the document names the UI prints under it.
              *
              *     Sent rather than left to the client so the frontend never keeps its own copy of
              *     the group list — a hardcoded copy would silently go stale the day a group is
@@ -1827,7 +1866,7 @@ export interface components {
             /**
              * @description Where this type's group sits in the order a person should meet them (financials
              *     first, odds and ends last). A sort key, so the frontend orders groups the way the
-             *     catalog declares rather than alphabetically — "Credit process" before "Financial"
+             *     catalog declares rather than alphabetically — "Fiscales / SAT" before "Financieros"
              *     would read as nonsense. Unknown groups sort last.
              */
             readonly group_order: number;
@@ -1923,6 +1962,8 @@ export interface components {
                 url: string;
                 display: string;
             }[];
+            /** @description How many days this organization allows itself to reach a verdict on a credit case before that case counts as overdue. Applies to every credit case in the organization unless the case sets its own verdict_due_days override. */
+            default_verdict_days?: number;
         };
         PaginatedCreditCaseList: {
             /** @example 123 */
@@ -2172,6 +2213,12 @@ export interface components {
              * @description Final verdict timestamp after human review.
              */
             readonly verdict_at?: string | null;
+            /** @description Overrides the organization default_verdict_days for THIS case only. Null means "use the organization default", which is the normal case - set a value here only when one case genuinely needs longer or shorter than the rest. */
+            verdict_due_days?: number | null;
+            readonly verdict_due_at?: string | null;
+            readonly days_since_created?: number | null;
+            readonly days_until_verdict_due?: number | null;
+            readonly is_verdict_overdue?: boolean;
             assigned_to?: {
                 /** Format: uri */
                 url: string;
@@ -2425,6 +2472,8 @@ export interface components {
                 url: string;
                 display: string;
             }[];
+            /** @description How many days this organization allows itself to reach a verdict on a credit case before that case counts as overdue. Applies to every credit case in the organization unless the case sets its own verdict_due_days override. */
+            default_verdict_days?: number;
         };
         /**
          * @description An organization's reusable list of documents to ask for on a credit case.
@@ -4155,6 +4204,34 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementTemplate"];
+                };
+            };
+        };
+    };
+    requirement_templates_preview_impact_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this requirement template. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementTemplate"];
+                "application/x-www-form-urlencoded": components["schemas"]["RequirementTemplate"];
+                "multipart/form-data": components["schemas"]["RequirementTemplate"];
+            };
+        };
         responses: {
             200: {
                 headers: {

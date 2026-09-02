@@ -460,6 +460,142 @@ Also unresolved and recorded there: the field counts MONTHS, but "two fiscal yea
 audited financials" means two annual documents, not 24 months.
 
 
+### The verdict deadline is computed, never stored
+
+Decided 2026-08-31. Adds a deadline to every credit case; nothing like it existed before.
+
+A credit case now has a deadline for reaching a verdict. Two numbers are stored and the
+deadline itself is not: `Organization.default_verdict_days` (what this organization gives
+itself, defaulting to `DEFAULT_VERDICT_DAYS` = 5) and an optional
+`CreditCase.verdict_due_days` that overrides it for one case. Everything a user actually
+sees - the due date, days passed, days remaining, whether the case is late - is derived on
+the model (`processing/models.py`, `CreditCase.verdict_due_at` and the properties below it).
+
+The obvious alternative is a `verdict_due_at` column written when the case is created. It
+was rejected because it stores a second copy of something already implied by `created_at`
+plus a day count, and the two drift: change the override and the stored date is stale
+unless every write path remembers to recompute it.
+
+The accepted cost of computing it: raising an organization's `default_verdict_days` moves
+the deadline of every EXISTING case with it, rather than leaving old cases on the number
+that applied when they were opened. For a small team adjusting its own SLA that is
+arguably the behaviour people expect, and `test_changing_the_organization_default_moves_existing_case_deadlines`
+pins it so it is a documented property rather than a surprise.
+
+This will need revisiting when deadline emails land (`docs/versions/v3.md`): a scheduled
+job wanting "every case due in the next 24 hours" cannot filter or sort on a Python
+property, and will need either a stored column or a database expression.
+
+### The deadline clock starts at `created_at`, and stops at `verdict_at`
+
+Decided 2026-08-31.
+
+**Starts at creation.** `submitted_at` and `requirements_completed_at` were both
+considered, and both are nullable - a case that has not been submitted, or whose documents
+have not all arrived, would have no deadline at all. Those are exactly the cases most
+likely to be stalled and most in need of surfacing. `created_at` is `auto_now_add`, so
+every case has one and no case can hide.
+
+The trade-off is honest and worth stating: the clock includes time spent waiting on the
+customer to send documents, so a case can run late for a reason the reviewing team does
+not control.
+
+**Stops at the verdict.** `_verdict_clock_reference` returns `verdict_at` when a verdict
+exists, and `now` otherwise. Without this, a case decided comfortably on time would keep
+accruing days and eventually report itself as overdue - rewriting history for a case that
+was never late. Day counts on a decided case are a record of how long it actually took.
+
+Day counts compare CALENDAR DATES, not exact timestamps, because that is what a person
+means by "3 days": a case opened late Monday is 1 day old on Tuesday morning, not 0. And
+`days_until_verdict_due` goes negative rather than clamping at zero, so one field expresses
+both "2 days left" and "3 days late" and sorting by it puts the most overdue cases first
+with no special casing.
+
+### The pagare is the one CREDIT document that is not presence-only
+
+Decided 2026-08-31. Reverses the presence-only classification the pagare shipped with.
+
+`pagare` originally shared `PresenceOnlyPydantic` with the other documents that only need
+to exist. That was wrong for a reason specific to the instrument: a pagare is what a
+creditor actually enforces, and it is enforceable on its `fecha_vencimiento`. A record that
+a pagare exists, without the date it comes due, cannot answer the one question anybody asks
+of it.
+
+This carried a trap worth recording. `DateBaseModel.date_range_start` / `date_range_end`
+validate against a regex capped at the CURRENT year - correct for documents describing
+something that already happened, which until now was all of them. A maturity date is in the
+future for every pagare that still matters, so reusing that pattern would have rejected
+precisely the documents the field exists to read, and would have done it inside a Celery
+worker after the OpenAI call was already paid for. Hence
+`DATE_2000_TO_FUTURE_YEAR_PATTERN`, and hence `fecha_vencimiento` as its own field rather
+than reusing `date_range_end`. The extraction prompt carried the same assumption in prose
+("the year should always be between 2000 and the current year") and was amended too.
+
+Both halves are pinned by `test_pagare_due_date_accepts_a_future_year`, which asserts the
+future date passes AND that the issue-date fields stay capped.
+
+Forward-only: pagares already classified keep whatever `PresenceOnlyPydantic` captured
+until they are re-extracted. No backfill was run.
+
+### A destructive-looking prompt has to come before the write, not after it
+
+Decided 2026-09-01.
+
+Editing the organization's default required documents used to save the template, ask the
+backend what that would do to open credit cases, and then offer to undo. So "Cancel" was a
+second write, and a user who closed the tab while the prompt was on screen was left with a
+default they had never agreed to. The prompt looked like a question and was actually a
+notification.
+
+The reason it worked that way was structural, not sloppiness:
+`GET /requirement-templates/{id}/impact/` diffs the **stored** template against each case, so
+there was nothing to diff until the write had happened.
+
+`POST /requirement-templates/{id}/preview-impact/` diffs a list that exists only in the request
+body. `storage/services/requirements.py` now keeps one diff — `_diff_items_against_case`, keyed
+by file type id — and both the saved-template and proposed-list entry points delegate to it. A
+second implementation would have been the real risk here: a preview that quietly disagrees with
+the save it is describing is worse than no preview, because the user acts on it.
+
+`ProposedTemplateItem`'s defaults (`is_required=True`, `months_required=None`) are not arbitrary
+— they are exactly what the frontend sends when it saves a template, so the preview describes
+the save that would actually happen rather than a plausible one.
+
+It is a POST because it carries a body, not because it changes anything. It writes nothing.
+
+The ids in that body are re-derived from `file_types_visible_to(request.user)` rather than
+trusted, and unknown ids are rejected. This endpoint reads a request body and reports on real
+credit cases, so an unchecked id is a way for one organization to probe another's private
+document types. That helper was extracted out of `FileTypeViewSet.get_queryset` so both callers
+answer "which file types exist for me" from one place.
+
+### Every path that changes what a case has must recompute the case
+
+Decided 2026-09-01.
+
+`UploadDocumentViewSet` had `create` and `perform_destroy` but no `perform_update`. A document's
+`file_type_name` IS what satisfies a requirement, so correcting one the classifier got wrong can
+complete a case's checklist exactly as uploading the missing file would have — but nothing
+recomputed the case on that path. The frontend re-read the case and showed "Complete" while the
+case itself sat in `missing_documents` for ever, which is worse than the checklist simply being
+wrong: the two disagreed, and only one of them was the record.
+
+`perform_update` calls `handle_manual_requirement_change`, the same helper `perform_destroy`
+uses. That is the aggressive one, and deliberately: a person relabelling a document is a direct,
+considered decision about one specific case, so it is allowed to pull the case BACK as well as
+push it forward. Relabelling away the only bank statement un-satisfies the requirement it was
+covering, and a case waiting on a verdict it only reached because of a mislabelled file must not
+stay there.
+
+The previous credit case is read **before** the save, because `credit_case` is a writable field:
+one PATCH can move a document between cases, un-completing one while completing the other. Both
+ends are recomputed.
+
+The general rule this leaves behind: when a derived field is computed from related rows, every
+viewset action that can change those rows needs the recompute — and "update" is the one that
+gets forgotten, because it usually looks like it is only touching the row in front of it.
+
+
 ## Deployment
 
 ### Hosting platform (not yet implemented)
@@ -619,3 +755,143 @@ the list arrives sorted fails on "Declaración anual" vs "Declaraciones provisio
 messages are still English. The request was about document names, and translating the
 whole app is a separate piece of work with its own decision to make (a real i18n layer vs.
 hardcoded Spanish).
+
+### A user-created field is just another table column
+
+Decided 2026-08-31. Replaces nothing — this is the first frontend for the `Label` /
+`LabelValue` models, which shipped with no UI at all.
+
+A `Label` is a custom field DEFINITION a user creates ("sucursal"); a `LabelValue` is one
+credit case's value for it. The backend already flattens those values onto each case as
+`custom_fields`, a plain `{ fieldName: value }` map (`processing/serializers.py`
+`get_custom_fields`). That single design choice is what makes the frontend cheap:
+
+- **A label column reads `custom_fields[label.name]` and nothing else.** No extra request
+  per row, no join in the browser, no second data path. The dashboard cannot tell a custom
+  field from a built-in one, which is exactly the behaviour asked for in
+  `docs/versions/v2.md` §3 — "have those labels behave (for now) like credit case fields".
+- **Unset values reuse the table's existing `NO_VALUE` sentinel** (`lib/tableControls.ts`),
+  so a case with no sucursal filters under "—" and sorts last, the same as a case with no
+  requested amount. No new null-handling was added anywhere.
+
+**Column ids are namespaced.** `labelColumnId()` in `lib/labels.ts` returns `label:<id>`,
+not the field's name. Without the prefix a user who creates a field called "status" would
+get a column whose id collides with the built-in Status column, and the two would silently
+share one filter selection. Keying on the id rather than the name also means renaming a
+field keeps its column state rather than resetting it.
+
+**Existing credit cases are NOT backfilled.** Creating "sucursal" does not go and invent a
+sucursal for the 200 cases already in the system; each simply has no value and reads as "—"
+until someone opens it and fills it in. The alternative — writing a placeholder `LabelValue`
+row per existing case — was rejected: it would fabricate data the user never entered, and
+"empty" and "not yet filled in" would become indistinguishable. This is the first thing a
+user asks about the feature, so `app/labels/page.tsx` says it on the page itself.
+
+### `COLUMNS` became `buildColumns(labels)`, and the table body follows it
+
+Decided 2026-08-31. Replaces the module-level `COLUMNS` constant in
+`components/CreditCaseTable.tsx`.
+
+The column list stopped being knowable at build time the moment custom fields became
+columns: it depends on what each organization has defined. `COLUMNS` is now
+`buildColumns(labels)`, memoised on the label list.
+
+The knock-on change is the important one. `<tbody>` previously rendered hand-written `<td>`
+elements in a fixed order, correct only for as long as the header list was also fixed. With
+a dynamic list, adding a column would have put every value after it under the wrong heading
+— a silent, plausible-looking corruption rather than a crash. Each column now owns a
+`renderCell`, so the header row, the body, the filter pipeline, the sort pipeline and the
+CSV export are all driven by the same array and cannot drift apart.
+
+Widths are rescaled to total 100 after the label columns are appended. Left alone, five
+custom fields would push the total to 150% and squeeze every built-in column by an amount
+nobody chose.
+
+### "Within N days" excludes cases that are already overdue
+
+Decided 2026-08-31.
+
+`CreditCase.days_until_verdict_due` goes negative once a deadline has passed (see the
+backend entry "The verdict deadline is computed, never stored"), so `-1 <= 2` is true and
+the obvious implementation of a "Within 2 days" filter would quietly include last week's
+misses. `matchesDeadlineBuckets` in `lib/tableControls.ts` excludes them: someone planning
+the next two days is asking a different question from someone auditing what was missed.
+Overdue is its own option, so nothing becomes unreachable.
+
+For the same reason the cell renders language rather than the raw number — "3 days late",
+"Today", "2 days left". A signed integer in a column headed "Days left" makes the reader
+stop and work out whether `-3` means three days late or three days early. Zero is the
+deadline itself, not "no time left", so a case due today reads as on time on both the
+dashboard and the detail page.
+
+### The CSV export writes what is on screen, and defends against Excel
+
+Decided 2026-08-31.
+
+The export button hands `toCsv` the table's `visibleRows` — the rows left after the user's
+filters, in the order their sort put them — not the full `cases` array. Exporting everything
+would ignore the work the user just did to narrow the list, which is the only reason they
+opened the export.
+
+Two things in `lib/csv.ts` look like superstition and are not:
+
+- **A UTF-8 byte-order mark is prepended.** The data is Spanish ("Pagaré", "Declaración
+  anual", customer names with acentos). Excel on Windows guesses a file's encoding from its
+  first bytes and falls back to a legacy codepage without a BOM, which mangles every accented
+  character. The export would look like a data bug rather than an encoding one.
+- **A field whose text starts with `=`, `+`, `-` or `@` is prefixed with a single quote.**
+  Excel and Google Sheets read such a cell as a formula. Custom field values are typed by
+  users and flow straight into this file, so this is a real path, not a theoretical one.
+  The guard applies to STRINGS ONLY: a number came from our own code and is not untrusted,
+  and guarding it would break the export outright — a "days left" of `-3` starts with `-`,
+  and would land in the spreadsheet as text no reader could sort or total.
+
+### A prompt with a Cancel button means nothing has been written yet
+
+Decided 2026-09-01.
+
+The backend counterpart of this is above; this is what it bought the UI, in both places a
+requirement list can change.
+
+**`/requirements`** previews, holds the user's selection in `pendingFileTypeIds`, and writes
+only once they have answered. Cancel drops the held selection — no request. Their ticked boxes
+are deliberately left on screen, because someone who backs out is usually mid-thought about what
+they want rather than wanting to start again.
+
+**The credit case detail page** had the same problem in a different shape: requirement edits were
+written on every click, so "Done" meant nothing and there was no way back. Edits are now a draft
+(`pendingAddIds` / `pendingRemoveKeys`) rendered inline — dashed, marked "Adding"/"Removing",
+each with an Undo. Done with no queued edits just closes the editor. Otherwise it raises the same
+`ImpactWarning`, with the same three answers, wearing different words: Update all / Only this
+case / Cancel.
+
+The per-row "Remove this required document?" confirmation was deleted rather than kept. It was
+asking the user to confirm something that had not happened and could be undone with one click;
+the real confirmation is Done, where the whole change is described at once.
+
+One component serves both prompts, with the choices fixed and only their labels overridable. The
+three choices are the same three choices — accept and propagate, accept narrowly, or do nothing —
+and letting a caller invent a fourth is how two dialogs that should behave identically stop doing
+so.
+
+### Do not put an overflow container around anything with a popover in it
+
+Decided 2026-09-01.
+
+A customer with twenty uploads pushed everything below the Documents list — the credit cases
+table included — off the bottom of the page, so `DocumentList` now caps at `SCROLL_AFTER = 6`
+documents and scrolls. Below that count no scroll container is rendered at all: a short list
+should never carry a scrollbar it does not need.
+
+The cap could not simply be added, though. The rows contain `FileTypeSelect`, whose dropdown was
+an absolutely-positioned child, and a scroll container clips its descendants — the panel would
+have been sliced off on exactly the rows a user scrolls down to reach, breaking the
+misclassification fix that list exists to offer. So `FileTypeSelect` renders its panel through a
+portal positioned `fixed` against the trigger, the same fix `TableColumnHeader.tsx` already
+needed when the table's `overflow-x-auto` wrapper was slicing the leftmost filter panel.
+
+Two portals, one rule: a panel that must escape its container cannot be a child of it. The
+follow-on cost is worth stating, because it is not obvious and it bit once — a portalled panel is
+no longer a DOM descendant, so the usual `e.currentTarget.contains(e.relatedTarget)` blur check
+reads focus moving INTO the panel as focus leaving. Document-level `mousedown` and `focusin`
+listeners replace it.

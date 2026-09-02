@@ -1,6 +1,8 @@
+from datetime import timedelta
+
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 
 from core.choices_for_models import CurrencyName
@@ -89,6 +91,15 @@ class CreditCase(models.Model):
         blank=True,
         help_text='Final verdict timestamp after human review.',
     )
+    verdict_due_days = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text='Overrides the organization default_verdict_days for THIS case only. '
+                  'Null means "use the organization default", which is the normal case - '
+                  'set a value here only when one case genuinely needs longer or shorter '
+                  'than the rest.',
+    )
     requirements_completed_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -113,6 +124,91 @@ class CreditCase(models.Model):
     # Custom field values (dynamic Labels) attached to this credit case.
     # GenericRelation so deleting a credit case cascades away its LabelValue rows too.
     label_values = GenericRelation('storage.LabelValue')
+
+    # ---------------------------------------------------------------- deadline
+    # The verdict deadline is COMPUTED, never stored. Storing it would mean keeping a
+    # second copy of something already implied by created_at plus a day count, and the two
+    # would eventually disagree. The trade-off accepted here: raising the organization's
+    # default_verdict_days moves the deadline of every existing case with it, rather than
+    # leaving old cases on the number that applied when they were opened.
+
+    @property
+    def verdict_due_days_effective(self) -> int:
+        """
+        How many days this particular case gets before its verdict is overdue.
+
+        The case's own `verdict_due_days` wins when it is set; otherwise the case falls
+        back to whatever its organization chose. Every credit case therefore has a
+        deadline without anyone having to type one in.
+        """
+        if self.verdict_due_days is not None:
+            return self.verdict_due_days
+        return self.customer.organization.default_verdict_days
+
+    @property
+    def verdict_due_at(self):
+        """
+        The moment this case's verdict becomes overdue.
+
+        Counted from `created_at`, so the clock starts as soon as the case exists and no
+        case can sit in the system without a deadline. Returns None only for a case that
+        has never been saved, since `created_at` is filled in on first save.
+        """
+        if not self.created_at:
+            return None
+        return self.created_at + timedelta(days=self.verdict_due_days_effective)
+
+    @property
+    def _verdict_clock_reference(self):
+        """
+        The point in time the day counts below are measured against.
+
+        A case that already has a verdict stops its clock at `verdict_at`: once the
+        decision is made the case is not getting later every day, and its numbers should
+        stay as a record of how long it actually took. An undecided case measures against
+        now.
+        """
+        return self.verdict_at or timezone.now()
+
+    @property
+    def days_since_created(self):
+        """
+        Whole days elapsed since the case was created - the "days passed" figure.
+
+        Compared on CALENDAR DATES rather than exact timestamps, because that is what a
+        person means by "3 days": a case opened late Monday is 1 day old on Tuesday
+        morning, not 0.
+        """
+        if not self.created_at:
+            return None
+        return (self._verdict_clock_reference.date() - self.created_at.date()).days
+
+    @property
+    def days_until_verdict_due(self):
+        """
+        Whole days left before the verdict is overdue - the "days remaining" figure.
+
+        Goes NEGATIVE once the deadline has passed, which is deliberate: one number then
+        covers both "2 days left" and "3 days late", and a caller sorting by it puts the
+        most overdue cases first with no special casing. Same calendar-date basis as
+        `days_since_created`, so a case due today reads as 0.
+        """
+        due = self.verdict_due_at
+        if due is None:
+            return None
+        return (due.date() - self._verdict_clock_reference.date()).days
+
+    @property
+    def is_verdict_overdue(self) -> bool:
+        """
+        Whether this case blew its deadline.
+
+        A case that already has a verdict is judged on whether it was late WHEN IT WAS
+        DECIDED (its clock stopped at verdict_at), so a case decided on time never starts
+        reporting itself as overdue later on.
+        """
+        remaining = self.days_until_verdict_due
+        return remaining is not None and remaining < 0
 
     @property
     def required_file_type_names(self):

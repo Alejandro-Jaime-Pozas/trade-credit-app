@@ -70,6 +70,35 @@ class CreditCaseSerializer(NamedHyperlinkedModelSerializer):
         allow_null=True,
     )
 
+    # --- verdict deadline ---------------------------------------------------
+    # `verdict_due_days` itself is a normal writable model field (the per-case override).
+    # Everything below is derived from it and is therefore read-only: they are computed on
+    # the model so that the API and any backend caller can never disagree about whether a
+    # case is late.
+
+    verdict_due_at = serializers.SerializerMethodField()
+
+    def get_verdict_due_at(self, obj) -> str | None:
+        due = obj.verdict_due_at
+        return due.isoformat() if due else None
+
+    # Days passed since the case was created.
+    days_since_created = serializers.SerializerMethodField()
+
+    def get_days_since_created(self, obj) -> int | None:
+        return obj.days_since_created
+
+    # Days left before the verdict is overdue. Negative once the deadline has passed.
+    days_until_verdict_due = serializers.SerializerMethodField()
+
+    def get_days_until_verdict_due(self, obj) -> int | None:
+        return obj.days_until_verdict_due
+
+    is_verdict_overdue = serializers.SerializerMethodField()
+
+    def get_is_verdict_overdue(self, obj) -> bool:
+        return obj.is_verdict_overdue
+
     # Dynamic custom fields (Labels) set on this credit case, e.g. {"sucursal": "MTY Norte"}.
     # Read-only here — values are set/updated via LabelValueViewSet.
     custom_fields = serializers.SerializerMethodField()
@@ -91,6 +120,11 @@ class CreditCaseSerializer(NamedHyperlinkedModelSerializer):
             'updated_at',
             'submitted_at',
             'verdict_at',
+            'verdict_due_days',
+            'verdict_due_at',
+            'days_since_created',
+            'days_until_verdict_due',
+            'is_verdict_overdue',
             'assigned_to',
             'customer',
             'organization',

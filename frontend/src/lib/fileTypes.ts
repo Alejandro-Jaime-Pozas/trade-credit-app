@@ -158,6 +158,28 @@ export async function getTemplateImpact(
   return res.credit_cases;
 }
 
+/**
+ * Which open credit cases WOULD change if this template listed these file types.
+ *
+ * The same report as `getTemplateImpact`, but for a list the user has not saved — which
+ * is what lets them be asked before anything is written. `getTemplateImpact` can only
+ * describe what is already stored, so the old flow had to save first and offer an undo,
+ * making "Cancel" a second write.
+ *
+ * POST because it carries a body. It changes nothing.
+ */
+export async function previewTemplateImpact(args: {
+  template: RequirementTemplate;
+  fileTypeIds: number[];
+}): Promise<TemplateImpactEntry[]> {
+  const res = await apiJson<{ credit_cases: TemplateImpactEntry[] }>({
+    pathOrUrl: `${args.template.url}preview-impact/`,
+    method: "POST",
+    body: { file_type_ids: args.fileTypeIds },
+  });
+  return res.credit_cases;
+}
+
 /** Push the template's current contents onto the chosen open credit cases. */
 export async function applyTemplateToCases(args: {
   template: RequirementTemplate;
