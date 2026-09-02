@@ -11,8 +11,9 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { CustomFieldsPanel } from "@/components/CustomFieldsPanel";
+import { DetailField, DetailValue } from "@/components/DetailField";
 import { ImpactWarning } from "@/components/ImpactWarning";
+import { ValueCombobox } from "@/components/ValueCombobox";
 import { DocumentList, documentDisplayName } from "@/components/DocumentList";
 import { FileTypePicker } from "@/components/FileTypePicker";
 import { FileUploadField } from "@/components/FileUploadField";
@@ -23,9 +24,23 @@ import { apiForm, apiJson, ApiError, drfListAll } from "@/lib/api";
 import {
   CREDIT_CASE_STATUS_LABELS,
   CREDIT_CASE_VERDICT_LABELS,
+  CURRENCY_OPTIONS,
   REQUESTED_TERM_DAYS_OPTIONS,
 } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import {
+  LABEL_NAME_MAX_LENGTH,
+  LABEL_VALUE_MAX_LENGTH,
+  clearLabelValue,
+  createLabel,
+  customFieldValue,
+  labelColumnId,
+  listCreditCaseLabels,
+  listExistingValues,
+  setLabelValue,
+  validateLabelName,
+} from "@/lib/labels";
+import { applyOrder, loadLayout, moveItem, saveLayout } from "@/lib/layoutPrefs";
 import { useClassificationPolling } from "@/lib/useClassificationPolling";
 import { useTransientMessage } from "@/lib/useTransientMessage";
 import {
@@ -46,10 +61,15 @@ import type {
   CreditCaseRequirement,
   Customer,
   FileType,
+  Label,
+  Organization,
   RequirementTemplate,
   UploadDocument,
   User,
 } from "@/lib/types";
+
+/** Identifies the Details section's saved field order in localStorage. */
+const DETAILS_LAYOUT_ID = "creditCaseDetails";
 
 /**
  * How long is left to reach a verdict on a case, in words.
@@ -120,6 +140,40 @@ export default function CreditCaseDetailPage() {
   const [assignedTo, setAssignedTo] = useState<string>("");
   const [users, setUsers] = useState<User[] | null>(null);
 
+  /*
+   * Custom fields, folded into the Details section rather than living in a panel of
+   * their own further down the page.
+   *
+   * `drafts` holds only what the user has actually typed, keyed by label id; every other
+   * field reads straight from `creditCase.custom_fields`, which the backend rebuilds
+   * after each write. Keeping a second copy of the saved values here is exactly how the
+   * two would eventually disagree.
+   */
+  const [customLabels, setCustomLabels] = useState<Label[] | null>(null);
+  const [customDrafts, setCustomDrafts] = useState<Record<number, string>>({});
+  // Values already recorded for each field elsewhere in the org, offered as a dropdown.
+  const [customSuggestions, setCustomSuggestions] = useState<Record<number, string[]>>({});
+  // The inline "Add field" form at the top of Details, so a user does not have to leave
+  // the case to define a field they have just realised they need.
+  const [addingField, setAddingField] = useState(false);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [addFieldError, setAddFieldError] = useState<string | null>(null);
+  const [creatingField, setCreatingField] = useState(false);
+
+  // The user's own arrangement of the Details cards, read on first render so the
+  // section paints in their order rather than snapping into it.
+  const [detailsOrder, setDetailsOrder] = useState<string[]>(
+    () => loadLayout(DETAILS_LAYOUT_ID).order,
+  );
+  const [draggingDetail, setDraggingDetail] = useState(false);
+
+  /**
+   * The organization, for one thing only: the number that goes in the verdict deadline
+   * placeholder. "Organization default" told the user a default existed without telling
+   * them what it was, which is the one thing they need to decide whether to override it.
+   */
+  const [organization, setOrganization] = useState<Organization | null>(null);
+
   const [saving, setSaving] = useState(false);
   // Success confirmation for the Save button. Previously a save gave no feedback at all
   // beyond the spinner stopping, so there was no way to tell it had worked. Transient:
@@ -136,6 +190,22 @@ export default function CreditCaseDetailPage() {
   // Deleting a document can un-satisfy a requirement, so it waits on a confirmation.
   const [documentToDelete, setDocumentToDelete] = useState<UploadDocument | null>(null);
   const [deletingDocument, setDeletingDocument] = useState(false);
+
+  /**
+   * The values already recorded for one custom field, fetched per field.
+   *
+   * Re-fetched after a save as well as on load: a value the user has just invented
+   * should be offered to the next case straight away. Failure is swallowed on purpose —
+   * suggestions are a convenience, and losing them must not stop someone typing a value.
+   */
+  const loadCustomSuggestions = useCallback(async (label: Label) => {
+    try {
+      const values = await listExistingValues(label);
+      setCustomSuggestions((prev) => ({ ...prev, [label.id]: values }));
+    } catch {
+      // Deliberately ignored — see above.
+    }
+  }, []);
 
   const loadUploads = useCallback(async (creditCaseUrl: string) => {
     const allUploads = await drfListAll<UploadDocument>({
@@ -168,7 +238,7 @@ export default function CreditCaseDetailPage() {
         if (cancelled) return;
         setCustomer(cust);
 
-        const [caseUploads, catalog, caseRequirements, orgTemplate] =
+        const [caseUploads, catalog, caseRequirements, orgTemplate, orgs, labels] =
           await Promise.all([
             loadUploads(cc.url),
             listFileTypes(),
@@ -177,12 +247,24 @@ export default function CreditCaseDetailPage() {
             // Done a single decision rather than a load followed by a decision. A
             // failure degrades to "no default template", which the flow already handles.
             getDefaultTemplate().catch(() => null),
+            // Both of these are decoration on an otherwise working page — the deadline
+            // placeholder and the custom field cards — so neither is allowed to take
+            // the whole case down with it.
+            drfListAll<Organization>({ path: "/organizations/" }).catch(
+              () => [] as Organization[],
+            ),
+            listCreditCaseLabels().catch(() => [] as Label[]),
           ]);
         if (cancelled) return;
         setUploads(caseUploads);
         setFileTypes(catalog);
         setRequirements(caseRequirements);
         setDefaultTemplate(orgTemplate);
+        // A user belongs to one organization in practice; the list endpoint is already
+        // scoped to theirs, so the first row is it.
+        setOrganization(orgs[0] ?? null);
+        setCustomLabels(labels);
+        void Promise.all(labels.map((label) => loadCustomSuggestions(label)));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof ApiError ? err.message : "Failed to load credit case");
@@ -192,7 +274,7 @@ export default function CreditCaseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, loadUploads]);
+  }, [id, loadUploads, loadCustomSuggestions]);
 
   const uploadedTypeNames = useMemo(() => {
     if (!uploads) return new Set<string>();
@@ -309,19 +391,6 @@ export default function CreditCaseDetailPage() {
     setVerdict(refreshed.verdict ?? "pending");
     setAssignedTo(refreshed.assigned_to?.url ?? "");
   }, []);
-
-  /**
-   * Re-read the credit case on its own.
-   *
-   * Used after a custom field is written: the values are served back on the case itself as
-   * the read-only `custom_fields` map, so re-reading the case is what puts the new value
-   * on screen. Nothing about the documents can move here, so the uploads are left alone.
-   */
-  const refreshCase = useCallback(async () => {
-    if (!creditCase) return;
-    const refreshed = await apiJson<CreditCase>({ pathOrUrl: creditCase.url });
-    applyCase(refreshed);
-  }, [creditCase, applyCase]);
 
   async function refreshRequirements(current: CreditCase) {
     const [refreshedCase, caseRequirements] = await Promise.all([
@@ -462,6 +531,27 @@ export default function CreditCaseDetailPage() {
     };
   }
 
+  /** What this case currently holds for a custom field, or "" when it was never set. */
+  const savedCustomValue = useCallback(
+    (label: Label) => customFieldValue(creditCase?.custom_fields, label.name) ?? "",
+    [creditCase?.custom_fields],
+  );
+
+  /** What a custom field's box shows: unsaved text if typed, else the saved value. */
+  const customValue = useCallback(
+    (label: Label) => customDrafts[label.id] ?? savedCustomValue(label),
+    [customDrafts, savedCustomValue],
+  );
+
+  /** The custom fields whose box no longer matches what the server holds. */
+  const dirtyCustomLabels = useMemo(
+    () =>
+      (customLabels ?? []).filter(
+        (label) => customValue(label).trim() !== savedCustomValue(label),
+      ),
+    [customLabels, customValue, savedCustomValue],
+  );
+
   /** True when a control no longer matches what was loaded, so there is work to lose. */
   const hasUnsavedChanges = useMemo(() => {
     const saved = creditCaseFormValues(creditCase);
@@ -472,7 +562,10 @@ export default function CreditCaseDetailPage() {
       currency !== saved.currency ||
       status !== saved.status ||
       verdict !== saved.verdict ||
-      assignedTo !== saved.assignedTo
+      assignedTo !== saved.assignedTo ||
+      // Custom fields now share this section's Save button, so they have to count as
+      // unsaved work too — otherwise Discard would sit disabled over changed boxes.
+      dirtyCustomLabels.length > 0
     );
   }, [
     creditCase,
@@ -483,6 +576,7 @@ export default function CreditCaseDetailPage() {
     status,
     verdict,
     assignedTo,
+    dirtyCustomLabels,
   ]);
 
   /** Put every control back to the loaded case, abandoning what was changed. */
@@ -495,8 +589,110 @@ export default function CreditCaseDetailPage() {
     setStatus(saved.status);
     setVerdict(saved.verdict);
     setAssignedTo(saved.assignedTo);
+    setCustomDrafts({});
     clearSaved();
     setError(null);
+  }
+
+  /**
+   * Save the whole Details section: the case's own fields, then any custom field the
+   * user changed.
+   *
+   * One button for the section, because every card in it now looks the same and a
+   * per-card Save would have been the one thing that did not. The case is PATCHed first
+   * and the custom values written after, so a rejected amount (say) stops the whole
+   * save rather than leaving half of it applied.
+   *
+   * An emptied box is a delete, not a save of "": the backend would otherwise keep a row
+   * holding an empty string, and that row would show up as a filterable value on the
+   * dashboard.
+   */
+  async function handleSaveDetails() {
+    if (!creditCase) return;
+    setSaving(true);
+    setError(null);
+    clearSaved();
+    try {
+      const updated = await apiJson<CreditCase>({
+        pathOrUrl: creditCase.url,
+        method: "PATCH",
+        body: {
+          requested_amount: requestedAmount.trim() || null,
+          currency,
+          requested_term_days: Number(requestedTermDays),
+          // Empty box means null, which the backend reads as "use the organization
+          // default" — not "no deadline".
+          verdict_due_days: verdictDueDays.trim() ? Number(verdictDueDays) : null,
+          customer: creditCase.customer.url,
+          status,
+          verdict,
+          assigned_to: assignedTo || null,
+        },
+      });
+
+      for (const label of dirtyCustomLabels) {
+        const value = customValue(label).trim();
+        if (value === "") {
+          await clearLabelValue({ label, objectId: creditCase.id });
+        } else {
+          await setLabelValue({ label, objectId: creditCase.id, value });
+        }
+      }
+
+      if (dirtyCustomLabels.length > 0) {
+        // Re-read rather than trusting `updated`: it was serialised before the label
+        // values were written, so its `custom_fields` is already one step behind.
+        const refreshed = await apiJson<CreditCase>({ pathOrUrl: creditCase.url });
+        applyCase(refreshed);
+        void Promise.all(dirtyCustomLabels.map((l) => loadCustomSuggestions(l)));
+      } else {
+        applyCase(updated);
+      }
+
+      setCustomDrafts({});
+      showSaved("Saved.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /**
+   * Define a new custom field without leaving the case.
+   *
+   * The field is created empty and is NOT backfilled onto existing cases — the same
+   * behaviour as creating one on `/labels`. It appears here immediately so the user can
+   * fill it in for this case, which is usually why they wanted it.
+   */
+  async function handleAddField() {
+    const name = newFieldName.trim();
+    const problem = validateLabelName(name, customLabels ?? []);
+    if (problem) {
+      setAddFieldError(problem);
+      return;
+    }
+    setCreatingField(true);
+    setAddFieldError(null);
+    try {
+      const created = await createLabel(name);
+      setCustomLabels((prev) => [...(prev ?? []), created]);
+      setNewFieldName("");
+      setAddingField(false);
+      void loadCustomSuggestions(created);
+    } catch (err) {
+      setAddFieldError(
+        err instanceof ApiError ? err.message : "Failed to add the field",
+      );
+    } finally {
+      setCreatingField(false);
+    }
+  }
+
+  function handleReorderDetail(draggedId: string, targetId: string) {
+    const next = moveItem(detailFieldIds, draggedId, targetId);
+    setDetailsOrder(next);
+    saveLayout(DETAILS_LAYOUT_ID, { order: next, hidden: [] });
   }
 
   async function handleDeleteCreditCase() {
@@ -659,6 +855,286 @@ export default function CreditCaseDetailPage() {
     },
   });
 
+  /**
+   * Every card in the Details section, in its natural order.
+   *
+   * One list drives the whole section: what is rendered, what can be dragged, and what
+   * order the user's saved arrangement is applied to. Built-in fields and the
+   * organization's own custom fields sit in the same list on purpose — to a user reading
+   * the case they are the same kind of thing, and the only difference worth showing is
+   * the small blue marker on a custom one.
+   */
+  const detailFields = useMemo<
+    {
+      id: string;
+      label: string;
+      hint?: string;
+      custom?: boolean;
+      tone?: "default" | "danger";
+      render: () => React.ReactNode;
+    }[]
+  >(() => {
+    const orgDefaultDays = organization?.default_verdict_days;
+
+    const builtIn = [
+      {
+        id: "customer",
+        label: "Customer",
+        render: () => (
+          <DetailValue>
+            {customer ? (
+              <Link href={`/customers/${customer.id}`} className="text-fg underline">
+                {customer.name}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </DetailValue>
+        ),
+      },
+      {
+        id: "status",
+        label: "Status",
+        render: () => (
+          <div className="relative">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              disabled={!creditCase}
+              aria-label="Status"
+              className="w-full rounded-md border bg-surface py-2 pl-8 pr-3 text-sm disabled:opacity-60"
+            >
+              {Object.entries(CREDIT_CASE_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+              <StatusDot status={status} />
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: "verdict",
+        label: "Verdict",
+        render: () => (
+          <select
+            value={verdict}
+            onChange={(e) => setVerdict(e.target.value)}
+            disabled={!creditCase}
+            aria-label="Verdict"
+            className="w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
+          >
+            {Object.entries(CREDIT_CASE_VERDICT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "assignedTo",
+        label: "Assigned to",
+        render: () => (
+          <select
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            disabled={!creditCase}
+            aria-label="Assigned to"
+            className="w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
+          >
+            <option value="">Unassigned</option>
+            {(users ?? []).map((u) => (
+              <option key={u.url} value={u.url}>
+                {u.first_name && u.last_name
+                  ? `${u.first_name} ${u.last_name}`
+                  : u.email}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "requestedAmount",
+        label: "Requested amount",
+        render: () => (
+          <MoneyInput
+            value={requestedAmount}
+            onChange={setRequestedAmount}
+            aria-label="Requested amount"
+            className="w-full rounded-md border px-3 py-2 text-sm"
+          />
+        ),
+      },
+      {
+        id: "currency",
+        label: "Currency",
+        render: () => (
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            aria-label="Currency"
+            className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+          >
+            {CURRENCY_OPTIONS.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "requestedTerm",
+        label: "Requested term (days)",
+        render: () => (
+          <select
+            value={requestedTermDays}
+            onChange={(e) => setRequestedTermDays(e.target.value)}
+            aria-label="Requested term (days)"
+            className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+          >
+            {REQUESTED_TERM_DAYS_OPTIONS.map((days) => (
+              <option key={days} value={String(days)}>
+                Net {days}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        id: "verdictDueDays",
+        label: "Verdict deadline (days)",
+        // Behind an icon rather than printed under the box: it is a paragraph the user
+        // needs once, and it was making this one card twice the height of every other.
+        hint: "Leave blank to use your organization's default deadline. Set a number only when this case needs more or less time than the rest.",
+        render: () => (
+          <input
+            type="number"
+            min={1}
+            inputMode="numeric"
+            value={verdictDueDays}
+            onChange={(e) => setVerdictDueDays(e.target.value)}
+            disabled={!creditCase}
+            aria-label="Verdict deadline (days)"
+            // The organization's actual number, not the words "Organization default":
+            // knowing a default exists is no help in deciding whether to override it.
+            placeholder={
+              orgDefaultDays == null
+                ? "Organization default"
+                : `${orgDefaultDays} (organization default)`
+            }
+            className="w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
+          />
+        ),
+      },
+      {
+        id: "verdictDue",
+        label: "Verdict due",
+        // An overdue verdict is the one number on this page a reviewer has to act on,
+        // so the whole card switches to the danger tokens rather than only the wording.
+        tone: creditCase?.is_verdict_overdue ? ("danger" as const) : ("default" as const),
+        render: () => (
+          <DetailValue tone={creditCase?.is_verdict_overdue ? "danger" : "default"}>
+            {verdictDueLabel(creditCase?.days_until_verdict_due)}
+            {creditCase?.verdict_due_at && (
+              <span className="ml-2 text-xs font-normal text-fg-subtle">
+                {formatDate(creditCase.verdict_due_at)}
+              </span>
+            )}
+          </DetailValue>
+        ),
+      },
+      {
+        id: "daysOpen",
+        label: "Days open",
+        render: () => (
+          <DetailValue>
+            {creditCase?.days_since_created == null
+              ? "—"
+              : `${creditCase.days_since_created} ${
+                  creditCase.days_since_created === 1 ? "day" : "days"
+                }`}
+          </DetailValue>
+        ),
+      },
+      {
+        id: "decided",
+        label: "Decided",
+        render: () => (
+          <DetailValue>
+            {creditCase?.verdict_at ? formatDate(creditCase.verdict_at) : "—"}
+          </DetailValue>
+        ),
+      },
+      {
+        id: "created",
+        label: "Created",
+        render: () => (
+          <DetailValue>
+            {creditCase ? formatDate(creditCase.created_at) : "—"}
+          </DetailValue>
+        ),
+      },
+    ];
+
+    const custom = (customLabels ?? []).map((label) => ({
+      // Same id scheme as the dashboard's label columns, so "label:7" means the same
+      // thing in both saved arrangements.
+      id: labelColumnId(label),
+      label: label.name,
+      custom: true,
+      render: () => (
+        <ValueCombobox
+          value={customValue(label)}
+          onChange={(value) =>
+            setCustomDrafts((prev) => ({ ...prev, [label.id]: value }))
+          }
+          options={customSuggestions[label.id] ?? []}
+          maxLength={LABEL_VALUE_MAX_LENGTH}
+          disabled={!creditCase}
+          ariaLabel={label.name}
+          // Says the quiet part out loud: a value is created by using it here. Users
+          // were going looking for a page to define one on, which does not exist.
+          placeholder="Pick or type a value"
+          className="w-full"
+        />
+      ),
+    }));
+
+    return [...builtIn, ...custom];
+  }, [
+    creditCase,
+    customer,
+    users,
+    status,
+    verdict,
+    assignedTo,
+    requestedAmount,
+    currency,
+    requestedTermDays,
+    verdictDueDays,
+    organization,
+    customLabels,
+    customSuggestions,
+    customValue,
+  ]);
+
+  /** The cards in the user's saved order, with anything new at the end. */
+  const orderedDetailFields = useMemo(
+    () => applyOrder(detailFields, detailsOrder),
+    [detailFields, detailsOrder],
+  );
+
+  const detailFieldIds = useMemo(
+    () => orderedDetailFields.map((field) => field.id),
+    [orderedDetailFields],
+  );
+
+
   return (
     <AppShell>
       <RequireAuth>
@@ -749,201 +1225,116 @@ export default function CreditCaseDetailPage() {
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
           <section className="lg:col-span-2 rounded-lg border bg-surface p-6">
-            <h2 className="text-base font-semibold">Details</h2>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-md border bg-surface-subtle p-3 text-sm">
-                <div className="text-xs uppercase tracking-wide text-fg-muted">
-                  Customer
-                </div>
-                <div className="mt-1 font-medium">
-                  {customer ? (
-                    <Link
-                      href={`/customers/${customer.id}`}
-                      className="text-fg underline"
-                    >
-                      {customer.name}
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-md border bg-surface-subtle p-3 text-sm">
-                <div className="text-xs uppercase tracking-wide text-fg-muted">
-                  Decided
-                </div>
-                <div className="mt-1 font-medium">
-                  {creditCase?.verdict_at ? formatDate(creditCase.verdict_at) : "—"}
-                </div>
-              </div>
-
-              <div className="rounded-md border bg-surface-subtle p-3 text-sm">
-                <div className="text-xs uppercase tracking-wide text-fg-muted">
-                  Days open
-                </div>
-                <div className="mt-1 font-medium">
-                  {creditCase?.days_since_created == null
-                    ? "—"
-                    : `${creditCase.days_since_created} ${
-                        creditCase.days_since_created === 1 ? "day" : "days"
-                      }`}
-                </div>
-              </div>
-
-              {/* An overdue verdict is the one number on this page a reviewer has to act
-                  on, so once it goes negative the whole tile switches to the danger
-                  tokens rather than only changing the wording. */}
-              <div
-                className={[
-                  "rounded-md border p-3 text-sm",
-                  creditCase?.is_verdict_overdue
-                    ? "border-danger-line bg-danger-surface"
-                    : "bg-surface-subtle",
-                ].join(" ")}
-              >
-                <div
-                  className={
-                    creditCase?.is_verdict_overdue
-                      ? "text-xs uppercase tracking-wide text-danger"
-                      : "text-xs uppercase tracking-wide text-fg-muted"
-                  }
-                >
-                  Verdict due
-                </div>
-                <div
-                  className={
-                    creditCase?.is_verdict_overdue
-                      ? "mt-1 font-medium text-danger"
-                      : "mt-1 font-medium"
-                  }
-                >
-                  {verdictDueLabel(creditCase?.days_until_verdict_due)}
-                </div>
-                {creditCase?.verdict_due_at && (
-                  <div className="mt-1 text-xs text-fg-subtle">
-                    {formatDate(creditCase.verdict_due_at)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="block">
-                <div className="text-sm font-medium">Status</div>
-                <div className="relative">
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    disabled={!creditCase}
-                    className="mt-1 w-full rounded-md border bg-surface py-2 pl-8 pr-3 text-sm disabled:opacity-60"
-                  >
-                    {Object.entries(CREDIT_CASE_STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute left-3 top-1/2 mt-0.5 -translate-y-1/2">
-                    <StatusDot status={status} />
-                  </span>
-                </div>
-              </label>
-              {/* Editable, like status and assigned_to: this is where a reviewer records
-                  their approve/reject decision. The backend timestamps it. */}
-              <label className="block">
-                <div className="text-sm font-medium">Verdict</div>
-                <select
-                  value={verdict}
-                  onChange={(e) => setVerdict(e.target.value)}
-                  disabled={!creditCase}
-                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  {Object.entries(CREDIT_CASE_VERDICT_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <div className="text-sm font-medium">Assigned to</div>
-                <select
-                  value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  disabled={!creditCase}
-                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  <option value="">Unassigned</option>
-                  {(users ?? []).map((u) => (
-                    <option key={u.url} value={u.url}>
-                      {u.first_name && u.last_name
-                        ? `${u.first_name} ${u.last_name}`
-                        : u.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              <label className="block">
-                <div className="text-sm font-medium">Requested amount</div>
-                <MoneyInput
-                  value={requestedAmount}
-                  onChange={setRequestedAmount}
-                  className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="block">
-                <div className="text-sm font-medium">Currency</div>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
-                >
-                  <option value="MXN">MXN</option>
-                </select>
-              </label>
-              <label className="block">
-                <div className="text-sm font-medium">Requested term (days)</div>
-                <select
-                  value={requestedTermDays}
-                  onChange={(e) => setRequestedTermDays(e.target.value)}
-                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
-                >
-                  {REQUESTED_TERM_DAYS_OPTIONS.map((days) => (
-                    <option key={days} value={String(days)}>
-                      Net {days}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              <label className="block">
-                <div className="text-sm font-medium">Verdict deadline (days)</div>
-                <input
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  value={verdictDueDays}
-                  onChange={(e) => setVerdictDueDays(e.target.value)}
-                  disabled={!creditCase}
-                  placeholder="Organization default"
-                  className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm disabled:opacity-60"
-                />
-                {/* Spelled out because an empty box looks like "no deadline", which is the
-                    opposite of what it means: the case falls back to the organization's
-                    default and is still counted as overdue against it. */}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Details</h2>
                 <p className="mt-1 text-xs text-fg-subtle">
-                  Leave blank to use your organization&apos;s default deadline. Set a
-                  number only when this case needs more or less time than the rest.
+                  Drag a field by its handle to arrange this section however you like —
+                  your arrangement is remembered.
                 </p>
-              </label>
+              </div>
+
+              {/* Custom fields used to be defined only on /labels, which meant leaving
+                  the case you were looking at to add the field you wanted for it. */}
+              {!addingField ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingField(true);
+                    setAddFieldError(null);
+                  }}
+                  className="rounded-md border px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-subtle"
+                >
+                  + Add field
+                </button>
+              ) : (
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={newFieldName}
+                      maxLength={LABEL_NAME_MAX_LENGTH}
+                      aria-label="New field name"
+                      placeholder="e.g. sucursal"
+                      onChange={(e) => {
+                        setNewFieldName(e.target.value);
+                        setAddFieldError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleAddField();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setAddingField(false);
+                          setNewFieldName("");
+                          setAddFieldError(null);
+                        }
+                      }}
+                      className="w-48 rounded-md border bg-surface px-3 py-1.5 text-sm"
+                    />
+                    <button
+                      type="button"
+                      disabled={creatingField}
+                      onClick={() => void handleAddField()}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
+                    >
+                      {creatingField ? "Adding…" : "Add"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingField(false);
+                        setNewFieldName("");
+                        setAddFieldError(null);
+                      }}
+                      className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-surface-subtle"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {addFieldError && (
+                    <p className="text-xs text-danger">{addFieldError}</p>
+                  )}
+                  <p className="text-xs text-fg-subtle">
+                    Applies to every credit case. Existing cases are not filled in.
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* One grid for the whole section. Every card is the same shape whether it
+                holds a form control or a value nobody can edit here — the section used
+                to mix read-only tiles, form controls and a separate custom fields panel,
+                which read as three different kinds of thing. */}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {orderedDetailFields.map((field) => (
+                <DetailField
+                  key={field.id}
+                  id={field.id}
+                  label={field.label}
+                  hint={field.hint}
+                  custom={field.custom}
+                  tone={field.tone}
+                  dragging={draggingDetail}
+                  onDragStateChange={setDraggingDetail}
+                  onReorder={(draggedId) => handleReorderDetail(draggedId, field.id)}
+                >
+                  {field.render()}
+                </DetailField>
+              ))}
+            </div>
+
+            {customLabels !== null && customLabels.length === 0 && !addingField && (
+              <p className="mt-4 text-xs text-fg-subtle">
+                Your organization has not defined any custom fields yet. Use “Add field”
+                above, or manage them on{" "}
+                <Link href="/labels" className="underline">
+                  the custom fields page
+                </Link>
+                .
+              </p>
+            )}
 
             <div className="mt-4 flex items-center justify-end gap-3">
               {/* Confirms the save actually landed. `aria-live` so it is announced
@@ -967,46 +1358,11 @@ export default function CreditCaseDetailPage() {
               <button
                 type="button"
                 disabled={!creditCase || saving}
-                onClick={async () => {
-                  if (!creditCase) return;
-                  setSaving(true);
-                  setError(null);
-                  clearSaved();
-                  try {
-                    const updated = await apiJson<CreditCase>({
-                      pathOrUrl: creditCase.url,
-                      method: "PATCH",
-                      body: {
-                        requested_amount: requestedAmount.trim() || null,
-                        currency,
-                        requested_term_days: Number(requestedTermDays),
-                        // Empty box means null, which the backend reads as "use the
-                        // organization default" — not "no deadline".
-                        verdict_due_days: verdictDueDays.trim()
-                          ? Number(verdictDueDays)
-                          : null,
-                        customer: creditCase.customer.url,
-                        status,
-                        verdict,
-                        assigned_to: assignedTo || null,
-                      },
-                    });
-                    applyCase(updated);
-                    showSaved("Saved.");
-                  } catch (err) {
-                    setError(err instanceof ApiError ? err.message : "Save failed");
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
+                onClick={() => void handleSaveDetails()}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-fg hover:bg-primary-hover disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
-            </div>
-
-            <div className="mt-6 text-xs text-fg-subtle">
-              Created: {creditCase ? formatDate(creditCase.created_at) : "—"}
             </div>
           </section>
 
@@ -1192,15 +1548,6 @@ export default function CreditCaseDetailPage() {
             )}
           </section>
 
-          {/* Sits between the requirement checklist and the uploads: the case's own facts
-              first, the files last. Rendered only once the case is loaded because the
-              panel reads its saved values straight off `custom_fields`. Full width, since
-              an organization can define more fields than a single column would hold. */}
-          {creditCase && (
-            <div className="lg:col-span-3">
-              <CustomFieldsPanel creditCase={creditCase} onChanged={refreshCase} />
-            </div>
-          )}
 
           <section className="lg:col-span-3 rounded-lg border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">

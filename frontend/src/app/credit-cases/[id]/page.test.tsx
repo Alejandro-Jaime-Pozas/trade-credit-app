@@ -10,7 +10,7 @@
  * back. So these tests check that ticking and unticking alone reaches no API at all.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import type {
@@ -18,6 +18,8 @@ import type {
   CreditCaseRequirement,
   Customer,
   FileType,
+  Label,
+  Organization,
   RequirementTemplate,
 } from "@/lib/types";
 import type { TemplateImpactEntry } from "@/lib/fileTypes";
@@ -45,6 +47,11 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
+const listCreditCaseLabels = vi.fn();
+const listExistingValues = vi.fn();
+const setLabelValue = vi.fn();
+const clearLabelValue = vi.fn();
+const createLabel = vi.fn();
 const listFileTypes = vi.fn();
 const listCreditCaseRequirements = vi.fn();
 const getDefaultTemplate = vi.fn();
@@ -54,6 +61,18 @@ const removeCreditCaseRequirement = vi.fn();
 const updateTemplateItems = vi.fn();
 const createDefaultTemplate = vi.fn();
 const applyTemplateToCases = vi.fn();
+
+vi.mock("@/lib/labels", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/labels")>("@/lib/labels");
+  return {
+    ...actual,
+    listCreditCaseLabels: (...a: unknown[]) => listCreditCaseLabels(...a),
+    listExistingValues: (...a: unknown[]) => listExistingValues(...a),
+    setLabelValue: (...a: unknown[]) => setLabelValue(...a),
+    clearLabelValue: (...a: unknown[]) => clearLabelValue(...a),
+    createLabel: (...a: unknown[]) => createLabel(...a),
+  };
+});
 
 vi.mock("@/lib/fileTypes", async () => {
   const actual = await vi.importActual<typeof import("@/lib/fileTypes")>("@/lib/fileTypes");
@@ -108,6 +127,20 @@ const CREDIT_CASE = {
 
 const CUSTOMER = { url: CUSTOMER_URL, id: 2, name: "Gringotts" } as unknown as Customer;
 
+const ORGANIZATION = {
+  url: "http://api/organizations/1/",
+  id: 1,
+  name: "Hogwarts",
+  default_verdict_days: 7,
+} as unknown as Organization;
+
+const SUCURSAL = {
+  url: "http://api/labels/7/",
+  id: 7,
+  name: "sucursal",
+  content_type: "creditcase",
+} as unknown as Label;
+
 const REQUIREMENT = {
   url: "http://api/credit-case-requirements/11/",
   id: 11,
@@ -138,6 +171,11 @@ beforeEach(() => {
   for (const fn of [
     apiJson,
     drfListAll,
+    listCreditCaseLabels,
+    listExistingValues,
+    setLabelValue,
+    clearLabelValue,
+    createLabel,
     listFileTypes,
     listCreditCaseRequirements,
     getDefaultTemplate,
@@ -153,7 +191,19 @@ beforeEach(() => {
   apiJson.mockImplementation(async ({ pathOrUrl }: { pathOrUrl: string }) =>
     pathOrUrl === CUSTOMER_URL ? CUSTOMER : CREDIT_CASE,
   );
-  drfListAll.mockResolvedValue([]);
+  // Path-aware: the page asks for users and for the organization from the same helper.
+  drfListAll.mockImplementation(async ({ path }: { path: string }) =>
+    path === "/organizations/" ? [ORGANIZATION] : [],
+  );
+  listCreditCaseLabels.mockResolvedValue([SUCURSAL]);
+  // Per label: only "sucursal" has ever been filled in, so a field created mid-test
+  // starts with nothing to offer — which is the honest starting state for a new field.
+  listExistingValues.mockImplementation(async (label: Label) =>
+    label.id === SUCURSAL.id ? ["MTY Norte", "GDL"] : [],
+  );
+  setLabelValue.mockResolvedValue(undefined);
+  clearLabelValue.mockResolvedValue(undefined);
+  createLabel.mockResolvedValue(SUCURSAL);
   listFileTypes.mockResolvedValue([BANK, BALANCE]);
   listCreditCaseRequirements.mockResolvedValue([REQUIREMENT]);
   getDefaultTemplate.mockResolvedValue(TEMPLATE);
@@ -295,5 +345,193 @@ describe("the Done prompt", () => {
       { creditCaseIds: number[] },
     ];
     expect(applyArgs.creditCaseIds).toEqual([9]);
+  });
+});
+
+/**
+ * The Details section now holds everything: the case's own fields AND the
+ * organization's custom fields, which used to live in a separate panel below.
+ */
+describe("the Details section", () => {
+  async function loadPage() {
+    render(<CreditCaseDetailPage />);
+    await screen.findByRole("combobox", { name: "sucursal" });
+  }
+
+  it("shows a custom field alongside the built-in ones", async () => {
+    await loadPage();
+
+    const details = screen.getByRole("heading", { name: "Details" }).closest("section");
+    expect(details).not.toBeNull();
+    // Both kinds of field in the same section, which is the whole change.
+    expect(within(details!).getByRole("combobox", { name: "sucursal" })).toBeInTheDocument();
+    expect(within(details!).getByRole("combobox", { name: "Status" })).toBeInTheDocument();
+  });
+
+  it("marks a custom field so it can be told apart from a built-in one", async () => {
+    await loadPage();
+
+    expect(screen.getByRole("button", { name: "Custom field" })).toBeInTheDocument();
+  });
+
+  it("offers the values already in use rather than a bare text box", async () => {
+    const user = userEvent.setup();
+    await loadPage();
+
+    await user.click(screen.getByRole("button", { name: "Show existing values" }));
+
+    expect(screen.getByRole("option", { name: "MTY Norte" })).toBeInTheDocument();
+  });
+
+  it("offers to create a value that does not exist yet", async () => {
+    const user = userEvent.setup();
+    await loadPage();
+
+    await user.type(screen.getByRole("combobox", { name: "sucursal" }), "Puebla");
+
+    // The reported confusion: users believed a new value had to be defined somewhere
+    // else first. There is nowhere else — a value exists once a case uses it.
+    expect(
+      screen.getByRole("option", { name: /Create .*Puebla/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("saves a value created that way with the rest of Details", async () => {
+    const user = userEvent.setup();
+    await loadPage();
+
+    await user.type(screen.getByRole("combobox", { name: "sucursal" }), "Puebla");
+    await user.click(screen.getByRole("option", { name: /Create .*Puebla/ }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(setLabelValue).toHaveBeenCalledWith(
+      expect.objectContaining({ objectId: 5, value: "Puebla" }),
+    );
+  });
+
+  it("puts the organization's actual deadline in the placeholder", async () => {
+    await loadPage();
+
+    // "Organization default" told the user a default existed without telling them what
+    // it was, which is the one thing needed to decide whether to override it.
+    expect(
+      screen.getByRole("spinbutton", { name: "Verdict deadline (days)" }),
+    ).toHaveAttribute("placeholder", "7 (organization default)");
+  });
+
+  it("hides the deadline explanation behind an info icon", async () => {
+    await loadPage();
+
+    const tip = screen.getByRole("button", {
+      name: /Leave blank to use your organization's default deadline/i,
+    });
+    expect(tip).toBeInTheDocument();
+  });
+
+  it("offers USD as well as MXN", async () => {
+    await loadPage();
+
+    const currency = screen.getByRole("combobox", { name: "Currency" });
+    expect(within(currency).getByRole("option", { name: "USD" })).toBeInTheDocument();
+    expect(within(currency).getByRole("option", { name: "MXN" })).toBeInTheDocument();
+  });
+});
+
+describe("saving custom field values", () => {
+  it("writes them with the section's own Save button", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseDetailPage />);
+    await screen.findByRole("combobox", { name: "sucursal" });
+
+    await user.click(screen.getByRole("button", { name: "Show existing values" }));
+    await user.click(screen.getByRole("option", { name: "GDL" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // One Save for the whole section — a per-card button would have been the one thing
+    // in it that did not look like everything else.
+    expect(setLabelValue).toHaveBeenCalledWith(
+      expect.objectContaining({ objectId: 5, value: "GDL" }),
+    );
+  });
+
+  it("treats an emptied box as a delete, not a save of an empty string", async () => {
+    apiJson.mockImplementation(async ({ pathOrUrl }: { pathOrUrl: string }) =>
+      pathOrUrl === CUSTOMER_URL
+        ? CUSTOMER
+        : { ...CREDIT_CASE, custom_fields: { sucursal: "MTY Norte" } },
+    );
+    const user = userEvent.setup();
+    render(<CreditCaseDetailPage />);
+    const box = await screen.findByRole("combobox", { name: "sucursal" });
+
+    await user.clear(box);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // A saved empty string would live on as a filterable "" option on the dashboard.
+    expect(clearLabelValue).toHaveBeenCalled();
+    expect(setLabelValue).not.toHaveBeenCalled();
+  });
+
+  it("counts a changed custom field as unsaved work", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseDetailPage />);
+    await screen.findByRole("combobox", { name: "sucursal" });
+
+    const discard = screen.getByRole("button", { name: "Discard changes" });
+    expect(discard).toBeDisabled();
+
+    await user.type(screen.getByRole("combobox", { name: "sucursal" }), "Puebla");
+
+    // Otherwise Discard sits greyed out over a box the user has visibly changed.
+    expect(discard).toBeEnabled();
+  });
+
+  it("discards a typed value without writing anything", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseDetailPage />);
+    await screen.findByRole("combobox", { name: "sucursal" });
+
+    await user.type(screen.getByRole("combobox", { name: "sucursal" }), "Puebla");
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(screen.getByRole("combobox", { name: "sucursal" })).toHaveValue("");
+    expect(setLabelValue).not.toHaveBeenCalled();
+  });
+});
+
+describe("adding a field from the case", () => {
+  it("creates the field and shows it straight away", async () => {
+    const VENDEDOR = {
+      url: "http://api/labels/8/",
+      id: 8,
+      name: "vendedor",
+      content_type: "creditcase",
+    } as unknown as Label;
+    createLabel.mockResolvedValue(VENDEDOR);
+    const user = userEvent.setup();
+    render(<CreditCaseDetailPage />);
+    await screen.findByRole("combobox", { name: "sucursal" });
+
+    await user.click(screen.getByRole("button", { name: /Add field/ }));
+    await user.type(screen.getByRole("textbox", { name: "New field name" }), "vendedor");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(createLabel).toHaveBeenCalledWith("vendedor");
+    // Usable immediately, which is normally why the user wanted it.
+    expect(await screen.findByRole("combobox", { name: "vendedor" })).toBeInTheDocument();
+  });
+
+  it("refuses a name the organization already uses, without asking the server", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseDetailPage />);
+    await screen.findByRole("combobox", { name: "sucursal" });
+
+    await user.click(screen.getByRole("button", { name: /Add field/ }));
+    await user.type(screen.getByRole("textbox", { name: "New field name" }), "sucursal");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    // The backend's unique constraint comes back as a generic 400 that reads badly.
+    expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+    expect(createLabel).not.toHaveBeenCalled();
   });
 });

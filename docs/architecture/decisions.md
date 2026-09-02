@@ -895,3 +895,109 @@ follow-on cost is worth stating, because it is not obvious and it bit once — a
 no longer a DOM descendant, so the usual `e.currentTarget.contains(e.relatedTarget)` blur check
 reads focus moving INTO the panel as focus leaving. Document-level `mousedown` and `focusin`
 listeners replace it.
+
+### A saved arrangement has to survive the list changing under it
+
+Decided 2026-09-01.
+
+Two lists are now the user's to arrange: the dashboard's columns, and the field cards in a
+credit case's Details section. Both save what the user chose, so both immediately have the same
+problem — the saved arrangement outlives the thing it describes. A custom field gets deleted; a
+new one gets created; a release adds a column.
+
+`lib/layoutPrefs.ts` is one library for both, and its two rules are the whole design:
+
+- An id in the saved order that no longer exists is **skipped**. Left in, it is a phantom column
+  or a crashed lookup.
+- An id the saved order has never seen is **appended**. This is the rule that carries a product
+  requirement: "create a custom field and it appears as a new column at the end" has to stay true
+  for a user who rearranged their columns months ago. Their arrangement is honoured and the new
+  field is still visible, without them going looking for it.
+
+A move takes the CURRENTLY RENDERED order rather than the stored one, because the stored order is
+allowed to be partial — dropping onto a column nobody has ever rearranged has to work. The result
+is always a complete order, which is also what makes the first drag in a fresh browser pin every
+other position down instead of letting the next render reshuffle around the moved item.
+
+Filtering and sorting run over the VISIBLE columns only. A filter left active on a column the user
+then hides would go on removing rows with nothing on screen to explain why.
+
+Dragging is the fast path and is mouse-only, so the Columns menu carries Move up/Move down as
+well. That is not a nicety: without it a keyboard user could not reorder the table at all, and a
+hidden column has no header left to click, so the menu is the only way to bring one back.
+
+### Every field in Details is the same kind of thing, so it looks the same
+
+Decided 2026-09-01.
+
+The Details section used to hold three visual languages for one idea — "here is a fact about this
+case". Read-only tiles (Customer, Days open), form controls in a different shape, and the
+organization's own custom fields in a separate panel further down the page.
+
+Now one list of `DetailField` cards. A read-only value renders through `DetailValue`, padded to
+match a form control so it lines up with the inputs beside it rather than sitting a few pixels
+higher — that misalignment is most of what made the old section read as two different kinds of
+thing. The only difference left on a custom field is a small blue marker, which is the one
+distinction a user actually needs.
+
+The consequence worth writing down: **custom field values moved onto the section's single Save
+button.** A per-card Save would have been the one thing in the section that did not look like
+everything else. That pulls three things along with it — `hasUnsavedChanges` has to count changed
+custom fields or Discard sits greyed out over a visibly changed box; Discard has to clear their
+drafts; and the case has to be RE-READ after the label writes, because the PATCH response was
+serialised before them and its `custom_fields` is already one step stale.
+
+### A picker the user cannot see is not a picker
+
+Decided 2026-09-01.
+
+Custom field values were offered through a native `<datalist>`. It cost nothing and degraded
+perfectly, which is why it was chosen — but a datalist is invisible until you start typing. An
+organization already recording "MTY Norte" had no way to learn that from the box, so people
+retyped it, sometimes as "MTY norte", and the dashboard then filtered the two as unrelated
+values. The feature existed and did not work.
+
+`ValueCombobox` lists every recorded value on click or ArrowDown. It stays a free-text input
+rather than becoming a `<select>`, because the first case to use a new value has to be able to
+type it — and typing something that matches nothing shows the whole list again rather than an
+empty one, since an empty list at that moment reads as "invalid value", which is exactly wrong.
+
+A field with no values yet renders no caret at all. A control promising an empty list is worse
+than no control.
+
+The same reasoning applies one step up, to the verdict deadline placeholder: it said
+"Organization default", which told the user a default existed without telling them what it was —
+the one fact needed to decide whether to override it. It now reads `7 (organization default)`.
+
+### If a value can be created by typing it, the box has to say so
+
+Decided 2026-09-02.
+
+A bug report asked for a way to "create a new value" for a custom field without going to the
+custom fields page. There is no such page — `/labels` defines the FIELDS, and a value exists the
+moment a case is saved with it. Typing a new one already worked.
+
+The report was still right, and this is the part worth keeping: the control had made a true thing
+invisible. Listing the values already in use (see the entry above) reads as the set of permitted
+answers, so users concluded there must be somewhere else to add to that set.
+
+The fix is a `+ Create "…"` row at the foot of the list, the same shape as the customer search on
+`/credit-cases/new`. It is suppressed when the typed text already IS one of the values, compared
+case-insensitively, because "Create mty norte" beside an existing "MTY Norte" invites exactly the
+duplicate this control was built to prevent.
+
+Two things it replaced, both deliberately:
+
+- The no-match fallback that showed the entire list again. Its reasoning — an empty list reads as
+  "invalid value" — was sound, and the create row answers it better. Keeping both would bury the
+  new row under every value that does not match.
+- The bare text box a field with no recorded values used to get. The empty field is precisely
+  where "can I just type one?" needs answering, so it opens a panel too, holding only the create
+  row. The caret still appears only when there is something to browse.
+
+The row carries a footer saying the value is added when the case is saved. Since custom fields
+joined the Details section's single Save button, "Create" without that line reads as a promise
+something was already written — and the user leaves the page having lost it.
+
+The general rule: a control that quietly permits something is not the same as a control that
+offers it, and the gap between the two is where users invent workflows that do not exist.

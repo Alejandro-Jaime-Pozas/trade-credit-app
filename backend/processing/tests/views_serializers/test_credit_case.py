@@ -285,3 +285,42 @@ def test_computed_deadline_fields_are_read_only():
     assert res.status_code == status.HTTP_200_OK
     assert res.data['is_verdict_overdue'] is False
     assert res.data['days_until_verdict_due'] != 999
+
+
+@pytest.mark.django_db
+def test_a_credit_case_can_be_requested_in_usd():
+    """
+    Trade credit to a Mexican importer is routinely denominated in dollars, so the
+    amount is meaningless without the currency alongside it.
+    """
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = Customer.objects.create(organization=org, name='Acme Customer')
+    credit_case = CreditCase.objects.create(customer=customer)
+
+    res = client.patch(
+        reverse('creditcase-detail', args=[credit_case.id]),
+        data={'currency': 'USD'},
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_200_OK
+    credit_case.refresh_from_db()
+    assert credit_case.currency == 'USD'
+
+
+@pytest.mark.django_db
+def test_an_unknown_currency_is_still_rejected():
+    """Adding USD widens the list; it does not turn the field into free text."""
+    org = make_org()
+    client = make_client_for(make_user_in_org(org))
+    customer = Customer.objects.create(organization=org, name='Acme Customer')
+    credit_case = CreditCase.objects.create(customer=customer)
+
+    res = client.patch(
+        reverse('creditcase-detail', args=[credit_case.id]),
+        data={'currency': 'EUR'},
+        format='json',
+    )
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST

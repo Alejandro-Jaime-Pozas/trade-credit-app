@@ -8,7 +8,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { apiJson, ApiError, drfListAll } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { createCreditCaseForExistingCustomer } from "@/lib/creditCase";
-import { REQUESTED_TERM_DAYS_OPTIONS } from "@/lib/constants";
+import { CURRENCY_OPTIONS, REQUESTED_TERM_DAYS_OPTIONS } from "@/lib/constants";
 import { FileTypeChooser, type FileTypeChooserSelection } from "@/components/FileTypeChooser";
 import { ImpactWarning } from "@/components/ImpactWarning";
 import { MoneyInput } from "@/components/MoneyInput";
@@ -770,7 +770,11 @@ export default function NewCreditCasePage() {
                       onChange={(e) => setCurrency(e.target.value)}
                       className="mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm"
                     >
-                      <option value="MXN">MXN</option>
+                      {CURRENCY_OPTIONS.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
                     </select>
                   </label>
                   <label className="block">

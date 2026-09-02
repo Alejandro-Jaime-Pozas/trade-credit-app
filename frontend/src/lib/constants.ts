@@ -5,6 +5,16 @@
 
 export const REQUESTED_TERM_DAYS_OPTIONS = [15, 30, 45, 60, 90] as const;
 
+/**
+ * Currencies a credit line can be requested in.
+ *
+ * Mirrors `CurrencyName` in `backend/core/choices_for_models.py`, which is the authority
+ * — a code missing from there is rejected on save. MXN first because the app's users are
+ * Mexican companies; USD because trade credit to a Mexican importer is routinely
+ * denominated in dollars, and an amount means nothing without knowing which it is.
+ */
+export const CURRENCY_OPTIONS = ["MXN", "USD"] as const;
+
 export type RequestedTermDays = (typeof REQUESTED_TERM_DAYS_OPTIONS)[number];
 
 /** The reviewer's final decision on a case. Set by hand from the detail page. */

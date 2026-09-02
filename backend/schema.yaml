@@ -2953,6 +2953,7 @@ components:
             Currency for the requested credit line amount.
 
             * `MXN` - MXN
+            * `USD` - USD
         requested_term_days:
           nullable: true
           description: |-
@@ -3180,8 +3181,11 @@ components:
     CurrencyEnum:
       enum:
       - MXN
+      - USD
       type: string
-      description: '* `MXN` - MXN'
+      description: |-
+        * `MXN` - MXN
+        * `USD` - USD
     Customer:
       type: object
       description: |-
@@ -4063,6 +4067,7 @@ components:
             Currency for the requested credit line amount.
 
             * `MXN` - MXN
+            * `USD` - USD
         requested_term_days:
           nullable: true
           description: |-

@@ -114,6 +114,9 @@ function lastDownload(): [string, string] {
 
 beforeEach(() => {
   downloadCsv.mockReset();
+  // The table reads its saved column arrangement on first render, so a leftover from
+  // one test would silently reorder the next one's table.
+  window.localStorage.clear();
 });
 
 describe("dynamic columns", () => {
@@ -266,5 +269,122 @@ describe("CSV export", () => {
   it("disables the button while the rows are still loading", () => {
     renderTable({ cases: null });
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
+  });
+});
+
+
+/**
+ * Column arrangement: which columns are shown, in what order, remembered per user.
+ *
+ * Kept honest by asserting on the HEADER ORDER rather than on localStorage alone —
+ * a preference that saves correctly and renders wrongly is not a working feature.
+ */
+describe("arranging columns", () => {
+  function headerNames(): string[] {
+    return screen
+      .getAllByRole("columnheader")
+      .map((th) => th.textContent?.replace(/[⇅▲▼]/g, "").trim() ?? "");
+  }
+
+  it("puts a newly created custom field at the end", () => {
+    render(
+      <CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} labels={LABELS} />,
+    );
+
+    const names = headerNames();
+    expect(names.at(-2)).toBe("Sucursal");
+    expect(names.at(-1)).toBe("Vendedor");
+  });
+
+  it("hides a column from the Columns menu, and brings it back", async () => {
+    const user = userEvent.setup();
+    render(
+      <CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} labels={LABELS} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Columns/ }));
+    await user.click(screen.getByRole("checkbox", { name: "Sucursal" }));
+
+    expect(headerNames()).not.toContain("Sucursal");
+
+    // The menu is the ONLY way back — a hidden column has no header left to click.
+    await user.click(screen.getByRole("checkbox", { name: "Sucursal" }));
+    expect(headerNames()).toContain("Sucursal");
+  });
+
+  it("refuses to hide the last visible column", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} />);
+
+    await user.click(screen.getByRole("button", { name: /Columns/ }));
+    const boxes = screen.getAllByRole("checkbox");
+    for (const box of boxes.slice(1)) {
+      if ((box as HTMLInputElement).checked) await user.click(box);
+    }
+
+    // A table with nothing in it would leave the user no way to read anything.
+    expect(boxes[0]).toBeDisabled();
+    expect(headerNames()).toHaveLength(1);
+  });
+
+  it("moves a column with the menu's arrows", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} />);
+
+    const before = headerNames();
+    await user.click(screen.getByRole("button", { name: /Columns/ }));
+    await user.click(screen.getByRole("button", { name: "Move Customer left" }));
+
+    const after = headerNames();
+    expect(after[0]).toBe("Customer");
+    expect(after[1]).toBe(before[0]);
+  });
+
+  it("remembers the arrangement for the next session", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Columns/ }));
+    await user.click(screen.getByRole("button", { name: "Move Customer left" }));
+    await user.click(screen.getByRole("checkbox", { name: "Status" }));
+    unmount();
+
+    // A fresh mount stands in for the next visit: the arrangement comes from
+    // localStorage, not from anything left in memory.
+    render(<CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} />);
+    expect(headerNames()[0]).toBe("Customer");
+    expect(headerNames()).not.toContain("Status");
+  });
+
+  it("resets back to the table's own defaults", async () => {
+    const user = userEvent.setup();
+    render(<CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} />);
+    const original = headerNames();
+
+    await user.click(screen.getByRole("button", { name: /Columns/ }));
+    await user.click(screen.getByRole("button", { name: "Move Customer left" }));
+    await user.click(screen.getByRole("checkbox", { name: "Status" }));
+    await user.click(screen.getByRole("button", { name: /Reset to default columns/ }));
+
+    expect(headerNames()).toEqual(original);
+  });
+
+  it("drops a hidden column's rows from the CSV, like the screen", async () => {
+    const user = userEvent.setup();
+    render(
+      <CreditCaseTable cases={makeCases()} customersByUrl={CUSTOMERS} labels={LABELS} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Columns/ }));
+    await user.click(screen.getByRole("checkbox", { name: "Sucursal" }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Export CSV" }));
+
+    // The export has always been "what is on screen". Hiding a column is part of that.
+    const [, csv] = downloadCsv.mock.calls[0] as [string, string];
+    expect(csv).not.toContain("Sucursal");
+    expect(csv).toContain("Vendedor");
   });
 });

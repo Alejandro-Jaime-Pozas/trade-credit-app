@@ -1582,6 +1582,7 @@ export interface components {
              * @description Currency for the requested credit line amount.
              *
              *     * `MXN` - MXN
+             *     * `USD` - USD
              */
             currency?: components["schemas"]["CurrencyEnum"];
             /**
@@ -1685,9 +1686,10 @@ export interface components {
         };
         /**
          * @description * `MXN` - MXN
+         *     * `USD` - USD
          * @enum {string}
          */
-        CurrencyEnum: "MXN";
+        CurrencyEnum: "MXN" | "USD";
         /**
          * @description Identical to DRF's `HyperlinkedModelSerializer`, except every relation field it
          *     auto-builds (a ForeignKey/ManyToMany to another model) uses `NamedHyperlinkedRelatedField`
@@ -2187,6 +2189,7 @@ export interface components {
              * @description Currency for the requested credit line amount.
              *
              *     * `MXN` - MXN
+             *     * `USD` - USD
              */
             currency?: components["schemas"]["CurrencyEnum"];
             /**

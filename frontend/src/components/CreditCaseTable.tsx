@@ -13,6 +13,7 @@
  */
 import Link from "next/link";
 import React, { useMemo, useRef, useState } from "react";
+import { ColumnSettings } from "./ColumnSettings";
 import { StatusWithDot } from "./StatusDot";
 import { TableColumnHeader } from "./TableColumnHeader";
 import { Money } from "./Money";
@@ -45,11 +46,23 @@ import {
   saveColumnWidths,
   type ColumnWidths,
 } from "@/lib/columnWidths";
+import {
+  applyOrder,
+  loadLayout,
+  moveItem,
+  nudgeItem,
+  saveLayout,
+  toggleHidden,
+  type LayoutPrefs,
+} from "@/lib/layoutPrefs";
 import { CREDIT_CASE_STATUS_LABELS } from "@/lib/constants";
 import type { CreditCase, Customer, Label } from "@/lib/types";
 
 /** Identifies this table's saved column widths in localStorage. */
 const COLUMN_WIDTHS_TABLE_ID = "creditCases";
+
+/** Identifies this table's saved column order and hidden columns. */
+const COLUMN_LAYOUT_ID = "creditCasesColumns";
 
 /** Filename prefix for the CSV export, dated by `csvFilename`. */
 const CSV_FILENAME_PREFIX = "credit-cases";
@@ -484,9 +497,82 @@ export function CreditCaseTable(props: {
   /** null = the default order the rows were handed to us in. */
   const [sort, setSort] = useState<SortState>(null);
 
+  /**
+   * The column order and hidden columns this user chose, read on first render for the
+   * same reason the widths are — an effect would paint the default arrangement first
+   * and then snap to theirs.
+   */
+  const [layout, setLayout] = useState<LayoutPrefs>(() => loadLayout(COLUMN_LAYOUT_ID));
+
+  /** Persist on every change: unlike a resize drag, these are one click at a time. */
+  function updateLayout(next: LayoutPrefs) {
+    setLayout(next);
+    saveLayout(COLUMN_LAYOUT_ID, next);
+  }
+
   // Rebuilt only when the org's labels change — every column carries closures, so
   // rebuilding per render would hand the header cells new props each time.
-  const columns = useMemo(() => buildColumns(labels), [labels]);
+  const allColumns = useMemo(() => buildColumns(labels), [labels]);
+
+  /**
+   * Every column in the user's order, hidden ones included.
+   *
+   * A custom field created since they last rearranged anything lands at the end and is
+   * visible, which is what makes "create a field, it appears as a new column" true even
+   * for someone with a saved arrangement — see `applyOrder`.
+   */
+  const orderedColumns = useMemo(
+    () => applyOrder(allColumns, layout.order),
+    [allColumns, layout.order],
+  );
+
+  /**
+   * What actually gets rendered.
+   *
+   * Filters and sorts deliberately run over the VISIBLE columns only: a filter the user
+   * can no longer see, on a column they hid, would quietly remove rows with nothing on
+   * screen to explain why.
+   */
+  const columns = useMemo(
+    () => orderedColumns.filter((col) => !layout.hidden.includes(col.id)),
+    [orderedColumns, layout.hidden],
+  );
+
+  const columnSettingsEntries = useMemo(
+    () =>
+      orderedColumns.map((col) => ({
+        id: col.id,
+        label: col.label,
+        visible: !layout.hidden.includes(col.id),
+      })),
+    [orderedColumns, layout.hidden],
+  );
+
+  /** Column ids in their current rendered order, which is what a move is relative to. */
+  const orderedIds = useMemo(
+    () => orderedColumns.map((col) => col.id),
+    [orderedColumns],
+  );
+
+  /** Set while a heading is being dragged, so every other heading shows it can take it. */
+  const [draggingColumn, setDraggingColumn] = useState(false);
+
+  function handleReorder(draggedId: string, targetId: string) {
+    setDraggingColumn(false);
+    updateLayout({ ...layout, order: moveItem(orderedIds, draggedId, targetId) });
+  }
+
+  function handleNudge(columnId: string, delta: -1 | 1) {
+    updateLayout({ ...layout, order: nudgeItem(orderedIds, columnId, delta) });
+  }
+
+  function handleToggleVisible(columnId: string) {
+    updateLayout({ ...layout, hidden: toggleHidden(layout.hidden, columnId) });
+  }
+
+  function handleResetLayout() {
+    updateLayout({ order: [], hidden: [] });
+  }
 
   const ctx = useMemo<ColumnContext>(
     () => ({
@@ -609,22 +695,35 @@ export function CreditCaseTable(props: {
           </>
         )}
 
-        {/* Pushed to the far end so it reads as an action on the list rather than
-            as one more filter chip. */}
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={visibleRows.length === 0}
-          className="ml-auto rounded-md border px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Export CSV
-        </button>
+        {/* Pushed to the far end so they read as actions on the list rather than as
+            more filter chips. */}
+        <div className="ml-auto flex items-center gap-2">
+          <ColumnSettings
+            entries={columnSettingsEntries}
+            onToggleVisible={handleToggleVisible}
+            onMove={handleNudge}
+            onReset={handleResetLayout}
+          />
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={visibleRows.length === 0}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-lg border bg-surface">
         <table className="min-w-full text-sm">
           <thead className="border-b bg-surface-subtle text-left text-xs uppercase tracking-wide text-fg-muted">
-            <tr>
+            {/* Captured on the row rather than per heading: `dragstart` bubbles, and one
+                listener here is what lets every OTHER heading know a drag is in flight. */}
+            <tr
+              onDragStart={() => setDraggingColumn(true)}
+              onDragEnd={() => setDraggingColumn(false)}
+            >
               {columns.map((col) => (
                 <TableColumnHeader
                   key={col.id}
@@ -643,6 +742,8 @@ export function CreditCaseTable(props: {
                   defaultWidthPercent={col.widthPercent}
                   onResize={(width) => handleResize(col.id, width)}
                   onResizeEnd={handleResizeEnd}
+                  onReorder={(draggedId) => handleReorder(draggedId, col.id)}
+                  dragging={draggingColumn}
                 />
               ))}
             </tr>

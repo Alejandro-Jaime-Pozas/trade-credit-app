@@ -73,7 +73,20 @@ type TableColumnHeaderProps = {
   onResize?: (width: number) => void;
   /** Called once when the drag ends, so the caller can persist the new width. */
   onResizeEnd?: () => void;
+  /**
+   * Reorder support. Passing `onReorder` makes the heading draggable; the id handed
+   * back is the column that was dragged onto this one.
+   *
+   * Mouse-only by nature, which is why the Columns menu carries Move up/Move down —
+   * without it a keyboard user could not reorder the table at all.
+   */
+  onReorder?: (draggedColumnId: string) => void;
+  /** True while some column is mid-drag, so every heading can show a drop target. */
+  dragging?: boolean;
 };
+
+/** The drag payload's MIME type. Namespaced so nothing else on the page claims it. */
+const COLUMN_DRAG_TYPE = "application/x-tcapp-column";
 
 /** Maps the sort state onto the glyph and the label read by screen readers. */
 function sortAffordance(direction: SortDirection | null, label: string) {
@@ -124,6 +137,8 @@ export function TableColumnHeader({
   defaultWidthPercent,
   onResize,
   onResizeEnd,
+  onReorder,
+  dragging = false,
 }: TableColumnHeaderProps) {
   /** A column without an option list gets a sort button only. */
   const filterable = options !== undefined;
@@ -132,6 +147,8 @@ export function TableColumnHeader({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [position, setPosition] = useState<PanelPosition | null>(null);
+  // Whether a dragged column is currently hovering over this one, for the drop line.
+  const [dropTarget, setDropTarget] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -408,9 +425,38 @@ export function TableColumnHeader({
   return (
     <th
       ref={cellRef}
-      className="relative px-4 py-3"
+      className={[
+        "relative px-4 py-3",
+        dropTarget ? "bg-surface-strong" : "",
+        // While anything is being dragged every other heading is a valid target, so
+        // saying so up front beats making the user discover it by trial.
+        dragging && !dropTarget ? "bg-surface-muted/40" : "",
+      ].join(" ")}
       aria-sort={ariaSort}
       scope="col"
+      onDragOver={
+        onReorder
+          ? (e) => {
+              // Both are required: without preventDefault the browser refuses the drop
+              // outright, and the effect is what turns the cursor into a move arrow.
+              if (!e.dataTransfer.types.includes(COLUMN_DRAG_TYPE)) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setDropTarget(true);
+            }
+          : undefined
+      }
+      onDragLeave={onReorder ? () => setDropTarget(false) : undefined}
+      onDrop={
+        onReorder
+          ? (e) => {
+              e.preventDefault();
+              setDropTarget(false);
+              const draggedId = e.dataTransfer.getData(COLUMN_DRAG_TYPE);
+              if (draggedId) onReorder(draggedId);
+            }
+          : undefined
+      }
       // A width the user dragged wins outright. Otherwise the percentage lets every
       // column share the extra space in a wide window. The table stays `auto` layout,
       // so these are proportions rather than hard limits — a column still refuses to
@@ -424,7 +470,23 @@ export function TableColumnHeader({
       }
     >
       <div className="flex items-center gap-1">
-        <span>{label}</span>
+        {/* The heading text itself is the drag handle. A separate grip would be one more
+            thing to aim at in a row that already holds a sort button, a filter button
+            and a resize edge. */}
+        <span
+          draggable={Boolean(onReorder)}
+          onDragStart={
+            onReorder
+              ? (e) => {
+                  e.dataTransfer.setData(COLUMN_DRAG_TYPE, columnId);
+                  e.dataTransfer.effectAllowed = "move";
+                }
+              : undefined
+          }
+          className={onReorder ? "cursor-grab select-none active:cursor-grabbing" : ""}
+        >
+          {label}
+        </span>
 
         <button
           type="button"
